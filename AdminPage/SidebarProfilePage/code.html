@@ -1,0 +1,432 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "error-container": "#ffdad6",
+          "text-primary": "#18323D",
+          "tertiary-container": "#26809d",
+          "inverse-on-surface": "#ebf2f3",
+          "on-secondary": "#ffffff",
+          "surface": "#f4fbfc",
+          "on-surface-variant": "#40484e",
+          "surface-dim": "#d4dbdc",
+          "action-green": "#9BE564",
+          "secondary": "#31647a",
+          "secondary-fixed": "#bee9ff",
+          "surface-container-low": "#eef5f6",
+          "status-pending": "#D9A85C",
+          "on-primary-fixed-variant": "#004c6a",
+          "on-secondary-container": "#34677d",
+          "surface-bright": "#f4fbfc",
+          "surface-variant": "#dde4e5",
+          "outline-variant": "#bfc8cf",
+          "secondary-fixed-dim": "#9ccee6",
+          "surface-container-highest": "#dde4e5",
+          "on-secondary-fixed-variant": "#144c61",
+          "status-available": "#7FA58D",
+          "on-primary-fixed": "#001e2d",
+          "on-tertiary": "#ffffff",
+          "tertiary": "#006681",
+          "on-tertiary-fixed": "#001f29",
+          "primary": "#00658a",
+          "glass-surface": "rgba(255,255,255,0.55)",
+          "outline": "#70787f",
+          "chip-unselected-bg": "rgba(255,255,255,0.70)",
+          "on-error": "#ffffff",
+          "on-primary": "#ffffff",
+          "primary-fixed": "#c5e7ff",
+          "text-secondary": "#647982",
+          "secondary-container": "#b2e4fe",
+          "on-secondary-fixed": "#001f2a",
+          "on-primary-container": "#ffffff",
+          "on-error-container": "#93000a",
+          "background": "#f4fbfc",
+          "on-tertiary-fixed-variant": "#004d62",
+          "primary-container": "#287ea7",
+          "tertiary-fixed-dim": "#82d1f1",
+          "surface-container-lowest": "#ffffff",
+          "error": "#ba1a1a",
+          "primary-fixed-dim": "#84cffc",
+          "surface-container-high": "#e2e9ea",
+          "action-green-hover": "#82D64C",
+          "surface-container": "#e8eff0",
+          "on-surface": "#161d1e",
+          "on-tertiary-container": "#ffffff",
+          "on-background": "#161d1e",
+          "inverse-surface": "#2b3233",
+          "tertiary-fixed": "#baeaff",
+          "surface-tint": "#00658b",
+          "status-danger": "#B96F72",
+          "inverse-primary": "#84cffc",
+          "soft-blue": "#D9EEF5"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "32px",
+          "gutter": "24px",
+          "space-xs": "4px",
+          "space-lg": "24px",
+          "space-sm": "8px",
+          "space-xl": "32px",
+          "space-2xl": "48px",
+          "space-3xl": "64px",
+          "space-md": "16px"
+        },
+        "fontFamily": {
+          "caption": [
+            "Inter"
+          ],
+          "body-medium": [
+            "Inter"
+          ],
+          "headline-1": [
+            "Inter"
+          ],
+          "headline-4": [
+            "Inter"
+          ],
+          "headline-2": [
+            "Inter"
+          ],
+          "body-large": [
+            "Inter"
+          ],
+          "display-hero": [
+            "Inter"
+          ],
+          "headline-3": [
+            "Inter"
+          ],
+          "display-hero-mobile": [
+            "Inter"
+          ],
+          "body": [
+            "Inter"
+          ],
+          "small": [
+            "Inter"
+          ]
+        },
+        "fontSize": {
+          "caption": [
+            "12px",
+            {
+              "lineHeight": "1.4",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "body-medium": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "headline-1": [
+            "44px",
+            {
+              "lineHeight": "1.2",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-4": [
+            "22px",
+            {
+              "lineHeight": "1.35",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-2": [
+            "36px",
+            {
+              "lineHeight": "1.25",
+              "fontWeight": "600"
+            }
+          ],
+          "body-large": [
+            "18px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "display-hero": [
+            "56px",
+            {
+              "lineHeight": "1.1",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-3": [
+            "26px",
+            {
+              "lineHeight": "1.3",
+              "fontWeight": "600"
+            }
+          ],
+          "display-hero-mobile": [
+            "36px",
+            {
+              "lineHeight": "1.15",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "body": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "400"
+            }
+          ],
+          "small": [
+            "14px",
+            {
+              "lineHeight": "1.4",
+              "fontWeight": "400"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-surface-container-low font-body text-text-primary antialiased selection:bg-secondary-container selection:text-on-secondary-container"><aside class="fixed left-0 top-0 h-full w-64 bg-[#164E63] shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between border-b border-white/10"><div class="flex items-center gap-space-sm"><img alt="Brand logo" class="h-8 w-auto object-contain brightness-0 invert" src="https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4"><div class="flex flex-col"><span class="font-headline-4 text-small font-bold text-white tracking-tight leading-none">KATIPUNEROS</span><span class="font-caption text-caption text-white/70 uppercase tracking-wider scale-90 origin-left">Library Store</span></div></div><span class="font-caption text-caption bg-[#9BE564] text-[#18323D] px-space-xs py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">ADMIN</span></div><nav class="flex flex-col gap-space-xs px-space-sm pt-space-md"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[20px]">dashboard</span><span class="font-small text-small">Dashboard</span></a><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">library_books</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Management</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="users" href="#"><span class="material-symbols-outlined text-[16px]">group</span><span class="font-small text-small">Users</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="books" href="#"><span class="material-symbols-outlined text-[16px]">book_2</span><span class="font-small text-small">Books</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="categories" href="#"><span class="material-symbols-outlined text-[16px]">category</span><span class="font-small text-small">Categories</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="inventory" href="#"><span class="material-symbols-outlined text-[16px]">inventory_2</span><span class="font-small text-small">Inventory</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">sync_alt</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Operations</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="reservations" href="#"><span class="material-symbols-outlined text-[16px]">event_available</span><span class="font-small text-small">Reservations</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="borrowings" href="#"><span class="material-symbols-outlined text-[16px]">outbox</span><span class="font-small text-small">Borrowings</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="returns" href="#"><span class="material-symbols-outlined text-[16px]">assignment_return</span><span class="font-small text-small">Returns</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">insights</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Insights</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="analytics" href="#"><span class="material-symbols-outlined text-[16px]">monitoring</span><span class="font-small text-small">Analytics</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="reports" href="#"><span class="material-symbols-outlined text-[16px]">description</span><span class="font-small text-small">Reports</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">forum</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Communication</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="notifications" href="#"><span class="material-symbols-outlined text-[16px]">notifications</span><span class="font-small text-small">Notifications</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">shield</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Security</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="roles-and-permissions" href="#"><span class="material-symbols-outlined text-[16px]">admin_panel_settings</span><span class="font-small text-small">Roles &amp; Permissions</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="audit-logs" href="#"><span class="material-symbols-outlined text-[16px]">history</span><span class="font-small text-small">Audit Logs</span></a></div></div><div class="mt-space-sm pt-space-sm border-t border-white/10"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[20px]">settings</span><span class="font-small text-small">Settings</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm transition-colors bg-[#9BE564] text-[#18323D] font-bold rounded-lg shadow-sm" data-path="profile" href="#"><span class="material-symbols-outlined text-[20px]">account_circle</span><span class="font-small text-small">Profile</span></a></div></nav></div><div class="p-space-sm mt-auto border-t border-white/10"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-[#ffdad6] hover:bg-white/10 hover:text-white transition-colors" data-path="logout" href="#"><span class="material-symbols-outlined text-[20px]">logout</span><span class="font-small text-small font-medium">Logout</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md"><button class="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Toggle Sidebar" type="button"><span class="material-symbols-outlined text-[20px]">menu_open</span></button><nav class="hidden sm:flex items-center gap-space-xs text-caption font-caption text-text-secondary"><span class="hover:text-text-primary cursor-pointer transition-colors">Admin</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-primary font-semibold">Console</span></nav></div><div class="flex items-center gap-space-lg"><div class="relative hidden md:block w-72 lg:w-96"><span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span><input class="w-full bg-surface-container-low pl-10 pr-space-md py-2 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search users, books, reservations..." type="text"></div><button class="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1 right-1 w-4 h-4 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center">3</span></button><div class="flex items-center gap-space-sm pl-space-sm bg-surface-container-low py-1 px-space-sm rounded-full"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg"><div class="hidden lg:flex flex-col pr-space-xs"><span class="font-small text-small font-semibold text-text-primary leading-tight">Administrator</span><span class="font-caption text-caption text-text-secondary leading-none">Super Admin</span></div></div></div></header><main class="w-full pt-16 bg-surface-container-low min-h-screen px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<div class="flex flex-col gap-space-lg">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs text-text-secondary font-caption text-caption uppercase tracking-wider">
+<span class="">Security &amp; Governance</span>
+<span class="">/</span>
+<span class="text-primary font-semibold">Institutional Clearance</span>
+</div>
+<h1 class="font-headline-2 text-headline-2 text-text-primary tracking-tight mt-1">Administrator Identity &amp; Security Credentials</h1>
+<p class="font-body text-small text-text-secondary">Official institutional registry, privileged cryptographic credentials, and authenticated terminal telemetry.</p>
+</div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-container-lowest text-primary hover:bg-secondary-container hover:text-on-secondary-container font-body-medium text-small font-semibold shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">badge</span>
+<span class="">Download Access Keycard</span>
+</button>
+<button class="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-action-green text-text-primary hover:bg-action-green-hover font-body-medium text-small font-bold shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_square</span>
+<span class="">Edit Profile Information</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-xl shadow-sm">
+<div class="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-secondary-container/30 blur-3xl pointer-events-none"></div>
+<div class="flex flex-col md:flex-row gap-space-xl items-start relative z-10">
+<div class="relative shrink-0">
+<div class="w-36 h-36 rounded-2xl overflow-hidden shadow-md bg-surface-container">
+<img alt="University Chief Curator &amp; Systems Director" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ">
+</div>
+<span class="absolute -bottom-2 -right-2 bg-status-available text-surface-container-lowest text-caption font-caption font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+<span class="w-2 h-2 rounded-full bg-surface-container-lowest animate-pulse"></span>
+                ACTIVE
+              </span>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<div class="flex flex-wrap items-center gap-space-xs mb-1">
+<span class="font-caption text-caption font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-primary-fixed text-on-primary-fixed">Level 4 Super Administrator</span>
+<span class="font-caption text-caption px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-mono">KP-ADM-0001</span>
+</div>
+<h2 class="font-headline-3 text-headline-3 text-text-primary font-bold tracking-tight">Administrator (Super Admin)</h2>
+<p class="font-body-large text-body-large text-primary font-semibold">University Chief Curator &amp; Systems Director</p>
+<p class="font-body text-small text-text-secondary mt-0.5">Library Curatorial Board &amp; Academic Informatics</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm mt-space-md pt-space-md bg-surface-container-low/60 p-space-md rounded-lg">
+<div class="flex items-center gap-space-xs text-text-primary">
+<span class="material-symbols-outlined text-primary text-[18px]">alternate_email</span>
+<span class="font-body text-small truncate">super.admin@upk.edu.ph</span>
+</div>
+<div class="flex items-center gap-space-xs text-text-primary">
+<span class="material-symbols-outlined text-primary text-[18px]">call</span>
+<span class="font-body text-small">+63 (2) 8981-8500 ext. 4201</span>
+</div>
+<div class="flex items-center gap-space-xs text-text-primary">
+<span class="material-symbols-outlined text-primary text-[18px]">meeting_room</span>
+<span class="font-body text-small truncate">Room 304, Katipuneros Hall</span>
+</div>
+<div class="flex items-center gap-space-xs text-text-primary">
+<span class="material-symbols-outlined text-primary text-[18px]">schedule</span>
+<span class="font-body text-small">08:00 - 17:00 PHT (Morning Stacks)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[22px]">security</span>
+<h3 class="font-headline-4 text-headline-4 text-text-primary">Privilege Matrix &amp; Cryptographic Keys</h3>
+</div>
+<span class="font-caption text-caption px-2.5 py-1 rounded-full bg-status-available/15 text-status-available font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified_user</span> Standard Compliant
+            </span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="p-space-md rounded-lg bg-surface-container-low flex flex-col justify-between gap-space-sm">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary">Password Security</span>
+<h4 class="font-body-large text-body-large font-bold text-text-primary mt-1">Rotated 42 days ago</h4>
+<p class="font-body text-caption text-text-secondary mt-0.5">Meets UPK 16-char salt + entropy policy.</p>
+</div>
+<span class="material-symbols-outlined text-primary text-[24px]">key</span>
+</div>
+<button class="w-full text-center py-1.5 px-space-sm rounded bg-surface-container-lowest hover:bg-secondary-container hover:text-on-secondary-container text-primary font-body-medium text-caption font-semibold transition-colors" type="button">
+                Rotate Password Now
+              </button>
+</div>
+<div class="p-space-md rounded-lg bg-surface-container-low flex flex-col justify-between gap-space-sm">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary">Multi-Factor Status</span>
+<h4 class="font-body-large text-body-large font-bold text-text-primary mt-1">FIDO2 Hardware Key</h4>
+<p class="font-body text-caption text-text-secondary mt-0.5">YubiKey 5C NFC + Katipuneros Authenticator App.</p>
+</div>
+<span class="material-symbols-outlined text-status-available text-[24px]">verified</span>
+</div>
+<button class="w-full text-center py-1.5 px-space-sm rounded bg-surface-container-lowest hover:bg-secondary-container hover:text-on-secondary-container text-primary font-body-medium text-caption font-semibold transition-colors" type="button">
+                Manage Registered Tokens
+              </button>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs mt-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption font-semibold uppercase tracking-wider text-text-secondary">Active Privileged Sessions</span>
+<button class="text-error hover:bg-error-container hover:text-on-error-container font-caption text-caption font-semibold px-2 py-1 rounded transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">lock_reset</span> Terminate All Other Sessions
+              </button>
+</div>
+<div class="overflow-hidden rounded-lg bg-surface-container-low">
+<div class="p-space-md flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm bg-secondary-container/40">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">laptop_mac</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-medium text-small font-bold text-text-primary">192.168.1.100</span>
+<span class="font-caption text-[10px] px-1.5 py-0.2 rounded bg-primary text-on-primary font-bold">CURRENT</span>
+</div>
+<span class="font-caption text-caption text-text-secondary">Chrome 124 (macOS Sonoma) • Stacks Admin Suite (Room 304)</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-status-available"></span>
+<span class="font-caption text-caption font-bold text-status-available">Active Now</span>
+</div>
+</div>
+<div class="p-space-md flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">desktop_windows</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-medium text-small font-bold text-text-primary">192.168.10.42</span>
+<span class="font-caption text-caption text-text-secondary">Firefox ESR • Katipuneros Circulation Desk Alpha</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-caption text-caption text-text-secondary">Yesterday, 16:30 PHT</span>
+<button class="text-error hover:bg-error-container p-1 rounded transition-colors" title="Revoke terminal session" type="button">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-4 flex flex-col gap-space-lg">
+<div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-4 text-headline-4 text-text-primary">Notification Signals</h3>
+<span class="material-symbols-outlined text-text-secondary text-[20px]">tune</span>
+</div>
+<p class="font-body text-caption text-text-secondary -mt-1">High-priority operational channels routed directly to this curator terminal.</p>
+<div class="flex flex-col gap-space-sm">
+<label class="flex items-start justify-between gap-space-sm p-space-sm rounded-lg hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex flex-col">
+<span class="font-body-medium text-small font-semibold text-text-primary">High-Demand Inventory Spikes</span>
+<span class="font-caption text-caption text-text-secondary">Multi-station requests exceeding safe reservation threshold.</span>
+<span class="font-caption text-[11px] font-mono text-primary font-semibold mt-1">CHANNELS: SMS • PORTAL PUSH</span>
+</div>
+<input checked="" class="mt-1 w-5 h-5 accent-primary rounded cursor-pointer" type="checkbox">
+</label>
+<label class="flex items-start justify-between gap-space-sm p-space-sm rounded-lg hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex flex-col">
+<span class="font-body-medium text-small font-semibold text-text-primary">Critical Overdue Delinquencies</span>
+<span class="font-caption text-caption text-text-secondary">Reserved academic volumes 14+ days past return window.</span>
+<span class="font-caption text-[11px] font-mono text-primary font-semibold mt-1">CHANNELS: INSTITUTIONAL EMAIL</span>
+</div>
+<input checked="" class="mt-1 w-5 h-5 accent-primary rounded cursor-pointer" type="checkbox">
+</label>
+<label class="flex items-start justify-between gap-space-sm p-space-sm rounded-lg hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex flex-col">
+<span class="font-body-medium text-small font-semibold text-text-primary">RFID Hardware Anomalies</span>
+<span class="font-caption text-caption text-text-secondary">Gate sensor de-sync, scanner battery drop, or offline gate.</span>
+<span class="font-caption text-[11px] font-mono text-primary font-semibold mt-1">CHANNELS: INSTANT PUSH DISPATCH</span>
+</div>
+<input checked="" class="mt-1 w-5 h-5 accent-primary rounded cursor-pointer" type="checkbox">
+</label>
+</div>
+</div>
+<div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-4 text-headline-4 text-text-primary">Curator Activity</h3>
+<span class="font-caption text-caption text-primary font-semibold cursor-pointer hover:underline">Full Log</span>
+</div>
+<div class="relative pl-6 flex flex-col gap-space-md before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container-highest">
+<div class="relative flex flex-col gap-0.5">
+<span class="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-surface-container-lowest"></span>
+<span class="font-body-medium text-small font-semibold text-text-primary">Catalog Schema Re-indexed</span>
+<span class="font-caption text-caption text-text-secondary">Added 42 new metadata fields for Filipiniana rare editions</span>
+<span class="font-caption text-[11px] font-mono text-text-secondary">10 mins ago • Stacks Admin Suite</span>
+</div>
+<div class="relative flex flex-col gap-0.5">
+<span class="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-status-available ring-4 ring-surface-container-lowest"></span>
+<span class="font-body-medium text-small font-semibold text-text-primary">Approved Faculty Reserve Batch</span>
+<span class="font-caption text-caption text-text-secondary">18 monographs cleared for UP Diliman History Seminary</span>
+<span class="font-caption text-[11px] font-mono text-text-secondary">1 hour ago • Stacks Admin Suite</span>
+</div>
+<div class="relative flex flex-col gap-0.5">
+<span class="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-secondary ring-4 ring-surface-container-lowest"></span>
+<span class="font-body-medium text-small font-semibold text-text-primary">Hardware Gate Calibrated</span>
+<span class="font-caption text-caption text-text-secondary">RFID Terminal Beta-2 antenna signal retuned to 865.7 MHz</span>
+<span class="font-caption text-[11px] font-mono text-text-secondary">Today, 09:15 PHT • Gate Terminal</span>
+</div>
+<div class="relative flex flex-col gap-0.5">
+<span class="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-status-pending ring-4 ring-surface-container-lowest"></span>
+<span class="font-body-medium text-small font-semibold text-text-primary">Security Audit Sign-off</span>
+<span class="font-caption text-caption text-text-secondary">Validated monthly permission delegations for junior clerks</span>
+<span class="font-caption text-[11px] font-mono text-text-secondary">Yesterday, 17:40 PHT • Remote VPN</span>
+</div>
+<div class="relative flex flex-col gap-0.5">
+<span class="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-text-secondary ring-4 ring-surface-container-lowest"></span>
+<span class="font-body-medium text-small font-semibold text-text-primary">Keycard Credentials Re-issued</span>
+<span class="font-caption text-caption text-text-secondary">Generated new physical NFC badge for Prof. M. Santos</span>
+<span class="font-caption text-[11px] font-mono text-text-secondary">2 days ago • Circulation Alpha</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></main></div>
+
+
+
+</body></html>

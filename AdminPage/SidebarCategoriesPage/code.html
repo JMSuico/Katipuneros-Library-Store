@@ -1,0 +1,781 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "error-container": "#ffdad6",
+          "text-primary": "#18323D",
+          "tertiary-container": "#26809d",
+          "inverse-on-surface": "#ebf2f3",
+          "on-secondary": "#ffffff",
+          "surface": "#f4fbfc",
+          "on-surface-variant": "#40484e",
+          "surface-dim": "#d4dbdc",
+          "action-green": "#9BE564",
+          "secondary": "#31647a",
+          "secondary-fixed": "#bee9ff",
+          "surface-container-low": "#eef5f6",
+          "status-pending": "#D9A85C",
+          "on-primary-fixed-variant": "#004c6a",
+          "on-secondary-container": "#34677d",
+          "surface-bright": "#f4fbfc",
+          "surface-variant": "#dde4e5",
+          "outline-variant": "#bfc8cf",
+          "secondary-fixed-dim": "#9ccee6",
+          "surface-container-highest": "#dde4e5",
+          "on-secondary-fixed-variant": "#144c61",
+          "status-available": "#7FA58D",
+          "on-primary-fixed": "#001e2d",
+          "on-tertiary": "#ffffff",
+          "tertiary": "#006681",
+          "on-tertiary-fixed": "#001f29",
+          "primary": "#00658a",
+          "glass-surface": "rgba(255,255,255,0.55)",
+          "outline": "#70787f",
+          "chip-unselected-bg": "rgba(255,255,255,0.70)",
+          "on-error": "#ffffff",
+          "on-primary": "#ffffff",
+          "primary-fixed": "#c5e7ff",
+          "text-secondary": "#647982",
+          "secondary-container": "#b2e4fe",
+          "on-secondary-fixed": "#001f2a",
+          "on-primary-container": "#ffffff",
+          "on-error-container": "#93000a",
+          "background": "#f4fbfc",
+          "on-tertiary-fixed-variant": "#004d62",
+          "primary-container": "#287ea7",
+          "tertiary-fixed-dim": "#82d1f1",
+          "surface-container-lowest": "#ffffff",
+          "error": "#ba1a1a",
+          "primary-fixed-dim": "#84cffc",
+          "surface-container-high": "#e2e9ea",
+          "action-green-hover": "#82D64C",
+          "surface-container": "#e8eff0",
+          "on-surface": "#161d1e",
+          "on-tertiary-container": "#ffffff",
+          "on-background": "#161d1e",
+          "inverse-surface": "#2b3233",
+          "tertiary-fixed": "#baeaff",
+          "surface-tint": "#00658b",
+          "status-danger": "#B96F72",
+          "inverse-primary": "#84cffc",
+          "soft-blue": "#D9EEF5"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "32px",
+          "gutter": "24px",
+          "space-xs": "4px",
+          "space-lg": "24px",
+          "space-sm": "8px",
+          "space-xl": "32px",
+          "space-2xl": "48px",
+          "space-3xl": "64px",
+          "space-md": "16px"
+        },
+        "fontFamily": {
+          "caption": [
+            "Inter"
+          ],
+          "body-medium": [
+            "Inter"
+          ],
+          "headline-1": [
+            "Inter"
+          ],
+          "headline-4": [
+            "Inter"
+          ],
+          "headline-2": [
+            "Inter"
+          ],
+          "body-large": [
+            "Inter"
+          ],
+          "display-hero": [
+            "Inter"
+          ],
+          "headline-3": [
+            "Inter"
+          ],
+          "display-hero-mobile": [
+            "Inter"
+          ],
+          "body": [
+            "Inter"
+          ],
+          "small": [
+            "Inter"
+          ]
+        },
+        "fontSize": {
+          "caption": [
+            "12px",
+            {
+              "lineHeight": "1.4",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "body-medium": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "headline-1": [
+            "44px",
+            {
+              "lineHeight": "1.2",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-4": [
+            "22px",
+            {
+              "lineHeight": "1.35",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-2": [
+            "36px",
+            {
+              "lineHeight": "1.25",
+              "fontWeight": "600"
+            }
+          ],
+          "body-large": [
+            "18px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "display-hero": [
+            "56px",
+            {
+              "lineHeight": "1.1",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-3": [
+            "26px",
+            {
+              "lineHeight": "1.3",
+              "fontWeight": "600"
+            }
+          ],
+          "display-hero-mobile": [
+            "36px",
+            {
+              "lineHeight": "1.15",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "body": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "400"
+            }
+          ],
+          "small": [
+            "14px",
+            {
+              "lineHeight": "1.4",
+              "fontWeight": "400"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-surface-container-low font-body text-text-primary antialiased selection:bg-secondary-container selection:text-on-secondary-container"><aside class="fixed left-0 top-0 h-full w-64 bg-[#164E63] text-white shadow-xl z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between border-b border-white/10 bg-[#123E4F]"><div class="flex items-center gap-space-sm"><img alt="KATIPUNEROS Library Store" class="h-8 w-auto object-contain brightness-0 invert" src="https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4"><div class="flex flex-col"><span class="font-headline-4 text-small font-bold text-white tracking-tight leading-none">KATIPUNEROS</span><span class="font-caption text-caption text-white/70 uppercase tracking-wider scale-90 origin-left">Library Store</span></div></div><span class="font-caption text-caption bg-[#9BE564] text-[#18323D] px-space-xs py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">ADMIN</span></div><nav class="flex flex-col gap-space-xs px-space-sm pt-space-md"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[20px] text-white/80 group-hover:text-[#18323D]">dashboard</span><span class="font-small text-small font-medium">Dashboard</span></a><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">library_books</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Management</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="users" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">group</span><span class="font-small text-small font-medium">Users</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="books" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">book_2</span><span class="font-small text-small font-medium">Books</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-1.5 transition-colors bg-[#9BE564] text-[#18323D] font-bold rounded-lg shadow-sm" data-path="categories" href="#"><span class="material-symbols-outlined text-[16px] text-[#18323D]">category</span><span class="font-small text-small font-bold">Categories</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="inventory" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">inventory_2</span><span class="font-small text-small font-medium">Inventory</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">sync_alt</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Operations</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="reservations" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">event_available</span><span class="font-small text-small font-medium">Reservations</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="borrowings" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">outbox</span><span class="font-small text-small font-medium">Borrowings</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="returns" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">assignment_return</span><span class="font-small text-small font-medium">Returns</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">insights</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Insights</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="analytics" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">monitoring</span><span class="font-small text-small font-medium">Analytics</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="reports" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">description</span><span class="font-small text-small font-medium">Reports</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">forum</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Communication</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="notifications" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">notifications</span><span class="font-small text-small font-medium">Notifications</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">shield</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/70">Security</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="roles-and-permissions" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">admin_panel_settings</span><span class="font-small text-small font-medium">Roles &amp; Permissions</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="audit-logs" href="#"><span class="material-symbols-outlined text-[16px] text-white/70 group-hover:text-[#18323D]">history</span><span class="font-small text-small font-medium">Audit Logs</span></a></div></div><div class="mt-space-sm pt-space-sm border-t border-white/10"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="settings" href="#"><span class="material-symbols-outlined text-[20px] text-white/80 group-hover:text-[#18323D]">settings</span><span class="font-small text-small font-medium">Settings</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="profile" href="#"><span class="material-symbols-outlined text-[20px] text-white/80 group-hover:text-[#18323D]">account_circle</span><span class="font-small text-small font-medium">Profile</span></a></div></nav></div><div class="p-space-sm mt-auto border-t border-white/10 bg-[#123E4F]"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-red-300 hover:bg-red-500/20 hover:text-white transition-colors" data-path="logout" href="#"><span class="material-symbols-outlined text-[20px]">logout</span><span class="font-small text-small font-medium">Logout</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md"><button class="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Toggle Sidebar" type="button"><span class="material-symbols-outlined text-[20px]">menu_open</span></button><nav class="hidden sm:flex items-center gap-space-xs text-caption font-caption text-text-secondary"><span class="hover:text-text-primary cursor-pointer transition-colors">Admin</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-primary font-semibold">Console</span></nav></div><div class="flex items-center gap-space-lg"><div class="relative hidden md:block w-72 lg:w-96"><span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span><input class="w-full bg-surface-container-low pl-10 pr-space-md py-2 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search users, books, reservations..." type="text"></div><button class="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1 right-1 w-4 h-4 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center">3</span></button><div class="flex items-center gap-space-sm pl-space-sm bg-surface-container-low py-1 px-space-sm rounded-full"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg"><div class="hidden lg:flex flex-col pr-space-xs"><span class="font-small text-small font-semibold text-text-primary leading-tight">Administrator</span><span class="font-caption text-caption text-text-secondary leading-none">Super Admin</span></div></div></div></header><main class="w-full pt-16 bg-surface-container-low min-h-screen px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md mb-space-xl">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs text-caption font-caption text-text-secondary uppercase tracking-wider mb-1">
+<span class="">Admin Console</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="">Management</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-bold">Categories</span>
+</div>
+<h1 class="font-headline-2 text-headline-2 text-text-primary tracking-tight">Academic Disciplines &amp; Catalog Classification</h1>
+<p class="font-small text-small text-text-secondary mt-0.5">Manage hierarchical ontology, Dewey Decimal ranges, and physical repository bay allocations.</p>
+</div>
+<div class="flex items-center flex-wrap gap-space-sm">
+<div class="relative flex-grow sm:flex-grow-0">
+<button class="h-11 px-space-md bg-surface-container-lowest text-primary font-small text-small font-semibold rounded-xl shadow-sm hover:bg-soft-blue flex items-center gap-space-xs transition-colors" id="exportMenuBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">ios_share</span>
+<span class="">Export Schema</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<div class="hidden absolute right-0 mt-1 w-48 bg-surface-container-lowest shadow-xl rounded-xl p-1 z-30" id="exportDropdown">
+<button class="w-full text-left px-space-sm py-2 rounded-lg text-text-primary hover:bg-surface-container font-caption text-caption flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-[16px] text-text-secondary">data_object</span>
+<span class="">JSON Concordance</span>
+</button>
+<button class="w-full text-left px-space-sm py-2 rounded-lg text-text-primary hover:bg-surface-container font-caption text-caption flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-[16px] text-text-secondary">table_view</span>
+<span class="">CSV Master Index</span>
+</button>
+</div>
+</div>
+<button class="h-11 px-space-lg bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-bold rounded-xl shadow-sm flex items-center gap-space-xs transition-all transform active:scale-95" id="openCreateModal" type="button">
+<span class="material-symbols-outlined text-[20px] font-bold">add</span>
+<span class="">Add Category</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-space-md mb-space-xl">
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Total Disciplines</span>
+<div class="flex items-baseline gap-space-xs mt-1">
+<span class="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">42</span>
+<span class="font-caption text-caption text-status-available font-bold uppercase">Active Class</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-xl bg-soft-blue text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">category</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs mt-4 font-caption text-caption text-text-secondary">
+<span class="material-symbols-outlined text-[16px] text-primary">verified</span>
+<span class="">10 main Dewey classes aligned</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Indexed Titles</span>
+<div class="flex items-baseline gap-space-xs mt-1">
+<span class="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">1,248</span>
+<span class="font-caption text-caption text-primary font-semibold">Volumes</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">menu_book</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs mt-4 font-caption text-caption text-text-secondary">
+<span class="material-symbols-outlined text-[16px] text-status-available">trending_up</span>
+<span class="">+38 cataloged this cycle</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Physical Holdings</span>
+<div class="flex items-baseline gap-space-xs mt-1">
+<span class="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">4,892</span>
+<span class="font-caption text-caption text-text-secondary">Assets</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-xl bg-surface-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">inventory_2</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs mt-4 font-caption text-caption text-text-secondary">
+<span class="material-symbols-outlined text-[16px] text-secondary">domain</span>
+<span class="">3 Library wings across 4 floors</span>
+</div>
+</div>
+<div class="bg-primary text-on-primary p-space-lg rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption text-primary-fixed uppercase tracking-wider font-semibold">Classification Standard</span>
+<p class="font-headline-4 text-headline-4 font-bold text-on-primary mt-1 tracking-tight leading-snug">DDC 23 &amp; LoC</p>
+</div>
+<div class="w-10 h-10 rounded-xl bg-on-primary/10 text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">hub</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2">
+<span class="font-caption text-caption text-primary-fixed">Concordance Accuracy</span>
+<span class="font-caption text-caption font-bold bg-action-green text-text-primary px-2 py-0.5 rounded-full">99.4%</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+<div class="xl:col-span-8 flex flex-col gap-space-md">
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<div class="relative w-full sm:w-80">
+<span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span>
+<input class="w-full bg-surface-container-low pl-10 pr-space-md py-2 rounded-xl font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-bright focus:shadow-sm transition-all" id="categorySearchInput" placeholder="Search call code, discipline, keyword..." type="text">
+</div>
+<div class="flex items-center gap-space-xs w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+<button class="filter-chip active px-3 py-1.5 rounded-full font-caption text-caption font-semibold bg-primary text-on-primary transition-colors whitespace-nowrap" type="button">All Classes (42)</button>
+<button class="filter-chip px-3 py-1.5 rounded-full font-caption text-caption font-semibold bg-surface-container-low text-text-secondary hover:text-text-primary transition-colors whitespace-nowrap" type="button">STEM Ranges</button>
+<button class="filter-chip px-3 py-1.5 rounded-full font-caption text-caption font-semibold bg-surface-container-low text-text-secondary hover:text-text-primary transition-colors whitespace-nowrap" type="button">Humanities</button>
+<button class="filter-chip px-3 py-1.5 rounded-full font-caption text-caption font-semibold bg-surface-container-low text-text-secondary hover:text-text-primary transition-colors whitespace-nowrap" type="button">Filipiniana</button>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container text-text-secondary font-caption text-caption uppercase tracking-wider select-none">
+<th class="py-space-md px-space-md font-semibold">Call Range</th>
+<th class="py-space-md px-space-md font-semibold">Category / Field Name</th>
+<th class="py-space-md px-space-sm font-semibold text-center">Sub-Fields</th>
+<th class="py-space-md px-space-sm font-semibold text-right">Titles</th>
+<th class="py-space-md px-space-sm font-semibold text-right">Copies</th>
+<th class="py-space-md px-space-md font-semibold">Circulation</th>
+<th class="py-space-md px-space-sm font-semibold text-center">Status</th>
+<th class="py-space-md px-space-md font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low font-small text-small text-text-primary" id="categoriesTableBody">
+<tr class="category-row hover:bg-surface-container-low/70 transition-colors cursor-pointer bg-soft-blue/25" data-range="000-099">
+<td class="py-3.5 px-space-md">
+<span class="font-caption text-caption font-mono font-bold px-2 py-1 bg-surface-container rounded text-primary">000 - 099</span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small font-bold text-text-primary">Computer Science, Information &amp; General Works</span>
+<span class="font-caption text-caption text-text-secondary">LoC: QA75.5 - QA76.9, Z1000+</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-caption text-caption font-medium">14</span>
+</td>
+<td class="py-3.5 px-space-sm text-right font-medium">312</td>
+<td class="py-3.5 px-space-sm text-right font-medium">1,420</td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-16 h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-action-green rounded-full" style="width: 82%;"></div>
+</div>
+<span class="font-caption text-caption font-bold text-text-primary">82%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full font-caption text-caption font-bold bg-status-available/20 text-status-available">Active</span>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors" title="Inspect" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary transition-colors" title="Edit" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-error-container text-error transition-colors" title="Archive" type="button">
+<span class="material-symbols-outlined text-[18px]">archive</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="category-row hover:bg-surface-container-low/70 transition-colors cursor-pointer" data-range="100-199">
+<td class="py-3.5 px-space-md">
+<span class="font-caption text-caption font-mono font-bold px-2 py-1 bg-surface-container rounded text-primary">100 - 199</span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small font-bold text-text-primary">Philosophy &amp; Psychology</span>
+<span class="font-caption text-caption text-text-secondary">LoC: B, BC, BD, BF</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-caption text-caption font-medium">8</span>
+</td>
+<td class="py-3.5 px-space-sm text-right font-medium">184</td>
+<td class="py-3.5 px-space-sm text-right font-medium">620</td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-16 h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 65%;"></div>
+</div>
+<span class="font-caption text-caption font-bold text-text-primary">65%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full font-caption text-caption font-bold bg-status-available/20 text-status-available">Active</span>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary hover:text-primary transition-colors" title="Inspect" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary transition-colors" title="Edit" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-error-container text-error transition-colors" title="Archive" type="button">
+<span class="material-symbols-outlined text-[18px]">archive</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="category-row hover:bg-surface-container-low/70 transition-colors cursor-pointer" data-range="300-399">
+<td class="py-3.5 px-space-md">
+<span class="font-caption text-caption font-mono font-bold px-2 py-1 bg-surface-container rounded text-primary">300 - 399</span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small font-bold text-text-primary">Social Sciences, Law &amp; Governance</span>
+<span class="font-caption text-caption text-text-secondary">LoC: H, J, K, L</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-caption text-caption font-medium">12</span>
+</td>
+<td class="py-3.5 px-space-sm text-right font-medium">220</td>
+<td class="py-3.5 px-space-sm text-right font-medium">840</td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-16 h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-action-green rounded-full" style="width: 74%;"></div>
+</div>
+<span class="font-caption text-caption font-bold text-text-primary">74%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full font-caption text-caption font-bold bg-status-available/20 text-status-available">Active</span>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary hover:text-primary transition-colors" title="Inspect" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary transition-colors" title="Edit" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-error-container text-error transition-colors" title="Archive" type="button">
+<span class="material-symbols-outlined text-[18px]">archive</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="category-row hover:bg-surface-container-low/70 transition-colors cursor-pointer" data-range="500-599">
+<td class="py-3.5 px-space-md">
+<span class="font-caption text-caption font-mono font-bold px-2 py-1 bg-surface-container rounded text-primary">500 - 599</span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small font-bold text-text-primary">Natural Sciences &amp; Mathematics</span>
+<span class="font-caption text-caption text-text-secondary">LoC: Q, QA, QB, QC, QD</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-caption text-caption font-medium">16</span>
+</td>
+<td class="py-3.5 px-space-sm text-right font-medium">260</td>
+<td class="py-3.5 px-space-sm text-right font-medium">1,012</td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-16 h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 69%;"></div>
+</div>
+<span class="font-caption text-caption font-bold text-text-primary">69%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full font-caption text-caption font-bold bg-status-available/20 text-status-available">Active</span>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary hover:text-primary transition-colors" title="Inspect" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary transition-colors" title="Edit" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-error-container text-error transition-colors" title="Archive" type="button">
+<span class="material-symbols-outlined text-[18px]">archive</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="category-row hover:bg-surface-container-low/70 transition-colors cursor-pointer" data-range="800-899">
+<td class="py-3.5 px-space-md">
+<span class="font-caption text-caption font-mono font-bold px-2 py-1 bg-surface-container rounded text-primary">800 - 899</span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small font-bold text-text-primary">Literature, Rhetoric &amp; Filipiniana</span>
+<span class="font-caption text-caption text-text-secondary">LoC: P, PL, PN, PR, PS</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-caption text-caption font-medium">10</span>
+</td>
+<td class="py-3.5 px-space-sm text-right font-medium">272</td>
+<td class="py-3.5 px-space-sm text-right font-medium">1,000</td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-16 h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-action-green rounded-full" style="width: 88%;"></div>
+</div>
+<span class="font-caption text-caption font-bold text-text-primary">88%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-sm text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full font-caption text-caption font-bold bg-status-available/20 text-status-available">Active</span>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary hover:text-primary transition-colors" title="Inspect" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary transition-colors" title="Edit" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-error-container text-error transition-colors" title="Archive" type="button">
+<span class="material-symbols-outlined text-[18px]">archive</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-space-md bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<span class="font-caption text-caption text-text-secondary">Showing 5 of 42 categorized academic ranges</span>
+<div class="flex items-center gap-space-xs">
+<button class="w-8 h-8 rounded-lg bg-surface-container text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors disabled:opacity-50" disabled="" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-primary text-on-primary font-caption text-caption font-bold flex items-center justify-center" type="button">1</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container text-text-secondary hover:text-text-primary font-caption text-caption font-bold flex items-center justify-center" type="button">2</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container text-text-secondary hover:text-text-primary font-caption text-caption font-bold flex items-center justify-center" type="button">3</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="xl:col-span-4 flex flex-col gap-space-md sticky top-20">
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg relative overflow-hidden">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-action-green"></span>
+<span class="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">Inspector Drawer</span>
+</div>
+<span class="font-caption text-caption px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-semibold">Live Branch</span>
+</div>
+<div class="mb-space-md">
+<div class="flex items-baseline justify-between mb-1">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Sub-Class Target</span>
+<span class="font-caption text-caption font-mono font-bold text-primary">DDC 004 - 006</span>
+</div>
+<h2 class="font-headline-3 text-headline-3 text-text-primary tracking-tight">Computer Science &amp; Artificial Intelligence</h2>
+<p class="font-small text-small text-text-secondary mt-1">Core computing discipline encompassing algorithms, computational theory, machine intelligence, and systems architectures.</p>
+</div>
+<div class="relative h-32 rounded-xl overflow-hidden mb-space-md bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A tranquil, high-ceiling modern university library research wing with oak reading desks, organized teal architectural book shelving bays, and natural morning sunlight casting soft geometric shadows on clean concrete floors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrd31r1qbA3j8ldCY7gXlPsrazH2syTpsLfzuWRDXDHSAd09EoDsDYENbgtvgIbvCxGOaf5d13fQsKhqFPGXCl364oSzqtnIArJ1V77uyTN9fVR3ZREIKiWyRh0EtPmYw2tYT8TDODNHBmmMWB90gEyhlljSD0YGG0p9dk-8Mj2r0jQerSdzUgdAq0dMxMPufy8E7xV-Tw-b9DG3ZEVSifVk8hiYI7t3eAjdlkVRd_xyuUrd6weJbN">
+<div class="absolute inset-0 bg-gradient-to-t from-text-primary/80 via-text-primary/20 to-transparent flex items-end p-space-md">
+<div class="flex items-center gap-space-xs text-on-primary">
+<span class="material-symbols-outlined text-[18px]">pin_drop</span>
+<span class="font-caption text-caption font-semibold tracking-wide">Wing B, Floor 2, Bays 12-18</span>
+</div>
+</div>
+</div>
+<div class="space-y-space-md">
+<div>
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold block mb-2">Leading Subject Headings</span>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2.5 py-1 rounded-lg bg-surface-container font-caption text-caption font-medium text-text-primary">Algorithms &amp; Complexity</span>
+<span class="px-2.5 py-1 rounded-lg bg-surface-container font-caption text-caption font-medium text-text-primary">Distributed Systems</span>
+<span class="px-2.5 py-1 rounded-lg bg-surface-container font-caption text-caption font-medium text-text-primary">Software Engineering</span>
+<span class="px-2.5 py-1 rounded-lg bg-secondary-container font-caption text-caption font-bold text-on-secondary-container">AI / Machine Learning</span>
+<span class="px-2.5 py-1 rounded-lg bg-surface-container font-caption text-caption font-medium text-text-primary">Neural Networks</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-sm p-space-sm bg-surface-container-low rounded-xl">
+<div class="p-2">
+<span class="font-caption text-caption text-text-secondary block">Reserved Shelves</span>
+<span class="font-headline-4 text-headline-4 font-bold text-text-primary">6 Bays</span>
+</div>
+<div class="p-2">
+<span class="font-caption text-caption text-text-secondary block">Digital Equivalents</span>
+<span class="font-headline-4 text-headline-4 font-bold text-primary">248 PDFs</span>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="font-caption text-caption text-text-secondary">Bay Saturation (Asset Capacity)</span>
+<span class="font-caption text-caption font-bold text-text-primary">82% Full</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-action-green rounded-full" style="width: 82%;"></div>
+</div>
+</div>
+<div class="pt-space-sm flex flex-col gap-space-xs">
+<button class="w-full h-11 bg-primary text-on-primary font-small text-small font-semibold rounded-xl hover:bg-primary-container shadow-sm flex items-center justify-center gap-space-xs transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">rule</span>
+<span class="">Edit Category Rules</span>
+</button>
+<button class="w-full h-11 bg-surface-container text-text-primary font-small text-small font-semibold rounded-xl hover:bg-surface-variant flex items-center justify-center gap-space-xs transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">alt_route</span>
+<span class="">Manage Cross-References</span>
+</button>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-soft-blue text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</div>
+<div class="flex flex-col">
+<span class="font-small text-small font-bold text-text-primary">Automated MARC Sync</span>
+<span class="font-caption text-caption text-text-secondary">Last synchronized: 14 mins ago</span>
+</div>
+</div>
+<button class="p-2 rounded-lg hover:bg-surface-container text-primary transition-colors" title="Sync now" type="button">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+</div>
+</div>
+</div>
+<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 hidden items-center justify-center p-space-md" id="addCategoryModal">
+<div class="bg-surface-container-lowest rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+<div class="p-space-lg flex items-center justify-between bg-surface-container-low">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-xl bg-action-green text-text-primary flex items-center justify-center font-bold">
+<span class="material-symbols-outlined text-[20px]">library_add</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-4 text-headline-4 font-bold text-text-primary">Add Academic Discipline</span>
+<span class="font-caption text-caption text-text-secondary">Map new Dewey range and sub-fields</span>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors" id="closeModalBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<form class="p-space-lg flex flex-col gap-space-md" id="categoryForm">
+<div>
+<label class="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary block mb-1">Call Range (Dewey/LoC)</label>
+<div class="grid grid-cols-2 gap-space-sm">
+<input class="bg-surface-container-low px-space-md py-2.5 rounded-xl font-small text-small text-text-primary focus:outline-none focus:bg-surface-bright transition-all" placeholder="e.g. 700 - 799" required="" type="text">
+<input class="bg-surface-container-low px-space-md py-2.5 rounded-xl font-small text-small text-text-primary focus:outline-none focus:bg-surface-bright transition-all" placeholder="LoC (e.g. N, NA, NK)" type="text">
+</div>
+</div>
+<div>
+<label class="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary block mb-1">Discipline / Category Name</label>
+<input class="w-full bg-surface-container-low px-space-md py-2.5 rounded-xl font-small text-small text-text-primary focus:outline-none focus:bg-surface-bright transition-all" placeholder="e.g. The Arts &amp; Fine Recreation" required="" type="text">
+</div>
+<div class="grid grid-cols-2 gap-space-sm">
+<div>
+<label class="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary block mb-1">Primary Wing</label>
+<select class="w-full bg-surface-container-low px-space-md py-2.5 rounded-xl font-small text-small text-text-primary focus:outline-none focus:bg-surface-bright transition-all">
+<option>Wing A (Main Hall)</option>
+<option>Wing B (STEM &amp; Tech)</option>
+<option>Wing C (Filipiniana)</option>
+</select>
+</div>
+<div>
+<label class="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary block mb-1">Stack Bays</label>
+<input class="w-full bg-surface-container-low px-space-md py-2.5 rounded-xl font-small text-small text-text-primary focus:outline-none focus:bg-surface-bright transition-all" placeholder="e.g. Bays 01-08" type="text">
+</div>
+</div>
+<div>
+<label class="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary block mb-1">Initial Sub-Fields (Comma Separated)</label>
+<textarea class="w-full bg-surface-container-low p-space-md rounded-xl font-small text-small text-text-primary focus:outline-none focus:bg-surface-bright transition-all resize-none" placeholder="e.g. Architecture, Painting, Sculpture, Photography" rows="2"></textarea>
+</div>
+<div class="pt-space-sm flex items-center justify-end gap-space-sm">
+<button class="px-space-lg py-2.5 rounded-xl text-text-secondary hover:text-text-primary font-small text-small font-medium transition-colors" id="cancelModalBtn" type="button">Cancel</button>
+<button class="px-space-xl py-2.5 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-bold shadow-sm transition-all" type="submit">Save Category</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const modal = document.getElementById('addCategoryModal');
+    const openBtn = document.getElementById('openCreateModal');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const cancelBtn = document.getElementById('cancelModalBtn');
+    const form = document.getElementById('categoryForm');
+    const exportBtn = document.getElementById('exportMenuBtn');
+    const exportDrop = document.getElementById('exportDropdown');
+    const searchInput = document.getElementById('categorySearchInput');
+    const rows = document.querySelectorAll('.category-row');
+    const chips = document.querySelectorAll('.filter-chip');
+
+    const toggleModal = (show) => {
+      if (!modal) return;
+      if (show) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    };
+
+    if (openBtn) openBtn.addEventListener('click', () => toggleModal(true));
+    if (closeBtn) closeBtn.addEventListener('click', () => toggleModal(false));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => toggleModal(false));
+
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) toggleModal(false);
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        toggleModal(false);
+      });
+    }
+
+    if (exportBtn && exportDrop) {
+      exportBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        exportDrop.classList.toggle('hidden');
+      });
+
+      document.addEventListener('click', () => {
+        exportDrop.classList.add('hidden');
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        rows.forEach(row => {
+          const text = row.textContent.toLowerCase();
+          row.style.display = text.includes(query) ? '' : 'none';
+        });
+      });
+    }
+
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        chips.forEach(c => {
+          c.classList.remove('bg-primary', 'text-on-primary');
+          c.classList.add('bg-surface-container-low', 'text-text-secondary');
+        });
+        chip.classList.remove('bg-surface-container-low', 'text-text-secondary');
+        chip.classList.add('bg-primary', 'text-on-primary');
+      });
+    });
+
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        rows.forEach(r => r.classList.remove('bg-soft-blue/25'));
+        row.classList.add('bg-soft-blue/25');
+      });
+    });
+  })();
+</script></main></div>
+
+
+
+</body></html>

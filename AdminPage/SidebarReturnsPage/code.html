@@ -1,0 +1,666 @@
+<!DOCTYPE html><html lang="en" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "error-container": "#ffdad6",
+          "text-primary": "#18323D",
+          "tertiary-container": "#26809d",
+          "inverse-on-surface": "#ebf2f3",
+          "on-secondary": "#ffffff",
+          "surface": "#f4fbfc",
+          "on-surface-variant": "#40484e",
+          "surface-dim": "#d4dbdc",
+          "action-green": "#9BE564",
+          "secondary": "#31647a",
+          "secondary-fixed": "#bee9ff",
+          "surface-container-low": "#eef5f6",
+          "status-pending": "#D9A85C",
+          "on-primary-fixed-variant": "#004c6a",
+          "on-secondary-container": "#34677d",
+          "surface-bright": "#f4fbfc",
+          "surface-variant": "#dde4e5",
+          "outline-variant": "#bfc8cf",
+          "secondary-fixed-dim": "#9ccee6",
+          "surface-container-highest": "#dde4e5",
+          "on-secondary-fixed-variant": "#144c61",
+          "status-available": "#7FA58D",
+          "on-primary-fixed": "#001e2d",
+          "on-tertiary": "#ffffff",
+          "tertiary": "#006681",
+          "on-tertiary-fixed": "#001f29",
+          "primary": "#00658a",
+          "glass-surface": "rgba(255,255,255,0.55)",
+          "outline": "#70787f",
+          "chip-unselected-bg": "rgba(255,255,255,0.70)",
+          "on-error": "#ffffff",
+          "on-primary": "#ffffff",
+          "primary-fixed": "#c5e7ff",
+          "text-secondary": "#647982",
+          "secondary-container": "#b2e4fe",
+          "on-secondary-fixed": "#001f2a",
+          "on-primary-container": "#ffffff",
+          "on-error-container": "#93000a",
+          "background": "#f4fbfc",
+          "on-tertiary-fixed-variant": "#004d62",
+          "primary-container": "#287ea7",
+          "tertiary-fixed-dim": "#82d1f1",
+          "surface-container-lowest": "#ffffff",
+          "error": "#ba1a1a",
+          "primary-fixed-dim": "#84cffc",
+          "surface-container-high": "#e2e9ea",
+          "action-green-hover": "#82D64C",
+          "surface-container": "#e8eff0",
+          "on-surface": "#161d1e",
+          "on-tertiary-container": "#ffffff",
+          "on-background": "#161d1e",
+          "inverse-surface": "#2b3233",
+          "tertiary-fixed": "#baeaff",
+          "surface-tint": "#00658b",
+          "status-danger": "#B96F72",
+          "inverse-primary": "#84cffc",
+          "soft-blue": "#D9EEF5"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "32px",
+          "gutter": "24px",
+          "space-xs": "4px",
+          "space-lg": "24px",
+          "space-sm": "8px",
+          "space-xl": "32px",
+          "space-2xl": "48px",
+          "space-3xl": "64px",
+          "space-md": "16px"
+        },
+        "fontFamily": {
+          "caption": [
+            "Inter"
+          ],
+          "body-medium": [
+            "Inter"
+          ],
+          "headline-1": [
+            "Inter"
+          ],
+          "headline-4": [
+            "Inter"
+          ],
+          "headline-2": [
+            "Inter"
+          ],
+          "body-large": [
+            "Inter"
+          ],
+          "display-hero": [
+            "Inter"
+          ],
+          "headline-3": [
+            "Inter"
+          ],
+          "display-hero-mobile": [
+            "Inter"
+          ],
+          "body": [
+            "Inter"
+          ],
+          "small": [
+            "Inter"
+          ]
+        },
+        "fontSize": {
+          "caption": [
+            "12px",
+            {
+              "lineHeight": "1.4",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "body-medium": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "headline-1": [
+            "44px",
+            {
+              "lineHeight": "1.2",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-4": [
+            "22px",
+            {
+              "lineHeight": "1.35",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-2": [
+            "36px",
+            {
+              "lineHeight": "1.25",
+              "fontWeight": "600"
+            }
+          ],
+          "body-large": [
+            "18px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "display-hero": [
+            "56px",
+            {
+              "lineHeight": "1.1",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-3": [
+            "26px",
+            {
+              "lineHeight": "1.3",
+              "fontWeight": "600"
+            }
+          ],
+          "display-hero-mobile": [
+            "36px",
+            {
+              "lineHeight": "1.15",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "body": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "400"
+            }
+          ],
+          "small": [
+            "14px",
+            {
+              "lineHeight": "1.4",
+              "fontWeight": "400"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-surface-container-low font-body text-text-primary antialiased selection:bg-secondary-container selection:text-on-secondary-container"><aside class="fixed left-0 top-0 h-full w-64 bg-[#164E63] shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between bg-[#164E63] border-b border-white/10"><div class="flex items-center gap-space-sm"><img alt="KATIPUNEROS Library Store Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4"><div class="flex flex-col"><span class="font-headline-4 text-small font-bold text-white tracking-tight leading-none">KATIPUNEROS</span><span class="font-caption text-caption text-white/70 uppercase tracking-wider scale-90 origin-left">Library Store</span></div></div><span class="font-caption text-caption bg-[#9BE564] text-[#18323D] px-space-xs py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">ADMIN</span></div><nav class="flex flex-col gap-space-xs px-space-sm pt-space-md"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[20px] text-white/80 group-hover:text-[#18323D] transition-colors">dashboard</span><span class="font-small text-small">Dashboard</span></a><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none transition-colors"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">library_books</span><span class="font-caption text-caption uppercase tracking-wider font-semibold">Management</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="users" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">group</span><span class="font-small text-small">Users</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="books" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">book_2</span><span class="font-small text-small">Books</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="categories" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">category</span><span class="font-small text-small">Categories</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="inventory" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">inventory_2</span><span class="font-small text-small">Inventory</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none transition-colors"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">sync_alt</span><span class="font-caption text-caption uppercase tracking-wider font-semibold">Operations</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="reservations" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">event_available</span><span class="font-small text-small">Reservations</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="borrowings" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">outbox</span><span class="font-small text-small">Borrowings</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg transition-colors bg-[#9BE564] text-[#18323D] font-bold shadow-sm group" data-path="returns" href="#" aria-current="page"><span class="material-symbols-outlined text-[16px] text-[#18323D]">assignment_return</span><span class="font-small text-small">Returns</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none transition-colors"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">insights</span><span class="font-caption text-caption uppercase tracking-wider font-semibold">Insights</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 transition-colors rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] group" data-path="analytics" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">monitoring</span><span class="font-small text-small">Analytics</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="reports" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">description</span><span class="font-small text-small">Reports</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none transition-colors"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">forum</span><span class="font-caption text-caption uppercase tracking-wider font-semibold">Communication</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="notifications" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">notifications</span><span class="font-small text-small">Notifications</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none transition-colors"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">shield</span><span class="font-caption text-caption uppercase tracking-wider font-semibold">Security</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="roles-and-permissions" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">admin_panel_settings</span><span class="font-small text-small">Roles &amp; Permissions</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="audit-logs" href="#"><span class="material-symbols-outlined text-[16px] text-white/80 group-hover:text-[#18323D] transition-colors">history</span><span class="font-small text-small">Audit Logs</span></a></div></div><div class="mt-space-sm pt-space-sm border-t border-white/10"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="settings" href="#"><span class="material-symbols-outlined text-[20px] text-white/80 group-hover:text-[#18323D] transition-colors">settings</span><span class="font-small text-small">Settings</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="profile" href="#"><span class="material-symbols-outlined text-[20px] text-white/80 group-hover:text-[#18323D] transition-colors">account_circle</span><span class="font-small text-small">Profile</span></a></div></nav></div><div class="p-space-sm mt-auto bg-[#164E63] border-t border-white/10"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-error-container hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="logout" href="#"><span class="material-symbols-outlined text-[20px] text-error-container group-hover:text-[#18323D] transition-colors">logout</span><span class="font-small text-small font-medium">Logout</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md"><button class="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Toggle Sidebar" type="button"><span class="material-symbols-outlined text-[20px]">menu_open</span></button><nav class="hidden sm:flex items-center gap-space-xs text-caption font-caption text-text-secondary"><span class="hover:text-text-primary cursor-pointer transition-colors">Admin</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-primary font-semibold">Console</span></nav></div><div class="flex items-center gap-space-lg"><div class="relative hidden md:block w-72 lg:w-96"><span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span><input class="w-full bg-surface-container-low pl-10 pr-space-md py-2 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search users, books, reservations..." type="text"></div><button class="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1 right-1 w-4 h-4 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center">3</span></button><div class="flex items-center gap-space-sm pl-space-sm bg-surface-container-low py-1 px-space-sm rounded-full"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg"><div class="hidden lg:flex flex-col pr-space-xs"><span class="font-small text-small font-semibold text-text-primary leading-tight">Administrator</span><span class="font-caption text-caption text-text-secondary leading-none">Super Admin</span></div></div></div></header><main class="w-full pt-16 bg-surface-container-low min-h-screen px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md mb-space-xl">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs text-text-secondary font-caption text-caption mb-1">
+<span class="">Admin Console</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="">Operations</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-semibold">Returns</span>
+</div>
+<h1 class="font-headline-2 text-headline-2 text-text-primary tracking-tight">
+        Circulation Returns, Inspections &amp; Delinquency Settlements
+      </h1>
+<p class="font-small text-small text-text-secondary mt-1">
+        Manage volume check-ins, automated overdue tallying, faculty clearances, and book condition appraisals.
+      </p>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm">
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-lg bg-surface-container-lowest text-text-primary hover:bg-surface-container transition-colors shadow-sm font-small text-small font-semibold" type="button">
+<span class="material-symbols-outlined text-[18px] text-text-secondary">file_download</span>
+        Export Daily Returns Journal
+      </button>
+<button class="flex items-center gap-space-xs px-space-lg py-2.5 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover transition-colors shadow-sm font-small text-small font-bold" type="button">
+<span class="material-symbols-outlined text-[20px]">fact_check</span>
+        Process Bulk Returns
+      </button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md mb-space-xl">
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Volumes Checked In</span>
+<div class="w-10 h-10 rounded-full bg-soft-blue flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[22px]">assignment_turned_in</span>
+</div>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-1 text-headline-2 text-text-primary font-bold">58</span>
+<span class="font-caption text-caption text-status-available font-semibold flex items-center">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> +14% vs avg
+        </span>
+</div>
+<div class="mt-space-sm flex items-center justify-between font-caption text-caption text-text-secondary">
+<span class="">Target: 70/day capacity</span>
+<span class="text-primary font-medium">82.8% capacity</span>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-1.5 overflow-hidden">
+<div class="bg-primary h-1.5 rounded-full" style="width: 82.8%"></div>
+</div>
+</div>
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">On-Time Return Rate</span>
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-status-available">
+<span class="material-symbols-outlined text-[22px]">verified</span>
+</div>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-1 text-headline-2 text-text-primary font-bold">94.2%</span>
+<span class="font-caption text-caption text-status-available font-semibold flex items-center">
+<span class="material-symbols-outlined text-[14px]">arrow_drop_up</span> +2.1%
+        </span>
+</div>
+<div class="mt-space-sm flex items-center justify-between font-caption text-caption text-text-secondary">
+<span class="">53 On-time / 5 Late</span>
+<span class="text-status-available font-medium">Within SLA</span>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-1.5 overflow-hidden">
+<div class="bg-status-available h-1.5 rounded-full" style="width: 94.2%"></div>
+</div>
+</div>
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Delinquency Fines Tally</span>
+<div class="w-10 h-10 rounded-full bg-secondary-container/40 flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[22px]">payments</span>
+</div>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-1 text-headline-2 text-text-primary font-bold">₱1,420.00</span>
+<span class="font-caption text-caption text-text-secondary">collected</span>
+</div>
+<div class="mt-space-sm flex items-center justify-between font-caption text-caption text-text-secondary">
+<span class="">₱255.00 pending ledger</span>
+<span class="text-status-pending font-medium">3 unsettled</span>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-1.5 overflow-hidden">
+<div class="bg-status-pending h-1.5 rounded-full" style="width: 84.8%"></div>
+</div>
+</div>
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Flagged for Bindery / Wear</span>
+<div class="w-10 h-10 rounded-full bg-error-container/60 flex items-center justify-center text-status-danger">
+<span class="material-symbols-outlined text-[22px]">healing</span>
+</div>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-1 text-headline-2 text-text-primary font-bold">4</span>
+<span class="font-caption text-caption text-status-danger font-semibold">Requires routing</span>
+</div>
+<div class="mt-space-sm flex items-center justify-between font-caption text-caption text-text-secondary">
+<span class="">2 spine damage, 2 water warp</span>
+<span class="text-error font-medium">Critical QA</span>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-1.5 overflow-hidden">
+<div class="bg-status-danger h-1.5 rounded-full" style="width: 65%"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 2xl:grid-cols-4 gap-space-lg">
+<div class="2xl:col-span-3 flex flex-col gap-space-md">
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+<button class="px-space-md py-1.5 rounded-full bg-primary text-on-primary font-small text-small font-semibold whitespace-nowrap shadow-sm" type="button">
+            All Returns (58)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-container-low text-text-secondary hover:text-text-primary hover:bg-surface-container font-small text-small font-medium whitespace-nowrap transition-colors" type="button">
+            On-Time (53)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-container-low text-text-secondary hover:text-text-primary hover:bg-surface-container font-small text-small font-medium whitespace-nowrap transition-colors" type="button">
+            Late / Fined (5)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-container-low text-text-secondary hover:text-text-primary hover:bg-surface-container font-small text-small font-medium whitespace-nowrap transition-colors" type="button">
+            Damaged / Flagged (4)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-container-low text-text-secondary hover:text-text-primary hover:bg-surface-container font-small text-small font-medium whitespace-nowrap transition-colors" type="button">
+            Courtesy Waived (2)
+          </button>
+</div>
+<div class="relative w-full md:w-80">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[18px]">search</span>
+<input class="w-full pl-9 pr-space-md py-2 bg-surface-container-low rounded-lg font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-bright focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search Return ID, patron, barcode..." type="text">
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="px-space-lg py-space-md flex items-center justify-between bg-surface-container-low/50">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-4 text-headline-4 text-text-primary">Master Returns Journal</span>
+<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-soft-blue text-primary tracking-wide">TODAY'S BATCH</span>
+</div>
+<div class="flex items-center gap-space-xs text-caption font-caption text-text-secondary">
+<span class="">Displaying 4 priority audit records</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-small text-small">
+<thead>
+<tr class="bg-surface-container-low/30 text-text-secondary font-caption text-caption uppercase tracking-wider">
+<th class="py-3 px-space-md font-semibold">Return ID</th>
+<th class="py-3 px-space-md font-semibold">Patron Details</th>
+<th class="py-3 px-space-md font-semibold">Item &amp; Barcode</th>
+<th class="py-3 px-space-md font-semibold">Timeline &amp; Overdue</th>
+<th class="py-3 px-space-md font-semibold">Assessed Fine</th>
+<th class="py-3 px-space-md font-semibold">Condition</th>
+<th class="py-3 px-space-md font-semibold">Clearance Status</th>
+<th class="py-3 px-space-md font-semibold">Station / Desk</th>
+<th class="py-3 px-space-md font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="font-caption text-caption font-bold text-primary px-2 py-1 rounded bg-soft-blue">#RET-4819</span>
+<div class="text-[11px] text-text-secondary mt-1">Oct 26, 09:12 AM</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-medium text-text-primary">Sofia Morales</div>
+<div class="font-caption text-caption text-text-secondary">#KP-77401 • Undergrad</div>
+</td>
+<td class="py-space-md px-space-md max-w-[200px]">
+<div class="font-semibold text-text-primary truncate" title="Clean Code">Clean Code</div>
+<div class="font-caption text-caption text-text-secondary font-mono">#KP-BC-4491-03</div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="text-[12px] text-text-secondary">Due: Oct 26, 2026</div>
+<div class="font-caption text-caption text-status-available font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> 0 Days (On-Time)
+                  </div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="font-bold text-text-primary">₱0.00</div>
+<span class="text-[11px] text-status-available font-medium">Clear of fees</span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-caption font-semibold bg-soft-blue text-primary">
+                    Good Condition
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-action-green/20 text-on-surface">
+<span class="w-1.5 h-1.5 rounded-full bg-action-green-hover"></span>
+                    Cleared
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap text-text-secondary text-caption font-caption">
+<div class="font-medium text-text-primary">Cashier Bay 01</div>
+<div class="">Terminal ID: T-04</div>
+</td>
+<td class="py-space-md px-space-md text-right whitespace-nowrap">
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-primary font-caption text-caption font-bold transition-colors" type="button">
+                    View Receipt
+                  </button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/40 transition-colors bg-surface-container-low/20">
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="font-caption text-caption font-bold text-primary px-2 py-1 rounded bg-soft-blue">#RET-4818</span>
+<div class="text-[11px] text-text-secondary mt-1">Oct 26, 09:40 AM</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-medium text-text-primary">Marcus Aurelio Cruz</div>
+<div class="font-caption text-caption text-text-secondary">#KP-65922 • Graduate</div>
+</td>
+<td class="py-space-md px-space-md max-w-[200px]">
+<div class="font-semibold text-text-primary truncate" title="Principles of Modern Thermodynamics">Principles of Modern Thermodynamics</div>
+<div class="font-caption text-caption text-text-secondary font-mono">#KP-BC-1142-08</div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="text-[12px] text-text-secondary">Due: Oct 16, 2026</div>
+<div class="font-caption text-caption text-error font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]">warning</span> 10 Days Overdue
+                  </div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="font-bold text-text-primary">₱150.00</div>
+<span class="text-[11px] text-text-secondary">₱15/day standardized</span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-caption font-semibold bg-surface-container text-text-secondary">
+                    Fair (Usable)
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-soft-blue text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Settled (Cash)
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap text-text-secondary text-caption font-caption">
+<div class="font-medium text-text-primary">Cashier Bay 01</div>
+<div class="">Terminal ID: T-04</div>
+</td>
+<td class="py-space-md px-space-md text-right whitespace-nowrap">
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-primary font-caption text-caption font-bold transition-colors" type="button">
+                    Print Audit
+                  </button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="font-caption text-caption font-bold text-primary px-2 py-1 rounded bg-soft-blue">#RET-4815</span>
+<div class="text-[11px] text-text-secondary mt-1">Oct 25, 16:30 PM</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-medium text-text-primary flex items-center gap-1">
+                    Dr. Leandro Santos
+                    <span class="material-symbols-outlined text-[14px] text-primary" title="Tenured Faculty">school</span>
+</div>
+<div class="font-caption text-caption text-text-secondary">#KP-10294 • Faculty Member</div>
+</td>
+<td class="py-space-md px-space-md max-w-[200px]">
+<div class="font-semibold text-text-primary truncate" title="Introduction to Algorithms (CLRS)">Introduction to Algorithms (CLRS)</div>
+<div class="font-caption text-caption text-text-secondary font-mono">#KP-BC-3091-01</div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="text-[12px] text-text-secondary">Due: Oct 20, 2026</div>
+<div class="font-caption text-caption text-status-pending font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]">schedule</span> 5 Days Grace
+                  </div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="font-bold text-text-primary">₱0.00</div>
+<span class="text-[11px] text-primary font-semibold">Faculty Waiver</span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-caption font-semibold bg-surface-container text-text-secondary">
+                    Minor Wear
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-secondary-container text-on-secondary-container">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                    Exempt Cleared
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap text-text-secondary text-caption font-caption">
+<div class="font-medium text-text-primary">Desk Bay 02</div>
+<div class="">Terminal ID: T-02</div>
+</td>
+<td class="py-space-md px-space-md text-right whitespace-nowrap">
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-primary font-caption text-caption font-bold transition-colors" type="button">
+                    View Dossier
+                  </button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/40 transition-colors bg-error-container/10">
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="font-caption text-caption font-bold text-status-danger px-2 py-1 rounded bg-error-container">#RET-4810</span>
+<div class="text-[11px] text-text-secondary mt-1">Oct 25, 14:15 PM</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-medium text-text-primary">Clara Mae Ilustre</div>
+<div class="font-caption text-caption text-text-secondary">#KP-2021-04288 • Scholar</div>
+</td>
+<td class="py-space-md px-space-md max-w-[200px]">
+<div class="font-semibold text-text-primary truncate" title="Philippine Flora &amp; Forest">Philippine Flora &amp; Forest</div>
+<div class="font-caption text-caption text-text-secondary font-mono">#KP-BC-3194-02</div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="text-[12px] text-text-secondary">Due: Oct 18, 2026</div>
+<div class="font-caption text-caption text-error font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]">error</span> 7 Days Late
+                  </div>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<div class="font-bold text-error">₱105.00</div>
+<span class="text-[11px] text-error font-semibold">+ Damage fee TBD</span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-caption font-semibold bg-error-container text-on-error-container">
+                    Binding Issue
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-status-pending/20 text-on-surface">
+<span class="w-1.5 h-1.5 rounded-full bg-status-pending"></span>
+                    Pending Settlement
+                  </span>
+</td>
+<td class="py-space-md px-space-md whitespace-nowrap text-text-secondary text-caption font-caption">
+<div class="font-medium text-text-primary">Cashier Bay 01</div>
+<div class="">Terminal ID: T-04</div>
+</td>
+<td class="py-space-md px-space-md text-right whitespace-nowrap">
+<button class="px-3 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container font-caption text-caption font-bold transition-colors shadow-sm" type="button">
+                    Inspect Damage
+                  </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-space-md flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm bg-surface-container-low/30 font-caption text-caption text-text-secondary">
+<div class="">Showing 4 of 58 returns logged during Circulation Window A</div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded hover:bg-surface-container transition-colors disabled:opacity-40" disabled="" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<span class="px-2 py-1 rounded bg-primary text-on-primary font-bold">1</span>
+<button class="px-2 py-1 rounded hover:bg-surface-container transition-colors" type="button">2</button>
+<button class="px-2 py-1 rounded hover:bg-surface-container transition-colors" type="button">3</button>
+<button class="p-1 rounded hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-space-md">
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption text-primary uppercase font-bold tracking-wider">Protocol Inspection</span>
+<h2 class="font-headline-4 text-headline-4 text-text-primary mt-0.5">Damaged Book Assessment</h2>
+</div>
+<div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-status-danger">
+<span class="material-symbols-outlined text-[18px]">rule</span>
+</div>
+</div>
+<p class="font-small text-small text-text-secondary">
+          Physical audit queue for volumes flagged with structural damage during intake.
+        </p>
+<div class="bg-surface-container-low rounded-lg p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption font-bold text-text-primary">Current Active Case</span>
+<span class="font-caption text-caption text-error font-bold px-2 py-0.5 rounded bg-error-container">Severe Fault</span>
+</div>
+<div class="flex gap-space-sm items-center mt-1">
+<img class="w-16 h-20 rounded-lg object-cover bg-surface-container flex-shrink-0 shadow-sm" data-alt="Close-up photograph of a vintage academic reference book with detached leather binding and warped pages laid out flat under clean library inspection lamp lighting with soft blue stationery in background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBW8X7tnnXBG6BVYdU4U_WfL3pCZj9bikd8sQ87X6GUIOBQCfePDd2UwUNNFX3bVr9XnzX_HdsBTsaL_rJXlFO1nMFwWyonya6L49bi3aVUDHZpIhXBG9PXYVKOp9glHbaVxOXSX_I50bU2goWVJBfAsNMb57pEC79t3KzqREqEqVMDBrhJuKs6lAV0CTBQNzxWlo5eF4mZOU8rorWcKyUMkEnULCTqs3Y113LBxhjmYwqgN0eVH6OJ">
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-bold text-text-primary truncate">Philippine Flora &amp; Forest</span>
+<span class="font-caption text-caption text-text-secondary font-mono">Barcode: #KP-BC-3194-02</span>
+<span class="font-caption text-caption text-text-secondary mt-1">Reported by: Bay 01 Specialist</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-2 pt-2 bg-surface-container-lowest/60 rounded-lg p-2 font-caption text-caption">
+<div>
+<span class="text-text-secondary block">Damage Type</span>
+<span class="font-semibold text-text-primary">Spine Separation</span>
+</div>
+<div>
+<span class="text-text-secondary block">Assessed Penalty</span>
+<span class="font-bold text-error">₱280.00 Rebind</span>
+</div>
+<div>
+<span class="text-text-secondary block">Patron Responsible</span>
+<span class="font-medium text-text-primary truncate block">C. M. Ilustre</span>
+</div>
+<div>
+<span class="text-text-secondary block">Est. Repair Time</span>
+<span class="font-semibold text-primary">3-5 Workdays</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="font-caption text-caption font-semibold text-text-secondary uppercase tracking-wider">Bindery &amp; Conservation Routing</span>
+<div class="grid grid-cols-1 gap-2">
+<button class="w-full flex items-center justify-between px-space-md py-2.5 rounded-lg bg-surface-container-low hover:bg-soft-blue text-text-primary font-small text-small font-medium transition-colors text-left group" type="button">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">build</span>
+<span class="">Route to Campus Bindery Unit</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-text-secondary group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+</button>
+<button class="w-full flex items-center justify-between px-space-md py-2.5 rounded-lg bg-surface-container-low hover:bg-soft-blue text-text-primary font-small text-small font-medium transition-colors text-left group" type="button">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[18px] text-status-pending">inventory</span>
+<span class="">Order Publisher Replacement</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-text-secondary group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+</button>
+<button class="w-full flex items-center justify-between px-space-md py-2.5 rounded-lg bg-surface-container-low hover:bg-soft-blue text-text-primary font-small text-small font-medium transition-colors text-left group" type="button">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[18px] text-text-secondary">archive</span>
+<span class="">Deaccession &amp; Salvage Archive</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-text-secondary group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+</button>
+</div>
+</div>
+<div class="pt-space-sm flex gap-space-xs">
+<button class="flex-1 py-2 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover font-small text-small font-bold transition-colors" type="button">
+            Authorize Routing
+          </button>
+<button class="px-space-md py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-secondary font-small text-small font-medium transition-colors" type="button">
+            Hold
+          </button>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm mb-1">
+<span class="material-symbols-outlined text-primary text-[20px]">help_center</span>
+<h3 class="font-headline-4 text-small font-bold text-text-primary">Returns Policy Fast Guide</h3>
+</div>
+<div class="space-y-2 font-caption text-caption text-text-secondary">
+<div class="p-2 rounded bg-surface-container-low">
+<span class="font-bold text-text-primary block">Undergraduate Loan:</span>
+            ₱15.00 / day penalty past 14-day regular period.
+          </div>
+<div class="p-2 rounded bg-surface-container-low">
+<span class="font-bold text-text-primary block">Graduate Students:</span>
+            ₱10.00 / day penalty past 30-day extended loan.
+          </div>
+<div class="p-2 rounded bg-surface-container-low">
+<span class="font-bold text-text-primary block">Faculty Clearance:</span>
+            Automatic waiver with Dean's semester sign-off.
+          </div>
+</div>
+</div>
+</div>
+</div>
+</div></main></div>
+
+</body></html>

@@ -1,0 +1,1436 @@
+{
+  "LANDING_PAGE/Features/Pages/ContactMe/ContactMe.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/ContactMe/Components/ContactForm.tsx": {
+    "buttons_sample": [
+      "send {isSubmitting ? 'Sending...' : 'Send Message'}"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Dr. Sofia Morales",
+      "smorales@university.edu",
+      "Please outline book titles, accession codes, or research topics you require holds for..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 3
+  },
+  "LANDING_PAGE/Features/Pages/Home/Home.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Home/Components/AuthModal.tsx": {
+    "buttons_sample": [
+      "close",
+      "setTab('signin')} > Sign In",
+      "setTab('signup')} > Sign Up",
+      "Continue with Google",
+      "Sign In to Account",
+      "Register Patron Account"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "patron@university.edu",
+      "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "Maria Santos",
+      "msantos@university.edu.ph",
+      "Min. 8 characters"
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 6,
+    "total_inputs": 5
+  },
+  "LANDING_PAGE/Features/Pages/Home/Components/BookDetailModal.tsx": {
+    "buttons_sample": [
+      "close",
+      "{ onClose(); onReserve(book); }} > bookmark_add Reserve This Copy",
+      "Close"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 3,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Home/Components/BookHero3D.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Home/Components/HeroSection.tsx": {
+    "buttons_sample": [
+      "Find Book arrow_forward",
+      "onOpenReserve(spotlightBook)} > bookmark_add Reserve Book"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Search by title, author, ISBN, or discipline..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 3,
+    "total_inputs": 1
+  },
+  "LANDING_PAGE/Features/Pages/Home/Components/LibraryMapSection.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Home/Components/ReservationModal.tsx": {
+    "buttons_sample": [
+      "close",
+      "check Confirm Reservation",
+      "Done"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 4,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Products/Product.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Products/Components/BookCarousel.tsx": {
+    "buttons_sample": [
+      "onOpenReserve(curatorSpotlightBook)} > bookmark_add Reserve Book",
+      "onOpenDetail(curatorSpotlightBook)} > menu_book View Full Details"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 2,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Products/Components/NewlyAcquiredBooks.tsx": {
+    "buttons_sample": [
+      "onOpenDetail(book)} > Details",
+      "onOpenReserve(book)} > Reserve"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 3,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Services/Services.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "LANDING_PAGE/Features/Pages/Services/Components/ServicesSection.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Components/DataTable.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Components/StatsCard.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/AdminDashboard.tsx": {
+    "buttons_sample": [
+      "person_add + Add User",
+      "menu_book + Add Book",
+      "analytics View Analytics",
+      "receipt_long Generate Audit Report",
+      "Weekly",
+      "Monthly",
+      "Term Q3",
+      "Approve",
+      "Review",
+      "send Notice",
+      "outgoing_mail Send Batch Overdue Reminders (18 Recipient Emails)",
+      "filter_list Filter Logs",
+      "Run Manual Sync"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 21,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Analytics.tsx": {
+    "buttons_sample": [
+      "picture_as_pdf Export Dossier (PDF/CSV) arrow_forward",
+      "Review Stacks Allocation shelves",
+      "7D",
+      "30D",
+      "90D",
+      "1Y",
+      "All",
+      "Borrowings check_circle",
+      "Reservations check_circle",
+      "Returns check_circle",
+      "Overdue check_circle",
+      "refresh Refresh Telemetry"
+    ],
+    "inputs_id": [],
+    "input_names": [
+      "granularity"
+    ],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 12,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/AuditLogs.tsx": {
+    "buttons_sample": [
+      "verified_user Verify Hash Chain",
+      "lock_clock Export Cryptographic Dossier expand_more",
+      "All Severities",
+      "Info",
+      "Warning",
+      "Critical",
+      "Today (Oct 26)",
+      "7D",
+      "30D",
+      "calendar_today Custom",
+      "restart_alt",
+      "terminal",
+      "Previous",
+      "1",
+      "2",
+      "3",
+      "369",
+      "Next",
+      "{ (window as any).closeInspector?.(); }}> close",
+      "{ (window as any).copyPayload?.(); }}> content_copy Copy Raw Object",
+      "{ (window as any).closeInspector?.(); }}>Close"
+    ],
+    "inputs_id": [
+      "searchInput"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Filter by Actor, Email, Record ID, IP, or Hash suffix..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 26,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/BooksManager.tsx": {
+    "buttons_sample": [
+      "file_download Export MARC 21 / CSV",
+      "input Batch ISBN Import",
+      "add_circle Add New Book",
+      "table_rows",
+      "All Categories",
+      "Computer Science (312)",
+      "History &amp; Philosophy (184)",
+      "Mathematics (142)",
+      "Literature (280)",
+      "Natural Sciences (198)",
+      "edit",
+      "qr_code_2",
+      "more_vert",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "156",
+      "chevron_right",
+      "+ Add Copy",
+      "edit_note Edit Classification",
+      "inventory Manage Copies",
+      "archive Archive Record",
+      "history Audit History"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Search Title, Author, ISBN-13, Dewey Call No..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 36,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Borrowings.tsx": {
+    "buttons_sample": [
+      "file_download Export Loan Ledger",
+      "policy Lending Rules",
+      "add_circle New Circulation Loan Override",
+      "All Loans (1,384)",
+      "Due Soon (42)",
+      "Overdue (18)",
+      "Faculty Holds",
+      "tune",
+      "chevron_left",
+      "chevron_right",
+      "Extend Loan",
+      "forward_to_inbox",
+      "Inspect",
+      "receipt_long",
+      "View Delinquency",
+      "lock_person",
+      "Renew",
+      "history",
+      "Send Group SMS Reminders",
+      "Export CSV",
+      "Edit Policies \u2192",
+      "badge",
+      "document_scanner",
+      "Clear",
+      "Authorize &amp; Print Circulation Slip"
+    ],
+    "inputs_id": [
+      "circulationSearch"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Search loan ID (#LN-xxxx), patron barcode (#KP-BC-xxxx), or student name...",
+      "e.g. ST-2023-0842",
+      "e.g. KP-BC-4491-03",
+      "e.g. Dean approved thesis field study",
+      "State reason for manual extension..."
+    ],
+    "forms": [],
+    "modals": [
+      "renewalModal",
+      "btnCloseRenewalModal",
+      "modalBookTitle",
+      "modalLoanDetails",
+      "btnCancelRenewalModal"
+    ],
+    "tables_or_containers": [],
+    "total_buttons": 28,
+    "total_inputs": 6
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Categories.tsx": {
+    "buttons_sample": [
+      "ios_share Export Schema expand_more",
+      "data_object JSON Concordance",
+      "table_view CSV Master Index",
+      "add Add Category",
+      "All Classes (42)",
+      "STEM Ranges",
+      "Humanities",
+      "Filipiniana",
+      "visibility",
+      "edit",
+      "archive",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "chevron_right",
+      "rule Edit Category Rules",
+      "alt_route Manage Cross-References",
+      "refresh",
+      "close",
+      "Cancel",
+      "Save Category"
+    ],
+    "inputs_id": [
+      "categorySearchInput"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Search call code, discipline, keyword...",
+      "e.g. 700 - 799",
+      "LoC (e.g. N, NA, NK)",
+      "e.g. The Arts &amp; Fine Recreation",
+      "e.g. Bays 01-08",
+      "e.g. Architecture, Painting, Sculpture, Photography"
+    ],
+    "forms": [
+      "categoryForm"
+    ],
+    "modals": [
+      "openCreateModal",
+      "addCategoryModal",
+      "closeModalBtn",
+      "cancelModalBtn"
+    ],
+    "tables_or_containers": [
+      "categoriesTableBody"
+    ],
+    "total_buttons": 34,
+    "total_inputs": 7
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Inventory.tsx": {
+    "buttons_sample": [
+      "nfc RFID Sync Batch",
+      "print Print Shelf Tags",
+      "add_box Ingest Physical Barcodes",
+      "All Copies (4,892)",
+      "Available (3,112)",
+      "On Loan (1,402)",
+      "Staged Hold (248)",
+      "Bindery/Repair (85)",
+      "Lost/Audit (45)",
+      "visibility",
+      "label",
+      "Recall",
+      "Update Status",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "979",
+      "chevron_right",
+      "View Replacements"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Scan or type barcode..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 22,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Notifications.tsx": {
+    "buttons_sample": [
+      "tune Configure Dispatch Templates",
+      "shopping_cart_checkout Trigger Acquisition Order",
+      "visibility",
+      "forward_to_inbox Send Formal Registrar Notice",
+      "list_alt",
+      "build Ping Hardware Team",
+      "sync",
+      "more_vert",
+      "analyticsAnalytics",
+      "Edit",
+      "Unpublish",
+      "analyticsPreview",
+      "Cancel",
+      "Publish Draft",
+      "syncRefresh Stream",
+      "Inspect Payload",
+      "Active Preview",
+      "Configure",
+      "SMS",
+      "Email",
+      "scienceSend Test SMS",
+      "Save Template",
+      "Student &amp; Faculty Portal",
+      "Mobile App Push",
+      "Circulation Kiosk Screens"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "e.g., Extended Stacks Hours During Examination Week...",
+      "Detail opening hours, access protocols, affected stack zones, and assistance contact details..."
+    ],
+    "forms": [],
+    "modals": [
+      "broadcast-modal"
+    ],
+    "tables_or_containers": [],
+    "total_buttons": 45,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Profile.tsx": {
+    "buttons_sample": [
+      "badge Download Access Keycard",
+      "edit_square Edit Profile Information",
+      "Rotate Password Now",
+      "Manage Registered Tokens",
+      "lock_reset Terminate All Other Sessions",
+      "logout"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 6,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Reports.tsx": {
+    "buttons_sample": [
+      "instant_mix Generate Official Report Dossier",
+      "filter_list",
+      "grid_view",
+      "picture_as_pdf PDF",
+      "table_view CSV",
+      "download XLSX",
+      "picture_as_pdf Full Dossier PDF",
+      "table_view Raw CSV",
+      "refresh Refresh",
+      "download",
+      "fingerprint",
+      "Previous",
+      "Next",
+      "settings"
+    ],
+    "inputs_id": [
+      "report-template",
+      "delinquency-flag",
+      "checksum-input"
+    ],
+    "input_names": [
+      "timeframe",
+      "export-format"
+    ],
+    "placeholders": [
+      "Filter completed archives...",
+      "Enter SHA-256 hash or dossier ID..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 42,
+    "total_inputs": 5
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Reservations.tsx": {
+    "buttons_sample": [
+      "download Export Roster",
+      "tune Locker Matrix",
+      "task_alt Batch Hold Clearance",
+      "All Locations",
+      "Main Circulation Desk",
+      "Smart Lockers (Bay A-D)",
+      "Graduate Annex",
+      "All 248",
+      "Pending Review 28",
+      "Approved &amp; Staged 142",
+      "Completed / Picked Up 1,840",
+      "Expired / Cancelled 42",
+      "Approve",
+      "Reject",
+      "send Notify Patron",
+      "receipt_long",
+      "Release",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "25",
+      "chevron_right",
+      "Adjust Hold Quotas",
+      "Run diagnostics arrow_forward"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Filter by Hold ID (#HLD-...), patron name, student number, or title..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 27,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Returns.tsx": {
+    "buttons_sample": [
+      "file_download Export Daily Returns Journal",
+      "fact_check Process Bulk Returns",
+      "All Returns (58)",
+      "On-Time (53)",
+      "Late / Fined (5)",
+      "Damaged / Flagged (4)",
+      "Courtesy Waived (2)",
+      "View Receipt",
+      "Print Audit",
+      "View Dossier",
+      "Inspect Damage",
+      "chevron_left",
+      "2",
+      "3",
+      "chevron_right",
+      "build Route to Campus Bindery Unit arrow_forward",
+      "inventory Order Publisher Replacement arrow_forward",
+      "archive Deaccession &amp; Salvage Archive arrow_forward",
+      "Authorize Routing",
+      "Hold"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Search Return ID, patron, barcode..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 20,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/RolesPermissions.tsx": {
+    "buttons_sample": [
+      "restart_alt Reset to Defaults",
+      "file_download Export Security Policy",
+      "add_moderator Create Custom Role",
+      "Audit Changelog arrow_forward",
+      "saveSave Role Policy",
+      "Clone as Custom Profile",
+      "View Raw Telemetry"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Filter module privileges..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [
+      "role-privilege-list"
+    ],
+    "total_buttons": 16,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/Settings.tsx": {
+    "buttons_sample": [
+      "replay Reset Defaults",
+      "save Save Configurations",
+      "\u2039",
+      "scheduleCirculation &amp; Loan Durations",
+      "lock_clockReservations &amp; Locker Staging",
+      "calculateFine Calculation &amp; Waiver Tariff",
+      "paletteAppearance &amp; Theme",
+      "cell_towerNotification Dispatch Gateways",
+      "shieldSecurity &amp; Access Governance",
+      "nfcHardware &amp; RFID Sync",
+      "\u203a",
+      "check Academic Blue #287EA7 (Default)",
+      "Action Lime #9BE564",
+      "Deep Navy #164E63",
+      "Verify SMTP Connection",
+      "Configure Service Account",
+      "Remove",
+      "+ Add Subnet"
+    ],
+    "inputs_id": [
+      "rate-input",
+      "cap-input",
+      "overdue-slider"
+    ],
+    "input_names": [
+      "theme_mode",
+      "density"
+    ],
+    "placeholders": [
+      "e.g. 10.20.0.0/16"
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 21,
+    "total_inputs": 4
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Pages/UserManagement.tsx": {
+    "buttons_sample": [
+      "file_download Export CSV / Excel",
+      "person_add + Add User",
+      "All (3,420)",
+      "Customers / Patrons (3,380)",
+      "Cashiers (24)",
+      "Administrators (16)",
+      "Active (3,280)",
+      "Inactive (95)",
+      "Suspended / Hold (45)",
+      "edit_square",
+      "more_vert",
+      "visibility",
+      "lock_reset",
+      "Approve",
+      "keyboard_double_arrow_left",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "342",
+      "chevron_right",
+      "keyboard_double_arrow_right",
+      "{ (window as any).toggleDrawer?.(false); }} type=\"button\"> close",
+      "block Suspend Hold",
+      "save Save Changes"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Search patron by full name, KP-ID (#KP-77401), email, or RFID barcode..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 37,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Shared/AdminButton.tsx": {
+    "buttons_sample": [
+      "{icon && {icon}} {children}"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Shared/AdminModalCard.tsx": {
+    "buttons_sample": [
+      "close"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Shared/NotificationUI.tsx": {
+    "buttons_sample": [
+      "Mark all as read"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/AdminsPanel/Shared/RadioGroupField.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Components/PaymentForm.tsx": {
+    "buttons_sample": [
+      "Cancel",
+      "Confirm &amp; Print Receipt"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "e.g. Cleared 2 days overdue"
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 3,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Components/ReceiptCard.tsx": {
+    "buttons_sample": [
+      "Print",
+      "Done"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 2,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/BookAvailability.tsx": {
+    "buttons_sample": [
+      "cancel",
+      "000 - Computer Science (418)",
+      "100 - Philosophy (88)",
+      "300 - Social Sciences (264)",
+      "600 - Technology (312)",
+      "900 - History &amp; Geography (166)",
+      "restart_alt",
+      "inventory_2 Inspect 4 Copies",
+      "inventory_2 Inspect 5 Copies",
+      "inventory_2 Inspect 8 Copies",
+      "chevron_left",
+      "1",
+      "2",
+      "chevron_right",
+      "map Show Stacks Floorplan (Bay 14)",
+      "Verify",
+      "print Print Bay 14 Slip"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Search by Book Title, Author, ISBN-13, or Dewey Call # (e.g., 005.133)...",
+      "Scan or type physical item barcode (e.g. KP-BC-4491-01)..."
+    ],
+    "forms": [],
+    "modals": [
+      "floorplanModal"
+    ],
+    "tables_or_containers": [],
+    "total_buttons": 23,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/CashierDashboard.tsx": {
+    "buttons_sample": [
+      "shopping_cart_checkout + Fast Checkout",
+      "pending_actions Review Reservations 5",
+      "keyboard_return Process Return",
+      "qr_code_scanner Scan Barcode/QR",
+      "person_search Find Patron",
+      "All (5)",
+      "Today (3)",
+      "Tomorrow (2)",
+      "Priority",
+      "check Approve",
+      "Review / Reject",
+      "View All Pending Intake Queue arrow_forward",
+      "Manual Input Key",
+      "Process Return",
+      "notifications_active",
+      "Collect &amp; Return",
+      "outgoing_mail",
+      "lock_clock Close Shift / Reconcile Drawer"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 24,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/CheckoutBorrow.tsx": {
+    "buttons_sample": [
+      "book_online Reservation Hold Release",
+      "directions_walk Direct Walk-In Checkout",
+      "qr_code_scanner",
+      "add Stage Copy",
+      "delete",
+      "print Complete Checkout &amp; Print Pass",
+      "restart_alt Clear Staging",
+      "pause Suspend Cart",
+      "receipt"
+    ],
+    "inputs_id": [],
+    "input_names": [
+      "loan_duration"
+    ],
+    "placeholders": [
+      "Scan Patron Card Barcode or Enter Patron ID / Email (e.g. KP-88192)...",
+      "Scan Physical Book Barcode (e.g., KP-BC-4491) or Select from Approved Holds..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 11,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/CustomerLookup.tsx": {
+    "buttons_sample": [
+      "sync Refresh Ledger",
+      "print Daily Census",
+      "filter_alt_off Reset",
+      "barcode_scanner Scan Pass",
+      "All Patrons (3,420)",
+      "Eligible / In Good Standing (3,280)",
+      "Restricted / Hold (14)",
+      "Faculty Exemptions (86)",
+      "Pending Clearance (22)",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "684",
+      "chevron_right",
+      "{ (window as any).closePatronModal?.(); }} type=\"button\"> close",
+      "{ (window as any).closePatronModal?.(); }} type=\"button\"> Done"
+    ],
+    "inputs_id": [
+      "patronSearchInput"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Scan Student/Faculty RFID, Barcode, #KP-ID, or Name..."
+    ],
+    "forms": [],
+    "modals": [
+      "patronModal"
+    ],
+    "tables_or_containers": [],
+    "total_buttons": 27,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/Notifications.tsx": {
+    "buttons_sample": [
+      "done_all Mark All as Read",
+      "filter_list Filter by Priority expand_more",
+      "tune Notification Settings",
+      "All Alerts 14",
+      "Urgent / Action Required 4",
+      "Hold Reservations 5",
+      "Returns &amp; Overdue 3",
+      "System &amp; Shift 2",
+      "Send Final Notice",
+      "manage_search Review Overdue Account",
+      "Release Hold",
+      "receipt View Reservation Slip",
+      "Check Queue (3)",
+      "flag Flag for Priority Reshelve",
+      "Dismiss",
+      "verified Review &amp; Approve",
+      "send Broadcast"
+    ],
+    "inputs_id": [
+      "chimeToggle",
+      "autoDismissToggle"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "e.g., Priority pickup needed for CLRS book at Bay 01 counter..."
+    ],
+    "forms": [
+      "broadcastForm"
+    ],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 17,
+    "total_inputs": 3
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/OverdueFines.tsx": {
+    "buttons_sample": [
+      "point_of_sale Open Cash Drawer",
+      "All Overdue 18",
+      "Due 1\u20133 Days Past 9",
+      "4\u20137 Days 5",
+      "8+ Days Critical 4",
+      "Repeated Delinquents 2",
+      "outgoing_mail",
+      "receipt Settle",
+      "sms",
+      "send Dispatch Immediate Notice",
+      "payments Collect &amp; Print Receipt: \u20b175.00"
+    ],
+    "inputs_id": [
+      "overdue-search-input"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Search Patron ID, Book title, Barcode..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [
+      "ledger-table-body"
+    ],
+    "total_buttons": 16,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/PendingReservations.tsx": {
+    "buttons_sample": [
+      "sync Refresh Queue",
+      "download Export Intake Sheet (CSV)",
+      "check_circle Approve Selected (3)",
+      "All Pending (5)",
+      "Due Today (2)",
+      "Tomorrow (2)",
+      "Scholastic Priority (1)",
+      "Waitlist (0)",
+      "check",
+      "close",
+      "visibility",
+      "mark_email_read Confirm Approval &amp; Dispatch PIN",
+      "broken_image Reject: Damaged",
+      "block Reject: Limit Hit",
+      "Cancel",
+      "Confirm Decline"
+    ],
+    "inputs_id": [
+      "reservation-search",
+      "sort-select",
+      "select-all-checkbox"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Filter by Ref, Patron, or ISBN...",
+      "Optional notes visible to circulation supervisor..."
+    ],
+    "forms": [],
+    "modals": [
+      "btn-modal-confirm-approve",
+      "btn-modal-reject-damage",
+      "btn-modal-reject-limit",
+      "rejection-modal",
+      "btn-close-modal",
+      "btn-cancel-modal"
+    ],
+    "tables_or_containers": [
+      "queue-table-body"
+    ],
+    "total_buttons": 29,
+    "total_inputs": 5
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/ReturnsFines.tsx": {
+    "buttons_sample": [
+      "Scan",
+      "task_alt Complete Return &amp; Issue Receipt",
+      "print Print Return Slip",
+      "restart_alt Clear Counter",
+      "download"
+    ],
+    "inputs_id": [
+      "scannerInput",
+      "batchToggle"
+    ],
+    "input_names": [
+      "bookCondition",
+      "settlementType"
+    ],
+    "placeholders": [
+      "Scan Book Barcode, Patron ID, or Smart Drop-Box Batch ID..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 5,
+    "total_inputs": 3
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/Schedules.tsx": {
+    "buttons_sample": [
+      "chevron_left",
+      "chevron_right",
+      "today Today",
+      "Day View",
+      "Week View",
+      "Month View",
+      "Agenda List",
+      "add_alarm Book Timeslot",
+      "View Resolution Log",
+      "Acknowledge",
+      "check",
+      "Check Locker Grid",
+      "Quick Book Window",
+      "7 Days",
+      "14 Days",
+      "21 Days",
+      "schedule_send Apply Date to Current Checkout"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 17,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Pages/Transactions.tsx": {
+    "buttons_sample": [
+      "calendar_month Today: Monday, Oct 26, 2026 expand_more",
+      "{ (window as any).printAuditRegister?.(); }}> download Export Audit CSV",
+      "tune More Filters",
+      "{ (window as any).filterTransactions?.(e.currentTarget, 'all'); }}> All (48)",
+      "{ try { ; } catch (err) { console.error(err); } }}> visibility Log",
+      "{ try { ; } catch (err) { console.error(err); } }}> fact_check Audit Memo",
+      "chevron_left",
+      "chevron_right",
+      "{ (window as any).printAuditRegister?.(); }}> print Re-Print Receipt Slip",
+      "account_box View Patron Circulation Record"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Search by Transaction ID (#TX-..), Student ID (#KP-..), title, or patron name..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 19,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Shared/CashierButton.tsx": {
+    "buttons_sample": [
+      "{icon && {icon}} {children}"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Shared/CashierModalCard.tsx": {
+    "buttons_sample": [
+      "close"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CashiersPanel/Shared/RadioGroupField.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Components/BookSearchBar.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Components/BorrowRequestCard.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Pages/BorrowingsPage.tsx": {
+    "buttons_sample": [
+      "sync_saved_locally Live Sync",
+      "window.print()} type=\"button\"> download Ledger Export",
+      "report_problem Report Issue",
+      "info View Details",
+      "Show Return Pass (Passbook)",
+      "All Past Loans",
+      "Returned on Time",
+      "Renewals",
+      "Fines &amp; Clearances",
+      "receipt_long",
+      "chevron_left",
+      "chevron_right"
+    ],
+    "inputs_id": [
+      "ledgerSearchInput"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Filter by book, barcode, or receipt..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [
+      "borrowingsTable"
+    ],
+    "total_buttons": 17,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Pages/CatalogPage.tsx": {
+    "buttons_sample": [
+      "Clear",
+      "tune Filters",
+      "grid_view",
+      "view_list",
+      "Search Stacks arrow_forward",
+      "All Disciplines 1,248",
+      "Technology &amp; Systems",
+      "Pure Science &amp; Physics",
+      "Classic Literature",
+      "Philosophy &amp; Logic",
+      "Business &amp; Macro-Econ",
+      "Education &amp; Pedagogy",
+      "Law &amp; Governance",
+      "Applied Engineering",
+      "All Formats",
+      "Hardcover Monograph",
+      "Trade Paperback",
+      "Digital eFolio (PDF)",
+      "close",
+      "{ (window as any).toggleFavorite?.(e.currentTarget); }}> favorite_border",
+      "View Details &amp; Stacks",
+      "{ (window as any).toggleFavorite?.(e.currentTarget); }}> favorite",
+      "chevron_left",
+      "1",
+      "2"
+    ],
+    "inputs_id": [
+      "catalog-search"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Search by keyword, author, full title, or Dewey Decimal/ISBN code..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [
+      "view-grid-btn",
+      "view-list-btn"
+    ],
+    "total_buttons": 50,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Pages/CustomerDashboard.tsx": {
+    "buttons_sample": [
+      "Explore Stacks arrow_forward",
+      "All Disciplines",
+      "Technology",
+      "Science",
+      "Literature",
+      "History",
+      "Business",
+      "Education",
+      "Engineering",
+      "book Reserve Book Now",
+      "info Inspect Stacks Details",
+      "favorite_border",
+      "chevron_left",
+      "chevron_right",
+      "Reserve",
+      "Join Waitlist",
+      "bookmark"
+    ],
+    "inputs_id": [
+      "catalog-instant-search"
+    ],
+    "input_names": [],
+    "placeholders": [
+      "Search by title, author, Dewey decimal, or ISBN..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 26,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Pages/FavoritesPage.tsx": {
+    "buttons_sample": [
+      "playlist_add + Create Reading List",
+      "download Export (BibTeX / CSV)",
+      "shopping_bag_speed Reserve All Available (8)",
+      "All Saved 12",
+      "Thesis &amp; Dissertation Stacks 5",
+      "Software Architecture &amp; Systems 4",
+      "Classical Philosophy 3",
+      "grid_view",
+      "view_list",
+      "favorite",
+      "bookmark_add Reserve",
+      "hourglass_top Join Waitlist",
+      "edit",
+      "Add",
+      "View All 12 Notes"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [
+      "Filter by title, author, call no...",
+      "Add a research note for a saved volume..."
+    ],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 26,
+    "total_inputs": 2
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Pages/ProfileSettings.tsx": {
+    "buttons_sample": [
+      "download Export Reading History CSV / BibTeX",
+      "check_circle Save Profile &amp; Preferences",
+      "photo_camera",
+      "badge Personal &amp; Academic Info",
+      "notifications_active Reminders &amp; Notification Channels",
+      "tune Borrowing &amp; Reading Preferences",
+      "shield Security &amp; Connected Devices",
+      "Upgrade Tier",
+      "content_copy Copy Card No.",
+      "qr_code_2 Enlarge QR Pass",
+      "add Add Tag",
+      "pin Change Circulation Desk PIN / Password chevron_right",
+      "logout Terminate All Other Browser Sessions 1 other"
+    ],
+    "inputs_id": [
+      "patron-fullname",
+      "patron-email",
+      "patron-phone",
+      "patron-id",
+      "patron-dept",
+      "patron-expiry",
+      "default-bay"
+    ],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 13,
+    "total_inputs": 7
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Pages/ReservationsPage.tsx": {
+    "buttons_sample": [
+      "sync Refresh Ledger",
+      "All Reservations",
+      "Pending Approval 1",
+      "Ready for Pickup 1",
+      "Completed History (14)",
+      "Cancelled (1)",
+      "View Receipt",
+      "Audit Log",
+      "{ (window as any).closeCancelModal?.(); }} type=\"button\"> close",
+      "{ (window as any).closeCancelModal?.(); }} type=\"button\"> Keep Hold"
+    ],
+    "inputs_id": [],
+    "input_names": [
+      "cancelReason"
+    ],
+    "placeholders": [
+      "Filter by Title or Hold ID..."
+    ],
+    "forms": [],
+    "modals": [
+      "cancelModal",
+      "pickupModal"
+    ],
+    "tables_or_containers": [],
+    "total_buttons": 19,
+    "total_inputs": 1
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Shared/CustomerButton.tsx": {
+    "buttons_sample": [
+      "{icon && {icon}} {children}"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Shared/CustomerModalCard.tsx": {
+    "buttons_sample": [
+      "close"
+    ],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 1,
+    "total_inputs": 0
+  },
+  "UserRoles/Features/Pages/CustomersPanel/Shared/RadioGroupField.tsx": {
+    "buttons_sample": [],
+    "inputs_id": [],
+    "input_names": [],
+    "placeholders": [],
+    "forms": [],
+    "modals": [],
+    "tables_or_containers": [],
+    "total_buttons": 0,
+    "total_inputs": 0
+  }
+}

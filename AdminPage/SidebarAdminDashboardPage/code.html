@@ -1,0 +1,990 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "error-container": "#ffdad6",
+          "text-primary": "#18323D",
+          "tertiary-container": "#26809d",
+          "inverse-on-surface": "#ebf2f3",
+          "on-secondary": "#ffffff",
+          "surface": "#f4fbfc",
+          "on-surface-variant": "#40484e",
+          "surface-dim": "#d4dbdc",
+          "action-green": "#9BE564",
+          "secondary": "#31647a",
+          "secondary-fixed": "#bee9ff",
+          "surface-container-low": "#eef5f6",
+          "status-pending": "#D9A85C",
+          "on-primary-fixed-variant": "#004c6a",
+          "on-secondary-container": "#34677d",
+          "surface-bright": "#f4fbfc",
+          "surface-variant": "#dde4e5",
+          "outline-variant": "#bfc8cf",
+          "secondary-fixed-dim": "#9ccee6",
+          "surface-container-highest": "#dde4e5",
+          "on-secondary-fixed-variant": "#144c61",
+          "status-available": "#7FA58D",
+          "on-primary-fixed": "#001e2d",
+          "on-tertiary": "#ffffff",
+          "tertiary": "#006681",
+          "on-tertiary-fixed": "#001f29",
+          "primary": "#00658a",
+          "glass-surface": "rgba(255,255,255,0.55)",
+          "outline": "#70787f",
+          "chip-unselected-bg": "rgba(255,255,255,0.70)",
+          "on-error": "#ffffff",
+          "on-primary": "#ffffff",
+          "primary-fixed": "#c5e7ff",
+          "text-secondary": "#647982",
+          "secondary-container": "#b2e4fe",
+          "on-secondary-fixed": "#001f2a",
+          "on-primary-container": "#ffffff",
+          "on-error-container": "#93000a",
+          "background": "#f4fbfc",
+          "on-tertiary-fixed-variant": "#004d62",
+          "primary-container": "#287ea7",
+          "tertiary-fixed-dim": "#82d1f1",
+          "surface-container-lowest": "#ffffff",
+          "error": "#ba1a1a",
+          "primary-fixed-dim": "#84cffc",
+          "surface-container-high": "#e2e9ea",
+          "action-green-hover": "#82D64C",
+          "surface-container": "#e8eff0",
+          "on-surface": "#161d1e",
+          "on-tertiary-container": "#ffffff",
+          "on-background": "#161d1e",
+          "inverse-surface": "#2b3233",
+          "tertiary-fixed": "#baeaff",
+          "surface-tint": "#00658b",
+          "status-danger": "#B96F72",
+          "inverse-primary": "#84cffc",
+          "soft-blue": "#D9EEF5"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "32px",
+          "gutter": "24px",
+          "space-xs": "4px",
+          "space-lg": "24px",
+          "space-sm": "8px",
+          "space-xl": "32px",
+          "space-2xl": "48px",
+          "space-3xl": "64px",
+          "space-md": "16px"
+        },
+        "fontFamily": {
+          "caption": [
+            "Inter"
+          ],
+          "body-medium": [
+            "Inter"
+          ],
+          "headline-1": [
+            "Inter"
+          ],
+          "headline-4": [
+            "Inter"
+          ],
+          "headline-2": [
+            "Inter"
+          ],
+          "body-large": [
+            "Inter"
+          ],
+          "display-hero": [
+            "Inter"
+          ],
+          "headline-3": [
+            "Inter"
+          ],
+          "display-hero-mobile": [
+            "Inter"
+          ],
+          "body": [
+            "Inter"
+          ],
+          "small": [
+            "Inter"
+          ]
+        },
+        "fontSize": {
+          "caption": [
+            "12px",
+            {
+              "lineHeight": "1.4",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "body-medium": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "headline-1": [
+            "44px",
+            {
+              "lineHeight": "1.2",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-4": [
+            "22px",
+            {
+              "lineHeight": "1.35",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-2": [
+            "36px",
+            {
+              "lineHeight": "1.25",
+              "fontWeight": "600"
+            }
+          ],
+          "body-large": [
+            "18px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "display-hero": [
+            "56px",
+            {
+              "lineHeight": "1.1",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-3": [
+            "26px",
+            {
+              "lineHeight": "1.3",
+              "fontWeight": "600"
+            }
+          ],
+          "display-hero-mobile": [
+            "36px",
+            {
+              "lineHeight": "1.15",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "body": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "400"
+            }
+          ],
+          "small": [
+            "14px",
+            {
+              "lineHeight": "1.4",
+              "fontWeight": "400"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-surface-container-low font-body text-text-primary antialiased selection:bg-secondary-container selection:text-on-secondary-container"><aside class="fixed left-0 top-0 h-full w-64 bg-[#164E63] text-white shadow-xl z-50 flex flex-col justify-between overflow-y-auto">
+  <div class="flex flex-col">
+    <!-- Brand Header -->
+    <div class="h-16 px-space-md flex items-center justify-between border-b border-white/10 bg-[#113E4F]/60 backdrop-blur-md">
+      <div class="flex items-center gap-space-sm">
+        <img alt="Katipuneros Logo" class="h-8 w-auto object-contain brightness-0 invert" src="https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4">
+        <div class="flex flex-col">
+          <span class="font-headline-4 text-small font-bold text-white tracking-tight leading-none">KATIPUNEROS</span>
+          <span class="font-caption text-caption text-white/70 uppercase tracking-wider scale-90 origin-left">Library Store</span>
+        </div>
+      </div>
+      <span class="font-caption text-caption bg-[#9BE564] text-[#18323D] px-space-xs py-0.5 rounded font-bold uppercase tracking-wider text-[10px] shadow-sm">ADMIN</span>
+    </div>
+
+    <!-- Nav links -->
+    <nav class="flex flex-col gap-space-xs px-space-sm pt-space-md">
+      <!-- Dashboard (Active) -->
+      <a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm transition-all duration-200 bg-[#9BE564] text-[#18323D] font-bold rounded-lg shadow-sm" data-path="dashboard" href="#">
+        <span class="material-symbols-outlined text-[20px]">dashboard</span>
+        <span class="font-small text-small">Dashboard</span>
+      </a>
+
+      <!-- Management Section -->
+      <div class="mt-space-xs">
+        <div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none">
+          <div class="flex items-center gap-space-sm">
+            <span class="material-symbols-outlined text-[18px]">library_books</span>
+            <span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/75">Management</span>
+          </div>
+          <span class="material-symbols-outlined text-[16px]">expand_more</span>
+        </div>
+        <div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1">
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="users" href="#">
+            <span class="material-symbols-outlined text-[16px]">group</span>
+            <span class="font-small text-small">Users</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="books" href="#">
+            <span class="material-symbols-outlined text-[16px]">book_2</span>
+            <span class="font-small text-small">Books</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="categories" href="#">
+            <span class="material-symbols-outlined text-[16px]">category</span>
+            <span class="font-small text-small">Categories</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="inventory" href="#">
+            <span class="material-symbols-outlined text-[16px]">inventory_2</span>
+            <span class="font-small text-small">Inventory</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Operations Section -->
+      <div class="mt-space-xs">
+        <div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none">
+          <div class="flex items-center gap-space-sm">
+            <span class="material-symbols-outlined text-[18px]">sync_alt</span>
+            <span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/75">Operations</span>
+          </div>
+          <span class="material-symbols-outlined text-[16px]">expand_more</span>
+        </div>
+        <div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1">
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="reservations" href="#">
+            <span class="material-symbols-outlined text-[16px]">event_available</span>
+            <span class="font-small text-small">Reservations</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="borrowings" href="#">
+            <span class="material-symbols-outlined text-[16px]">outbox</span>
+            <span class="font-small text-small">Borrowings</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="returns" href="#">
+            <span class="material-symbols-outlined text-[16px]">assignment_return</span>
+            <span class="font-small text-small">Returns</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Insights Section -->
+      <div class="mt-space-xs">
+        <div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none">
+          <div class="flex items-center gap-space-sm">
+            <span class="material-symbols-outlined text-[18px]">insights</span>
+            <span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/75">Insights</span>
+          </div>
+          <span class="material-symbols-outlined text-[16px]">expand_more</span>
+        </div>
+        <div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1">
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="analytics" href="#">
+            <span class="material-symbols-outlined text-[16px]">monitoring</span>
+            <span class="font-small text-small">Analytics</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="reports" href="#">
+            <span class="material-symbols-outlined text-[16px]">description</span>
+            <span class="font-small text-small">Reports</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Communication Section -->
+      <div class="mt-space-xs">
+        <div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none">
+          <div class="flex items-center gap-space-sm">
+            <span class="material-symbols-outlined text-[18px]">forum</span>
+            <span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/75">Communication</span>
+          </div>
+          <span class="material-symbols-outlined text-[16px]">expand_more</span>
+        </div>
+        <div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1">
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="notifications" href="#">
+            <span class="material-symbols-outlined text-[16px]">notifications</span>
+            <span class="font-small text-small">Notifications</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Security Section -->
+      <div class="mt-space-xs">
+        <div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none">
+          <div class="flex items-center gap-space-sm">
+            <span class="material-symbols-outlined text-[18px]">shield</span>
+            <span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/75">Security</span>
+          </div>
+          <span class="material-symbols-outlined text-[16px]">expand_more</span>
+        </div>
+        <div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1">
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="roles-and-permissions" href="#">
+            <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+            <span class="font-small text-small">Roles &amp; Permissions</span>
+          </a>
+          <a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="audit-logs" href="#">
+            <span class="material-symbols-outlined text-[16px]">history</span>
+            <span class="font-small text-small">Audit Logs</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Settings & Profile -->
+      <div class="mt-space-sm pt-space-sm border-t border-white/10 flex flex-col gap-1">
+        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="settings" href="#">
+          <span class="material-symbols-outlined text-[20px]">settings</span>
+          <span class="font-small text-small">Settings</span>
+        </a>
+        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/85 hover:bg-[#9BE564] hover:text-[#18323D] transition-all duration-200" data-path="profile" href="#">
+          <span class="material-symbols-outlined text-[20px]">account_circle</span>
+          <span class="font-small text-small">Profile</span>
+        </a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Bottom Logout Footer -->
+  <div class="p-space-sm mt-auto border-t border-white/10 bg-[#113E4F]/40">
+    <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors" data-path="logout" href="#">
+      <span class="material-symbols-outlined text-[20px]">logout</span>
+      <span class="font-small text-small font-semibold">Logout</span>
+    </a>
+  </div>
+</aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md"><button class="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Toggle Sidebar" type="button"><span class="material-symbols-outlined text-[20px]">menu_open</span></button><nav class="hidden sm:flex items-center gap-space-xs text-caption font-caption text-text-secondary"><span class="hover:text-text-primary cursor-pointer transition-colors">Admin</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-primary font-semibold">Console</span></nav></div><div class="flex items-center gap-space-lg"><div class="relative hidden md:block w-72 lg:w-96"><span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span><input class="w-full bg-surface-container-low pl-10 pr-space-md py-2 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search users, books, reservations..." type="text"></div><button class="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1 right-1 w-4 h-4 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center">3</span></button><div class="flex items-center gap-space-sm pl-space-sm bg-surface-container-low py-1 px-space-sm rounded-full"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg"><div class="hidden lg:flex flex-col pr-space-xs"><span class="font-small text-small font-semibold text-text-primary leading-tight">Administrator</span><span class="font-caption text-caption text-text-secondary leading-none">Super Admin</span></div></div></div></header><main class="w-full pt-16 bg-surface-container-low min-h-screen px-space-lg py-space-lg"><div class="flex flex-col w-full gap-space-lg">
+<!-- Top Bar: Overview Title & Quick Actions -->
+<div class="flex flex-col xl:flex-row xl:items-end justify-between gap-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs text-text-secondary font-caption text-caption uppercase tracking-wider mb-1">
+<span class="">Admin Console</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-semibold">System Overview</span>
+<span class="inline-flex items-center gap-1 ml-space-xs px-2 py-0.5 rounded-full bg-soft-blue text-primary text-[11px] font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-action-green animate-pulse"></span>
+          Live Stream
+        </span>
+</div>
+<h1 class="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">Administrator Operations &amp; System Dashboard</h1>
+<p class="font-body text-body text-text-secondary mt-0.5">Real-time institutional monitoring, inventory circulation velocity, hold queues, and critical alerts.</p>
+</div>
+<!-- Quick Actions Banner -->
+<div class="flex flex-wrap items-center gap-space-xs bg-surface-container-lowest p-1.5 rounded-xl shadow-sm">
+<button class="h-11 px-space-md bg-secondary text-on-secondary rounded-lg font-small text-small font-semibold flex items-center gap-space-xs hover:bg-primary transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+<span class="">+ Add User</span>
+</button>
+<button class="h-11 px-space-md bg-action-green text-text-primary rounded-lg font-small text-small font-bold flex items-center gap-space-xs hover:bg-action-green-hover transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span class="">+ Add Book</span>
+</button>
+<button class="h-11 px-space-md bg-surface-container-low text-text-primary rounded-lg font-small text-small font-medium flex items-center gap-space-xs hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">analytics</span>
+<span class="">View Analytics</span>
+</button>
+<button class="h-11 px-space-md bg-surface-container-low text-text-primary rounded-lg font-small text-small font-medium flex items-center gap-space-xs hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+<span class="">Generate Audit Report</span>
+</button>
+</div>
+</div>
+<!-- KPI Cards Grid (8 Core Metrics) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Card 1: Total Users -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Total Users</span>
+<div class="w-9 h-9 rounded-lg bg-soft-blue flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">3,420</span>
+<span class="font-caption text-caption text-status-available font-bold flex items-center">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span>12.4%
+          </span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">142 active borrowers today</p>
+</div>
+</div>
+<!-- Card 2: Total Titles -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Total Book Titles</span>
+<div class="w-9 h-9 rounded-lg bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">collections_bookmark</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">1,248</span>
+<span class="font-caption text-caption text-text-secondary">titles</span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">4,850 physical copies total</p>
+</div>
+</div>
+<!-- Card 3: Available Shelf -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Available Books</span>
+<div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-status-available">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">3,112</span>
+<span class="font-caption text-caption px-1.5 py-0.5 rounded bg-soft-blue text-primary font-bold">64.2%</span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">Active catalog shelf rate</p>
+</div>
+</div>
+<!-- Card 4: Borrowed Books -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Borrowed Books</span>
+<div class="w-9 h-9 rounded-lg bg-soft-blue flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">local_library</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">1,384</span>
+<span class="font-caption text-caption text-primary font-semibold">28.5%</span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">Active loans across departments</p>
+</div>
+</div>
+<!-- Card 5: Reserved Books -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Reserved Books</span>
+<div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">bookmark_added</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">248</span>
+<span class="font-caption text-caption text-text-secondary">on shelf hold</span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">Awaiting cashier / circulation release</p>
+</div>
+</div>
+<!-- Card 6: Pending Reservations (Alert) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Pending Holds</span>
+<div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-status-pending">
+<span class="material-symbols-outlined text-[20px]">hourglass_top</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">28</span>
+<span class="font-caption text-caption px-2 py-0.5 rounded-full bg-status-pending/20 text-text-primary font-bold">+6 today</span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">Requires supervisor queue review</p>
+</div>
+</div>
+<!-- Card 7: Overdue Books (Danger Alert) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Overdue Books</span>
+<div class="w-9 h-9 rounded-lg bg-error-container flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[20px]">warning</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-error">18</span>
+<span class="font-caption text-caption px-1.5 py-0.5 rounded bg-error-container text-on-error-container font-semibold">₱1,245.00</span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">Pending unpaid balance &amp; fines</p>
+</div>
+</div>
+<!-- Card 8: Store Visits -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Store Footprint</span>
+<div class="w-9 h-9 rounded-lg bg-soft-blue flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">storefront</span>
+</div>
+</div>
+<div class="mt-space-md">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary">14,890</span>
+<span class="font-caption text-caption text-status-available font-bold flex items-center">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>+8.2%
+          </span>
+</div>
+<p class="font-small text-small text-text-secondary mt-1">Monthly aggregate patron visits</p>
+</div>
+</div>
+</div>
+<!-- Interactive Charts & Analytical Split -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+<!-- Chart: Activity Velocity Trend (8 Cols) -->
+<div class="lg:col-span-8 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm mb-space-md">
+<div>
+<h2 class="font-headline-4 text-headline-4 font-bold text-text-primary">Circulation &amp; Reservation Dynamics</h2>
+<p class="font-caption text-caption text-text-secondary">Comparing student borrowings, pending reservations, and counter returns</p>
+</div>
+<!-- Time Filter Controls -->
+<div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg">
+<button class="px-3 py-1 text-caption font-caption font-semibold rounded bg-surface-container-lowest text-primary shadow-sm" type="button">Weekly</button>
+<button class="px-3 py-1 text-caption font-caption font-medium text-text-secondary hover:text-text-primary transition-colors" type="button">Monthly</button>
+<button class="px-3 py-1 text-caption font-caption font-medium text-text-secondary hover:text-text-primary transition-colors" type="button">Term Q3</button>
+</div>
+</div>
+<!-- Legend Pills -->
+<div class="flex flex-wrap items-center gap-space-md mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="font-caption text-caption text-text-secondary">Borrowings (642 loans)</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-3 h-3 rounded-full bg-secondary-fixed-dim"></span>
+<span class="font-caption text-caption text-text-secondary">Reservations (248 holds)</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-3 h-3 rounded-full bg-action-green"></span>
+<span class="font-caption text-caption text-text-secondary">Returns (512 processed)</span>
+</div>
+</div>
+<!-- Vector Curved Area / Multi-line Chart -->
+<div class="relative w-full h-64 bg-surface-container-low/40 rounded-xl p-4 flex flex-col justify-end overflow-hidden">
+<svg class="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 700 200">
+<defs>
+<linearGradient id="primaryGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#00658a" stop-opacity="0.32"></stop>
+<stop offset="100%" stop-color="#00658a" stop-opacity="0.0"></stop>
+</linearGradient>
+<linearGradient id="secondaryGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#9ccee6" stop-opacity="0.45"></stop>
+<stop offset="100%" stop-color="#9ccee6" stop-opacity="0.0"></stop>
+</linearGradient>
+</defs>
+<!-- Horizontal Grid Guides -->
+<line stroke="#e2e9ea" stroke-dasharray="4 4" stroke-width="1" x1="0" x2="700" y1="40" y2="40"></line>
+<line stroke="#e2e9ea" stroke-dasharray="4 4" stroke-width="1" x1="0" x2="700" y1="90" y2="90"></line>
+<line stroke="#e2e9ea" stroke-dasharray="4 4" stroke-width="1" x1="0" x2="700" y1="140" y2="140"></line>
+<!-- Area 1: Returns (Action Green Subtle) -->
+<path d="M 0 160 Q 110 130, 230 145 T 460 110 T 700 80 L 700 200 L 0 200 Z" fill="#9BE564" fill-opacity="0.15"></path>
+<path d="M 0 160 Q 110 130, 230 145 T 460 110 T 700 80" fill="none" stroke="#7FA58D" stroke-width="2"></path>
+<!-- Area 2: Reservations -->
+<path d="M 0 140 Q 120 110, 240 125 T 480 85 T 700 55 L 700 200 L 0 200 Z" fill="url(#secondaryGradient)"></path>
+<path d="M 0 140 Q 120 110, 240 125 T 480 85 T 700 55" fill="none" stroke="#26809d" stroke-width="2"></path>
+<!-- Area 3: Borrowings Primary Blue -->
+<path d="M 0 120 Q 120 60, 240 85 T 480 40 T 700 20 L 700 200 L 0 200 Z" fill="url(#primaryGradient)"></path>
+<path d="M 0 120 Q 120 60, 240 85 T 480 40 T 700 20" fill="none" stroke="#00658a" stroke-width="3"></path>
+<!-- Data Points on Borrowing Curve -->
+<circle cx="240" cy="85" fill="#00658a" r="4"></circle>
+<circle cx="480" cy="40" fill="#00658a" r="4"></circle>
+<circle cx="700" cy="20" fill="#00658a" r="4"></circle>
+</svg>
+<!-- X-axis Labels -->
+<div class="flex justify-between font-caption text-caption text-text-secondary pt-2">
+<span class="">Mon, Oct 14</span>
+<span class="">Tue, Oct 15</span>
+<span class="">Wed, Oct 16</span>
+<span class="">Thu, Oct 17</span>
+<span class="">Fri, Oct 18</span>
+<span class="">Sat, Oct 19</span>
+<span class="">Sun, Oct 20</span>
+</div>
+</div>
+</div>
+<!-- Chart: Catalog Shelf Breakdown (4 Cols) -->
+<div class="lg:col-span-4 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-space-xs">
+<h2 class="font-headline-4 text-headline-4 font-bold text-text-primary">Catalog Allocation</h2>
+<span class="material-symbols-outlined text-text-secondary text-[20px]">pie_chart</span>
+</div>
+<p class="font-caption text-caption text-text-secondary mb-space-md">Physical holdings distribution status</p>
+</div>
+<!-- Donut Display Simulation with Central Metric -->
+<div class="flex items-center justify-center my-space-xs">
+<div class="relative w-44 h-44 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+<!-- Background Ring -->
+<path class="text-surface-container" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+<!-- Available 64% -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#7FA58D" stroke-dasharray="64, 100" stroke-width="3.5"></path>
+<!-- Borrowed 28% -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#00658a" stroke-dasharray="28, 100" stroke-dashoffset="-64" stroke-width="3.5"></path>
+<!-- Reserved 5% -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#D9A85C" stroke-dasharray="5, 100" stroke-dashoffset="-92" stroke-width="3.5"></path>
+</svg>
+<div class="absolute flex flex-col items-center justify-center text-center">
+<span class="font-headline-3 text-headline-3 font-bold text-text-primary leading-none">4,850</span>
+<span class="font-caption text-caption text-text-secondary mt-1">Total Volumes</span>
+</div>
+</div>
+</div>
+<!-- Segment Bars / Breakdown details -->
+<div class="flex flex-col gap-2 mt-space-sm">
+<div class="flex items-center justify-between font-small text-small">
+<div class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-status-available"></span>
+<span class="text-text-secondary">On Shelf (Available)</span>
+</div>
+<span class="font-semibold text-text-primary">64% (3,112)</span>
+</div>
+<div class="flex items-center justify-between font-small text-small">
+<div class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+<span class="text-text-secondary">Active Borrowings</span>
+</div>
+<span class="font-semibold text-text-primary">28% (1,384)</span>
+</div>
+<div class="flex items-center justify-between font-small text-small">
+<div class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-status-pending"></span>
+<span class="text-text-secondary">Reserved / Holds</span>
+</div>
+<span class="font-semibold text-text-primary">5% (248)</span>
+</div>
+<div class="flex items-center justify-between font-small text-small">
+<div class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-outline-variant"></span>
+<span class="text-text-secondary">Bindery / Processing</span>
+</div>
+<span class="font-semibold text-text-primary">3% (106)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Operational Queues & Priority Action Feed (2 Columns) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+<!-- Left Column: Urgent Pending Holds Queue (7 Cols) -->
+<div class="lg:col-span-7 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-soft-blue flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">rule</span>
+</div>
+<div>
+<h3 class="font-headline-4 text-headline-4 font-bold text-text-primary">Urgent Pending Holds Queue</h3>
+<span class="font-caption text-caption text-text-secondary">28 hold requests requiring administrative release</span>
+</div>
+</div>
+<a class="font-caption text-caption text-primary font-bold hover:underline flex items-center" href="#">
+          View All <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Operational Holds Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low font-caption text-caption text-text-secondary uppercase">
+<th class="py-2.5 px-3 rounded-l-lg">Hold ID</th>
+<th class="py-2.5 px-3">Patron Name</th>
+<th class="py-2.5 px-3">Book Title</th>
+<th class="py-2.5 px-3">Deadline</th>
+<th class="py-2.5 px-3 text-right rounded-r-lg">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high/40 font-small text-small">
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3 px-3 font-semibold text-primary">#HLD-904</td>
+<td class="py-3 px-3">
+<div class="flex flex-col">
+<span class="font-semibold text-text-primary">Juan dela Cruz</span>
+<span class="font-caption text-caption text-text-secondary">Eng. Dept · Junior</span>
+</div>
+</td>
+<td class="py-3 px-3 text-text-primary">Design Patterns: Elements of Reusable OO Software</td>
+<td class="py-3 px-3">
+<span class="px-2 py-0.5 rounded text-caption font-caption font-semibold bg-soft-blue text-primary">Today, 5:00 PM</span>
+</td>
+<td class="py-3 px-3 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="h-8 px-2.5 bg-action-green text-text-primary rounded-lg font-caption text-caption font-bold hover:bg-action-green-hover transition-colors" type="button">Approve</button>
+<button class="h-8 px-2 bg-surface-container text-text-secondary rounded-lg font-caption text-caption hover:text-text-primary transition-colors" type="button">Review</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3 px-3 font-semibold text-primary">#HLD-905</td>
+<td class="py-3 px-3">
+<div class="flex flex-col">
+<span class="font-semibold text-text-primary">Maria Clara Ocampo</span>
+<span class="font-caption text-caption text-text-secondary">Psychology · Senior</span>
+</div>
+</td>
+<td class="py-3 px-3 text-text-primary">Thinking, Fast and Slow (Annotated)</td>
+<td class="py-3 px-3">
+<span class="px-2 py-0.5 rounded text-caption font-caption font-semibold bg-soft-blue text-primary">Tomorrow, 10:00 AM</span>
+</td>
+<td class="py-3 px-3 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="h-8 px-2.5 bg-action-green text-text-primary rounded-lg font-caption text-caption font-bold hover:bg-action-green-hover transition-colors" type="button">Approve</button>
+<button class="h-8 px-2 bg-surface-container text-text-secondary rounded-lg font-caption text-caption hover:text-text-primary transition-colors" type="button">Review</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3 px-3 font-semibold text-primary">#HLD-908</td>
+<td class="py-3 px-3">
+<div class="flex flex-col">
+<span class="font-semibold text-text-primary">Rafael Luna</span>
+<span class="font-caption text-caption text-text-secondary">Faculty · Philosophy</span>
+</div>
+</td>
+<td class="py-3 px-3 text-text-primary">The Republic (Plato, Oxford Classical)</td>
+<td class="py-3 px-3">
+<span class="px-2 py-0.5 rounded text-caption font-caption font-semibold bg-surface-container text-text-secondary">Oct 22, 12:00 PM</span>
+</td>
+<td class="py-3 px-3 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="h-8 px-2.5 bg-action-green text-text-primary rounded-lg font-caption text-caption font-bold hover:bg-action-green-hover transition-colors" type="button">Approve</button>
+<button class="h-8 px-2 bg-surface-container text-text-secondary rounded-lg font-caption text-caption hover:text-text-primary transition-colors" type="button">Review</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3 px-3 font-semibold text-primary">#HLD-911</td>
+<td class="py-3 px-3">
+<div class="flex flex-col">
+<span class="font-semibold text-text-primary">Patricia Gomez</span>
+<span class="font-caption text-caption text-text-secondary">Nursing · 2nd Year</span>
+</div>
+</td>
+<td class="py-3 px-3 text-text-primary">Guyton and Hall Textbook of Medical Physiology</td>
+<td class="py-3 px-3">
+<span class="px-2 py-0.5 rounded text-caption font-caption font-semibold bg-surface-container text-text-secondary">Oct 23, 2:00 PM</span>
+</td>
+<td class="py-3 px-3 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="h-8 px-2.5 bg-action-green text-text-primary rounded-lg font-caption text-caption font-bold hover:bg-action-green-hover transition-colors" type="button">Approve</button>
+<button class="h-8 px-2 bg-surface-container text-text-secondary rounded-lg font-caption text-caption hover:text-text-primary transition-colors" type="button">Review</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right Column: Overdue Books Needing Attention (5 Cols) -->
+<div class="lg:col-span-5 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-error-container flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[18px]">assignment_late</span>
+</div>
+<div>
+<h3 class="font-headline-4 text-headline-4 font-bold text-text-primary">Overdue Fines Alert</h3>
+<span class="font-caption text-caption text-text-secondary">18 active delinquency flags</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded bg-error-container text-error font-caption text-caption font-bold">Action Needed</span>
+</div>
+<!-- Overdue Item List -->
+<div class="flex flex-col gap-space-sm">
+<!-- Overdue Row 1 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-start gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center mt-0.5">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+</div>
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary">Carlos Mendoza</span>
+<span class="font-caption text-caption text-text-secondary truncate max-w-[190px]">Introduction to Algorithms (MIT Press)</span>
+<div class="flex items-center gap-space-xs mt-1">
+<span class="px-1.5 py-0.2 rounded bg-error/15 text-error font-caption text-[11px] font-bold">7 days overdue</span>
+<span class="font-caption text-caption text-text-secondary">Accrued fine: ₱105.00</span>
+</div>
+</div>
+</div>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-highest hover:bg-primary hover:text-on-primary text-text-primary font-caption text-caption font-semibold transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">send</span>
+<span class="">Notice</span>
+</button>
+</div>
+<!-- Overdue Row 2 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-start gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center mt-0.5">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+</div>
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary">Samantha Lee</span>
+<span class="font-caption text-caption text-text-secondary truncate max-w-[190px]">Modern Operating Systems, 4th Ed.</span>
+<div class="flex items-center gap-space-xs mt-1">
+<span class="px-1.5 py-0.2 rounded bg-error/15 text-error font-caption text-[11px] font-bold">12 days overdue</span>
+<span class="font-caption text-caption text-text-secondary">Accrued fine: ₱180.00</span>
+</div>
+</div>
+</div>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-highest hover:bg-primary hover:text-on-primary text-text-primary font-caption text-caption font-semibold transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">send</span>
+<span class="">Notice</span>
+</button>
+</div>
+<!-- Overdue Row 3 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-start gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center mt-0.5">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+</div>
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary">Elijah Santos</span>
+<span class="font-caption text-caption text-text-secondary truncate max-w-[190px]">Microeconomic Theory (Mas-Colell)</span>
+<div class="flex items-center gap-space-xs mt-1">
+<span class="px-1.5 py-0.2 rounded bg-error/15 text-error font-caption text-[11px] font-bold">4 days overdue</span>
+<span class="font-caption text-caption text-text-secondary">Accrued fine: ₱60.00</span>
+</div>
+</div>
+</div>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-highest hover:bg-primary hover:text-on-primary text-text-primary font-caption text-caption font-semibold transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">send</span>
+<span class="">Notice</span>
+</button>
+</div>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs">
+<button class="w-full h-9 bg-error-container text-on-error-container rounded-lg font-caption text-caption font-bold hover:bg-error hover:text-on-error transition-colors flex items-center justify-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-[16px]">outgoing_mail</span>
+<span class="">Send Batch Overdue Reminders (18 Recipient Emails)</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Recent System Activity Stream (Audit log snippet) & Visual Showcase -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+<!-- Audit Activity Feed (8 Cols) -->
+<div class="lg:col-span-8 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-soft-blue flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</div>
+<div>
+<h3 class="font-headline-4 text-headline-4 font-bold text-text-primary">Recent Institutional Activity Stream</h3>
+<span class="font-caption text-caption text-text-secondary">Real-time system transaction logs &amp; security checkpoints</span>
+</div>
+</div>
+<button class="h-8 px-space-sm bg-surface-container-low rounded-lg text-text-secondary font-caption text-caption hover:text-text-primary transition-colors flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+<span class="">Filter Logs</span>
+</button>
+</div>
+<!-- Feed entries -->
+<div class="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container-high">
+<!-- Entry 1 -->
+<div class="relative flex items-start gap-space-md">
+<span class="absolute -left-6 top-1 w-4 h-4 rounded-full bg-action-green flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-text-primary"></span>
+</span>
+<div class="flex-1 bg-surface-container-low p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div>
+<span class="font-small text-small font-semibold text-text-primary">New book added to circulation:</span>
+<span class="font-small text-small text-primary font-medium"> 'Clean Architecture (2nd Ed.)'</span>
+<p class="font-caption text-caption text-text-secondary mt-0.5">Cataloger #ADM-04 assigned barcode #BC-99210 to Physical Shelf Bay 4B</p>
+</div>
+<span class="font-caption text-caption text-text-secondary shrink-0 font-medium">12m ago</span>
+</div>
+</div>
+<!-- Entry 2 -->
+<div class="relative flex items-start gap-space-md">
+<span class="absolute -left-6 top-1 w-4 h-4 rounded-full bg-status-available flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-lowest"></span>
+</span>
+<div class="flex-1 bg-surface-container-low p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div>
+<span class="font-small text-small font-semibold text-text-primary">Circulation fine collected:</span>
+<span class="font-small text-small text-status-available font-bold"> ₱90.00 cash settlement</span>
+<p class="font-caption text-caption text-text-secondary mt-0.5">Handled by Cashier Elena Vance on Counter Terminal Bay 01</p>
+</div>
+<span class="font-caption text-caption text-text-secondary shrink-0 font-medium">24m ago</span>
+</div>
+</div>
+<!-- Entry 3 -->
+<div class="relative flex items-start gap-space-md">
+<span class="absolute -left-6 top-1 w-4 h-4 rounded-full bg-secondary-fixed-dim flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-text-primary"></span>
+</span>
+<div class="flex-1 bg-surface-container-low p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div>
+<span class="font-small text-small font-semibold text-text-primary">New patron verified:</span>
+<span class="font-small text-small text-secondary font-semibold"> Gabriel Silang (#KP-77210)</span>
+<p class="font-caption text-caption text-text-secondary mt-0.5">Institutional credentials checked and borrowing clearance issued by Registrar Desk</p>
+</div>
+<span class="font-caption text-caption text-text-secondary shrink-0 font-medium">45m ago</span>
+</div>
+</div>
+<!-- Entry 4 -->
+<div class="relative flex items-start gap-space-md">
+<span class="absolute -left-6 top-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-lowest"></span>
+</span>
+<div class="flex-1 bg-surface-container-low p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div>
+<span class="font-small text-small font-semibold text-text-primary">Priority reservation approved:</span>
+<span class="font-small text-small text-primary font-medium"> 'Structure &amp; Interpretation of Computer Programs'</span>
+<p class="font-caption text-caption text-text-secondary mt-0.5">Book moved to Ready for Pickup shelf rack A1. SMS notification sent.</p>
+</div>
+<span class="font-caption text-caption text-text-secondary shrink-0 font-medium">1h ago</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Side: Library Store Showcase / Staff Feature (4 Cols) -->
+<div class="lg:col-span-4 flex flex-col gap-space-md">
+<!-- Store Floor Status Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">Floor Occupancy</span>
+<span class="px-2 py-0.5 rounded-full bg-action-green/30 text-text-primary font-caption text-caption font-bold">Optimal 42%</span>
+</div>
+<div class="relative h-28 rounded-lg overflow-hidden mb-space-sm">
+<img class="w-full h-full object-cover" data-alt="Bright modern university library interior with wooden study pods, rows of neatly cataloged bookshelves under soft ambient architectural lighting, students reading comfortably, tranquil blue and neutral tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkNM0qOedZmc-hri65KuVMFVKfrGqcKBF-_vjCPeMibLBMltzedMm8vo3pIbwmXaX969kqXZKDTTRI7MAQPSIgEDTlTIdrKOtqXE5f8Pyxr8vX2fwRR6cBNL8U1KAaIkzurzRmg6e8ImM2XgNDK1OrjCt0TuYBPbqGyLBpzBw-r3hDquwsWHFRElp9uHGhD9zmpUPBym1RwHhwoa68i8ekDRJGUcF6iKQ0u3-TFO9kC0opISMRq9eT">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent flex items-end p-2.5">
+<div class="text-on-primary">
+<span class="font-small text-small font-bold block">Main Reading Commons</span>
+<span class="font-caption text-caption text-secondary-fixed">88 / 210 study stations currently occupied</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between font-caption text-caption text-text-secondary">
+<span class="">RFID Gate Turnstiles: Active</span>
+<span class="text-status-available font-semibold flex items-center gap-0.5">
+<span class="w-2 h-2 rounded-full bg-status-available"></span> Normal Flow
+          </span>
+</div>
+</div>
+<!-- Quick Maintenance Note / Admin Shift Panel -->
+<div class="bg-gradient-to-br from-soft-blue to-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-caption text-caption uppercase tracking-wider text-primary font-bold">Supervisor On Duty</span>
+<h4 class="font-headline-4 text-headline-4 font-bold text-text-primary mt-1">Shift 02 · Desk Alpha</h4>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-[22px]">badge</span>
+</div>
+</div>
+<p class="font-small text-small text-text-secondary mt-2">
+          Scheduled catalog barcode sync is set for 10:30 PM tonight. Please resolve the 18 overdue notices prior to the maintenance window.
+        </p>
+<div class="mt-space-md flex items-center justify-between pt-space-xs">
+<span class="font-caption text-caption text-text-secondary">Next sync in: <strong>4h 12m</strong></span>
+<button class="h-8 px-space-sm bg-primary text-on-primary font-caption text-caption font-semibold rounded-lg hover:bg-primary-container transition-colors" type="button">
+            Run Manual Sync
+          </button>
+</div>
+</div>
+</div>
+</div>
+</div></main></div>
+
+</body></html>

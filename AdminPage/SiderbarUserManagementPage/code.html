@@ -1,0 +1,843 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "error-container": "#ffdad6",
+          "text-primary": "#18323D",
+          "tertiary-container": "#26809d",
+          "inverse-on-surface": "#ebf2f3",
+          "on-secondary": "#ffffff",
+          "surface": "#f4fbfc",
+          "on-surface-variant": "#40484e",
+          "surface-dim": "#d4dbdc",
+          "action-green": "#9BE564",
+          "secondary": "#31647a",
+          "secondary-fixed": "#bee9ff",
+          "surface-container-low": "#eef5f6",
+          "status-pending": "#D9A85C",
+          "on-primary-fixed-variant": "#004c6a",
+          "on-secondary-container": "#34677d",
+          "surface-bright": "#f4fbfc",
+          "surface-variant": "#dde4e5",
+          "outline-variant": "#bfc8cf",
+          "secondary-fixed-dim": "#9ccee6",
+          "surface-container-highest": "#dde4e5",
+          "on-secondary-fixed-variant": "#144c61",
+          "status-available": "#7FA58D",
+          "on-primary-fixed": "#001e2d",
+          "on-tertiary": "#ffffff",
+          "tertiary": "#006681",
+          "on-tertiary-fixed": "#001f29",
+          "primary": "#00658a",
+          "glass-surface": "rgba(255,255,255,0.55)",
+          "outline": "#70787f",
+          "chip-unselected-bg": "rgba(255,255,255,0.70)",
+          "on-error": "#ffffff",
+          "on-primary": "#ffffff",
+          "primary-fixed": "#c5e7ff",
+          "text-secondary": "#647982",
+          "secondary-container": "#b2e4fe",
+          "on-secondary-fixed": "#001f2a",
+          "on-primary-container": "#ffffff",
+          "on-error-container": "#93000a",
+          "background": "#f4fbfc",
+          "on-tertiary-fixed-variant": "#004d62",
+          "primary-container": "#287ea7",
+          "tertiary-fixed-dim": "#82d1f1",
+          "surface-container-lowest": "#ffffff",
+          "error": "#ba1a1a",
+          "primary-fixed-dim": "#84cffc",
+          "surface-container-high": "#e2e9ea",
+          "action-green-hover": "#82D64C",
+          "surface-container": "#e8eff0",
+          "on-surface": "#161d1e",
+          "on-tertiary-container": "#ffffff",
+          "on-background": "#161d1e",
+          "inverse-surface": "#2b3233",
+          "tertiary-fixed": "#baeaff",
+          "surface-tint": "#00658b",
+          "status-danger": "#B96F72",
+          "inverse-primary": "#84cffc",
+          "soft-blue": "#D9EEF5"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "32px",
+          "gutter": "24px",
+          "space-xs": "4px",
+          "space-lg": "24px",
+          "space-sm": "8px",
+          "space-xl": "32px",
+          "space-2xl": "48px",
+          "space-3xl": "64px",
+          "space-md": "16px"
+        },
+        "fontFamily": {
+          "caption": [
+            "Inter"
+          ],
+          "body-medium": [
+            "Inter"
+          ],
+          "headline-1": [
+            "Inter"
+          ],
+          "headline-4": [
+            "Inter"
+          ],
+          "headline-2": [
+            "Inter"
+          ],
+          "body-large": [
+            "Inter"
+          ],
+          "display-hero": [
+            "Inter"
+          ],
+          "headline-3": [
+            "Inter"
+          ],
+          "display-hero-mobile": [
+            "Inter"
+          ],
+          "body": [
+            "Inter"
+          ],
+          "small": [
+            "Inter"
+          ]
+        },
+        "fontSize": {
+          "caption": [
+            "12px",
+            {
+              "lineHeight": "1.4",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "body-medium": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "headline-1": [
+            "44px",
+            {
+              "lineHeight": "1.2",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-4": [
+            "22px",
+            {
+              "lineHeight": "1.35",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-2": [
+            "36px",
+            {
+              "lineHeight": "1.25",
+              "fontWeight": "600"
+            }
+          ],
+          "body-large": [
+            "18px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "500"
+            }
+          ],
+          "display-hero": [
+            "56px",
+            {
+              "lineHeight": "1.1",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-3": [
+            "26px",
+            {
+              "lineHeight": "1.3",
+              "fontWeight": "600"
+            }
+          ],
+          "display-hero-mobile": [
+            "36px",
+            {
+              "lineHeight": "1.15",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "body": [
+            "16px",
+            {
+              "lineHeight": "1.5",
+              "fontWeight": "400"
+            }
+          ],
+          "small": [
+            "14px",
+            {
+              "lineHeight": "1.4",
+              "fontWeight": "400"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-surface-container-low font-body text-text-primary antialiased selection:bg-secondary-container selection:text-on-secondary-container"><aside class="fixed left-0 top-0 h-full w-64 bg-[#164E63] text-white shadow-xl z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between border-b border-white/10 bg-[#123e4f]"><div class="flex items-center gap-space-sm"><img alt="KATIPUNEROS Library Store" class="h-8 w-auto object-contain brightness-0 invert" src="https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4"><div class="flex flex-col"><span class="font-headline-4 text-small font-bold text-white tracking-tight leading-none">KATIPUNEROS</span><span class="font-caption text-caption text-white/70 uppercase tracking-wider scale-90 origin-left">Library Store</span></div></div><span class="font-caption text-caption bg-[#9BE564] text-[#18323D] px-space-xs py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">ADMIN</span></div><nav class="flex flex-col gap-space-xs px-space-sm pt-space-md"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors group" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[20px]">dashboard</span><span class="font-small text-small font-medium">Dashboard</span></a><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">library_books</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/60">Management</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-1.5 transition-colors bg-[#9BE564] text-[#18323D] font-bold rounded-lg shadow-sm" data-path="users" href="#"><span class="material-symbols-outlined text-[16px]">group</span><span class="font-small text-small">Users</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="books" href="#"><span class="material-symbols-outlined text-[16px]">book_2</span><span class="font-small text-small font-medium">Books</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="categories" href="#"><span class="material-symbols-outlined text-[16px]">category</span><span class="font-small text-small font-medium">Categories</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="inventory" href="#"><span class="material-symbols-outlined text-[16px]">inventory_2</span><span class="font-small text-small font-medium">Inventory</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">sync_alt</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/60">Operations</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="reservations" href="#"><span class="material-symbols-outlined text-[16px]">event_available</span><span class="font-small text-small font-medium">Reservations</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="borrowings" href="#"><span class="material-symbols-outlined text-[16px]">outbox</span><span class="font-small text-small font-medium">Borrowings</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="returns" href="#"><span class="material-symbols-outlined text-[16px]">assignment_return</span><span class="font-small text-small font-medium">Returns</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">insights</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/60">Insights</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="analytics" href="#"><span class="material-symbols-outlined text-[16px]">monitoring</span><span class="font-small text-small font-medium">Analytics</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="reports" href="#"><span class="material-symbols-outlined text-[16px]">description</span><span class="font-small text-small font-medium">Reports</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">forum</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/60">Communication</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="notifications" href="#"><span class="material-symbols-outlined text-[16px]">notifications</span><span class="font-small text-small font-medium">Notifications</span></a></div></div><div class="mt-space-xs"><div class="flex items-center justify-between px-space-md py-1.5 text-white/60 hover:text-white cursor-pointer select-none"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">shield</span><span class="font-caption text-caption uppercase tracking-wider font-semibold text-white/60">Security</span></div><span class="material-symbols-outlined text-[16px]">expand_more</span></div><div class="flex flex-col pl-space-lg pr-space-xs mt-1 gap-1"><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="roles-and-permissions" href="#"><span class="material-symbols-outlined text-[16px]">admin_panel_settings</span><span class="font-small text-small font-medium">Roles &amp; Permissions</span></a><a class="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="audit-logs" href="#"><span class="material-symbols-outlined text-[16px]">history</span><span class="font-small text-small font-medium">Audit Logs</span></a></div></div><div class="mt-space-sm pt-space-sm border-t border-white/10"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[20px]">settings</span><span class="font-small text-small font-medium">Settings</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-white/80 hover:bg-[#9BE564] hover:text-[#18323D] transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined text-[20px]">account_circle</span><span class="font-small text-small font-medium">Profile</span></a></div></nav></div><div class="p-space-sm mt-auto border-t border-white/10 bg-[#123e4f]"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-red-200 hover:bg-error/30 hover:text-white transition-colors" data-path="logout" href="#"><span class="material-symbols-outlined text-[20px]">logout</span><span class="font-small text-small font-semibold">Logout</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md"><button class="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Toggle Sidebar" type="button"><span class="material-symbols-outlined text-[20px]">menu_open</span></button><nav class="hidden sm:flex items-center gap-space-xs text-caption font-caption text-text-secondary"><span class="hover:text-text-primary cursor-pointer transition-colors">Admin</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-primary font-semibold">Console</span></nav></div><div class="flex items-center gap-space-lg"><div class="relative hidden md:block w-72 lg:w-96"><span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span><input class="w-full bg-surface-container-low pl-10 pr-space-md py-2 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search users, books, reservations..." type="text"></div><button class="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1 right-1 w-4 h-4 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center">3</span></button><div class="flex items-center gap-space-sm pl-space-sm bg-surface-container-low py-1 px-space-sm rounded-full"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg"><div class="hidden lg:flex flex-col pr-space-xs"><span class="font-small text-small font-semibold text-text-primary leading-tight">Administrator</span><span class="font-caption text-caption text-text-secondary leading-none">Super Admin</span></div></div></div></header><main class="w-full pt-16 bg-surface-container-low min-h-screen px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<div class="flex flex-col gap-space-lg w-full">
+<!-- Top Metadata & Header Title -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-xs font-caption text-caption text-text-secondary uppercase tracking-widest">
+<span class="">Admin Console</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="">Management</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-semibold">Users</span>
+</div>
+<h1 class="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">User Account Directory &amp; Governance</h1>
+<p class="font-body text-body text-text-secondary max-w-2xl">
+          Manage patron credentials, institutional affiliation, circulation clearances, and role authorizations across the academic repository.
+        </p>
+</div>
+<!-- Quick Operational Metrics Strip -->
+<div class="flex items-center gap-space-sm bg-surface-container-lowest p-1.5 rounded-xl shadow-sm self-start lg:self-auto">
+<div class="px-space-md py-1.5 flex flex-col items-center">
+<span class="font-caption text-caption text-text-secondary">Active Patrons</span>
+<span class="font-headline-4 text-headline-4 text-primary font-bold">3,280</span>
+</div>
+<div class="w-px h-8 bg-surface-container"></div>
+<div class="px-space-md py-1.5 flex flex-col items-center">
+<span class="font-caption text-caption text-text-secondary">On-Hold / Fines</span>
+<span class="font-headline-4 text-headline-4 text-status-danger font-bold">45</span>
+</div>
+<div class="w-px h-8 bg-surface-container"></div>
+<div class="px-space-md py-1.5 flex flex-col items-center">
+<span class="font-caption text-caption text-text-secondary">Staff Desks</span>
+<span class="font-headline-4 text-headline-4 text-secondary font-bold">40</span>
+</div>
+</div>
+</div>
+<!-- Search, Filters, and Bulk Action Controls -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-space-md">
+<!-- Search Pill -->
+<div class="relative flex-1 max-w-xl">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">search</span>
+<input class="w-full bg-surface-container-low pl-11 pr-space-md py-2.5 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 transition-all shadow-inner" placeholder="Search patron by full name, KP-ID (#KP-77401), email, or RFID barcode..." type="text">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-caption text-[11px] bg-surface-container px-2 py-0.5 rounded text-text-secondary tracking-wide">⌘K</span>
+</div>
+<!-- Right Trigger Buttons -->
+<div class="flex items-center gap-space-sm self-end xl:self-auto">
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-container-low hover:bg-surface-container text-text-primary font-small text-small font-semibold transition-all" type="button">
+<span class="material-symbols-outlined text-[18px] text-text-secondary">file_download</span>
+<span class="">Export CSV / Excel</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-lg py-2.5 rounded-full bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-bold transition-all shadow-sm" id="open-new-user-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+<span class="">+ Add User</span>
+</button>
+</div>
+</div>
+<!-- Segmented Category Filters -->
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-sm pt-space-xs">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="font-caption text-caption text-text-secondary mr-2 uppercase tracking-wider">Role Scope:</span>
+<button class="px-3.5 py-1.5 rounded-full font-caption text-caption font-semibold bg-primary text-on-primary shadow-sm transition-colors" type="button">
+            All (3,420)
+          </button>
+<button class="px-3.5 py-1.5 rounded-full font-caption text-caption font-medium bg-chip-unselected-bg text-text-secondary hover:bg-surface-container hover:text-text-primary transition-colors" type="button">
+            Customers / Patrons (3,380)
+          </button>
+<button class="px-3.5 py-1.5 rounded-full font-caption text-caption font-medium bg-chip-unselected-bg text-text-secondary hover:bg-surface-container hover:text-text-primary transition-colors" type="button">
+            Cashiers (24)
+          </button>
+<button class="px-3.5 py-1.5 rounded-full font-caption text-caption font-medium bg-chip-unselected-bg text-text-secondary hover:bg-surface-container hover:text-text-primary transition-colors" type="button">
+            Administrators (16)
+          </button>
+</div>
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="font-caption text-caption text-text-secondary mr-2 uppercase tracking-wider">Account State:</span>
+<button class="px-3 py-1 rounded-full font-caption text-caption font-semibold bg-soft-blue text-primary" type="button">
+            Active (3,280)
+          </button>
+<button class="px-3 py-1 rounded-full font-caption text-caption font-medium bg-surface-container-low text-text-secondary hover:text-text-primary" type="button">
+            Inactive (95)
+          </button>
+<button class="px-3 py-1 rounded-full font-caption text-caption font-medium bg-surface-container-low text-status-danger hover:bg-error-container" type="button">
+            Suspended / Hold (45)
+          </button>
+</div>
+</div>
+</div>
+<!-- Data Table & Layout Area -->
+<div class="relative w-full bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-text-secondary font-caption text-caption uppercase tracking-wider">
+<th class="py-3.5 px-space-md font-semibold">User ID</th>
+<th class="py-3.5 px-space-md font-semibold">Patron / User Details</th>
+<th class="py-3.5 px-space-md font-semibold">Institutional Role</th>
+<th class="py-3.5 px-space-md font-semibold">Account Status</th>
+<th class="py-3.5 px-space-md font-semibold">Registration &amp; Login</th>
+<th class="py-3.5 px-space-md font-semibold">Active Circulation</th>
+<th class="py-3.5 px-space-md font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y-0">
+<!-- Row 1: Sofia Morales (Focus Item) -->
+<tr class="bg-soft-blue/30 hover:bg-soft-blue/50 transition-colors group cursor-pointer" onclick="toggleDrawer(true)">
+<td class="py-3.5 px-space-md font-small text-small font-bold text-primary">
+                #KP-77401
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-sm">
+<img class="w-9 h-9 rounded-full object-cover shadow-sm" data-alt="A clean, natural photographic portrait of Sofia Morales, an academic Filipina student with glasses and hair tied back, wearing a neat university collared shirt in warm natural library lighting with soft bokeh background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1xp1xbV7PvMd-4u431pvisRoSQqgcNI_2LD4BKKJenSt3S4TXi_FtWeXBwImNk8xPjpNVRmqRAfRabD7iGGxCTBCtPqa7xLzIUJVJXYPG1JmF12Y5DuJlIZhxwF2puWsjNT8n_qQ81NJRcEkRl3ISx2hjUxCITTySKn3x8Iou6qaOkI558bS3vaCxqLuaEz6Ux4_SthnbFQjZTVSKD7P2BJbh5wIb6n7BQqr3Dbu3bbo7kKpOi-BH">
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-semibold text-text-primary group-hover:text-primary transition-colors truncate">Sofia Morales</span>
+<span class="font-caption text-caption text-text-secondary truncate">s.morales@upk.edu.ph</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-caption text-caption font-semibold bg-secondary-container text-on-secondary-container">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Customer (Undergrad)
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-caption text-caption font-semibold bg-status-available/15 text-status-available">
+<span class="w-1.5 h-1.5 rounded-full bg-status-available"></span>
+                  Active
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small text-text-primary">Aug 14, 2022</span>
+<span class="font-caption text-caption text-text-secondary">Today, 09:22 AM</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-caption text-caption text-text-secondary">Loans: <strong class="text-text-primary">2/4</strong></span>
+<span class="font-caption text-caption text-text-secondary">Holds: <strong class="text-text-primary">1</strong></span>
+</div>
+<span class="font-caption text-[11px] font-semibold text-status-available">Fines: ₱0.00 clear</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right" onclick="event.stopPropagation()">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg text-primary hover:bg-surface-container transition-colors" onclick="toggleDrawer(true)" title="Inspect Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="Edit Credentials" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_square</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="More options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Dr. Leandro Santos -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3.5 px-space-md font-small text-small font-bold text-text-secondary">
+                #KP-10294
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-sm">
+<img class="w-9 h-9 rounded-full object-cover shadow-sm" data-alt="Distinguished university professor portrait, middle-aged Filipino scholar with salt-and-pepper hair in a dark blue linen academic blazer, neutral academic bookstore setting with warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_xpduNAxwlpU8pLZZZuZhiovo2-d0eTyS95uGUYpQmIBRsbyjh5zPSBH6Yx6Do5yRCKlg7-TpRTRyl1ZAqZM2Wio-93suN9hfr0mqZ8TOmpko45DkyfuY1BDpNAjXbhveefsSalRw3JLkubCp8EWLKuR0wliNHSH06sI8q1HhsGLlWc9hnGmUucLOa7dpJpp-Knnq5H7zSmJJOqQZN1ck9HSAwwCkN4E7t1Kuy5aCHbfFRMVHkma3">
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-semibold text-text-primary group-hover:text-primary transition-colors truncate">Dr. Leandro Santos</span>
+<span class="font-caption text-caption text-text-secondary truncate">l.santos@dept.upk.edu.ph</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-caption text-caption font-semibold bg-surface-container text-text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  Faculty Scholar
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-caption text-caption font-semibold bg-status-available/15 text-status-available">
+<span class="w-1.5 h-1.5 rounded-full bg-status-available"></span>
+                  Active
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small text-text-primary">Sep 01, 2018</span>
+<span class="font-caption text-caption text-text-secondary">Yesterday, 04:15 PM</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-caption text-caption text-text-secondary">Loans: <strong class="text-text-primary">6/10</strong></span>
+<span class="font-caption text-caption text-text-secondary">Holds: <strong class="text-text-primary">0</strong></span>
+</div>
+<span class="font-caption text-[11px] font-semibold text-status-available">Fines: ₱0.00 clear</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-surface-container transition-colors" title="Inspect Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="Edit Credentials" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_square</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="More options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Marco Valencia (Suspended with Fine) -->
+<tr class="bg-error-container/20 hover:bg-error-container/30 transition-colors group">
+<td class="py-3.5 px-space-md font-small text-small font-bold text-status-danger">
+                #KP-88219
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-status-danger/20 text-status-danger flex items-center justify-center font-bold text-small">
+                    MV
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-semibold text-text-primary group-hover:text-status-danger transition-colors truncate">Marco Valencia</span>
+<span class="font-caption text-caption text-text-secondary truncate">m.valencia@upk.edu.ph</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-caption text-caption font-semibold bg-surface-container text-text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Customer (Undergrad)
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-caption text-caption font-semibold bg-error-container text-on-error-container">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                  Suspended / Fine Hold
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small text-text-primary">Nov 11, 2023</span>
+<span class="font-caption text-caption text-text-secondary">12 days ago</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-caption text-caption text-text-secondary">Loans: <strong class="text-status-danger font-bold">1/4 (Overdue)</strong></span>
+</div>
+<span class="font-caption text-[11px] font-bold text-status-danger">Fines: ₱340.00 Overdue</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-surface-container transition-colors" title="Inspect Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg text-status-danger hover:bg-error-container transition-colors" title="Clear Fines &amp; Reactivate" type="button">
+<span class="material-symbols-outlined text-[18px]">lock_reset</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="More options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Rowena Tan (Cashier) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3.5 px-space-md font-small text-small font-bold text-text-secondary">
+                #KP-00442
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-sm">
+<img class="w-9 h-9 rounded-full object-cover shadow-sm" data-alt="Young professional Filipina staff member in clean corporate blue library vest, smiling warmly at university circulation desk with modern barcode scanner equipment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4SoVGR6Rt9c6IcnqTWYXTSZv_B9ER2BakTvgQ1CdMlgB16IVHVvJBjdwtyJgZYeQ8AavcijWwu0VR6B08e7HFeyQnnBXaNuVkTQRQuaPAEwegLOMgrLYQHiiljnIh47KQ01pBGK3nZKjDrHu3WBFt7YrpBWqWIffoVl4wqtoFTC53bf3IN39LdrB7aIGWSnJXSV3_pzdDeu9anNHlbPgUjXpDdG4588Yx-sIpD-sTwF_zLTQNpoAv">
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-semibold text-text-primary group-hover:text-primary transition-colors truncate">Rowena Tan</span>
+<span class="font-caption text-caption text-text-secondary truncate">rtan.staff@upk.edu.ph</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-caption text-caption font-semibold bg-tertiary-fixed text-on-tertiary-fixed-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Cashier Desk 01
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-caption text-caption font-semibold bg-status-available/15 text-status-available">
+<span class="w-1.5 h-1.5 rounded-full bg-status-available"></span>
+                  Active
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small text-text-primary">Jan 10, 2021</span>
+<span class="font-caption text-caption text-text-secondary">Active Now</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-text-secondary">Shift: 08:00 - 17:00</span>
+<span class="font-caption text-[11px] font-semibold text-primary">Terminal POS #3</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-surface-container transition-colors" title="Inspect Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="Edit Credentials" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_square</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="More options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Alyssa Gomez (Pending Verification) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3.5 px-space-md font-small text-small font-bold text-text-secondary">
+                #KP-77983
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-status-pending/20 text-status-pending flex items-center justify-center font-bold text-small">
+                    AG
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-semibold text-text-primary group-hover:text-primary transition-colors truncate">Alyssa Gomez</span>
+<span class="font-caption text-caption text-text-secondary truncate">a.gomez.new@upk.edu.ph</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-caption text-caption font-semibold bg-surface-container text-text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Customer (Freshman)
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-caption text-caption font-semibold bg-status-pending/20 text-status-pending">
+<span class="w-1.5 h-1.5 rounded-full bg-status-pending"></span>
+                  Pending Verification
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small text-text-primary">Oct 24, 2024</span>
+<span class="font-caption text-caption text-text-secondary">Never logged in</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-text-secondary">Loans: 0/4</span>
+<span class="font-caption text-[11px] text-text-secondary">Awaiting ID badge scan</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-on-primary font-caption text-caption font-semibold transition-colors" type="button">
+                    Approve
+                  </button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="More options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6: Gabriel Reyes (Admin Supervisor) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3.5 px-space-md font-small text-small font-bold text-text-secondary">
+                #KP-00018
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-primary-container text-on-primary font-bold text-small flex items-center justify-center">
+                    GR
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-small text-small font-semibold text-text-primary group-hover:text-primary transition-colors truncate">Gabriel Reyes</span>
+<span class="font-caption text-caption text-text-secondary truncate">g.reyes.admin@upk.edu.ph</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-caption text-caption font-semibold bg-primary-fixed text-on-primary-fixed-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Admin Supervisor
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-caption text-caption font-semibold bg-status-available/15 text-status-available">
+<span class="w-1.5 h-1.5 rounded-full bg-status-available"></span>
+                  Active
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-small text-small text-text-primary">Feb 01, 2019</span>
+<span class="font-caption text-caption text-text-secondary">2 hours ago</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-text-secondary">Access: Level 4 Super</span>
+<span class="font-caption text-[11px] font-semibold text-status-available">2FA Secured</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-surface-container transition-colors" title="Inspect Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="Edit Credentials" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_square</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors" title="More options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination & Density Control Footer -->
+<div class="p-space-md bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<span class="font-small text-small text-text-secondary">
+            Showing <strong class="text-text-primary">1–10</strong> of <strong class="text-text-primary">3,420</strong> registered accounts
+          </span>
+<div class="flex items-center gap-space-xs text-text-secondary font-caption text-caption">
+<span class="">Rows:</span>
+<select class="bg-surface-container-low py-1 px-2 rounded-lg font-small text-small text-text-primary focus:outline-none">
+<option>10</option>
+<option>25</option>
+<option>50</option>
+<option>100</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="p-1.5 rounded-lg text-outline-variant cursor-not-allowed" disabled="" type="button">
+<span class="material-symbols-outlined text-[20px]">keyboard_double_arrow_left</span>
+</button>
+<button class="p-1.5 rounded-lg text-outline-variant cursor-not-allowed" disabled="" type="button">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-primary text-on-primary font-caption text-caption font-bold flex items-center justify-center shadow-sm" type="button">
+            1
+          </button>
+<button class="w-8 h-8 rounded-lg text-text-secondary hover:bg-surface-container font-caption text-caption font-medium flex items-center justify-center transition-colors" type="button">
+            2
+          </button>
+<button class="w-8 h-8 rounded-lg text-text-secondary hover:bg-surface-container font-caption text-caption font-medium flex items-center justify-center transition-colors" type="button">
+            3
+          </button>
+<span class="px-1 text-text-secondary font-caption text-caption">...</span>
+<button class="w-8 h-8 rounded-lg text-text-secondary hover:bg-surface-container font-caption text-caption font-medium flex items-center justify-center transition-colors" type="button">
+            342
+          </button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+<button class="p-1.5 rounded-lg text-text-secondary hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">keyboard_double_arrow_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Slide-Over Drawer: Patron Inspection (Sofia Morales) -->
+<div class="fixed inset-0 bg-text-primary/30 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none" id="drawer-backdrop" onclick="toggleDrawer(false)">
+<div class="fixed right-0 top-0 h-full w-full max-w-lg bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between transform translate-x-full transition-transform duration-300 ease-out" id="drawer-panel" onclick="event.stopPropagation()">
+<!-- Drawer Header -->
+<div class="p-space-lg bg-surface-container-lowest flex items-start justify-between">
+<div class="flex items-center gap-space-md">
+<img class="w-14 h-14 rounded-full object-cover shadow-md" data-alt="Close up photographic profile portrait of university student Sofia Morales smiling gently with round glasses, modern student library card style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1XekrmOF2kT647zAZ-GO_dPke0QHxcw181eDya-cvHvFRjTSArRvcuOU_NR_Z_odXp3pB45qI2O8H_Pa3YQjtgH_orca08D7sq2zcbT5uKOglYrieI-O5O2TEXtjFzDP4qxr4RvSg-kSWAZAGleDdEcZ_L4pnwv4zBq6a6NbC_r910sd7KO0lIs-ntLzEd8tovdh8yOQco2opea50LSNthgYROOY1adypo_eO8-EMcF3gPKyGBc_s">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<h2 class="font-headline-4 text-headline-4 text-text-primary font-bold">Sofia Morales</h2>
+<span class="font-caption text-caption bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded font-bold">#KP-77401</span>
+</div>
+<span class="font-small text-small text-text-secondary">BS Computer Science (Yr 3)</span>
+<span class="font-caption text-caption text-primary font-medium">College of Engineering &amp; IT</span>
+</div>
+</div>
+<button class="p-2 text-text-secondary hover:bg-surface-container rounded-full transition-colors" onclick="toggleDrawer(false)" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Drawer Body (Scrollable Details) -->
+<div class="px-space-lg py-space-md flex-1 overflow-y-auto flex flex-col gap-space-lg">
+<!-- Key Governance Indicators -->
+<div class="grid grid-cols-2 gap-space-sm">
+<div class="bg-surface-container-low p-space-md rounded-xl flex flex-col">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider">Circulation Quota</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-headline-3 text-headline-3 font-bold text-primary">2</span>
+<span class="font-caption text-caption text-text-secondary">of 4 volumes</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 50%;"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-space-md rounded-xl flex flex-col">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider">On-Time Return Rate</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-headline-3 text-headline-3 font-bold text-status-available">98.4%</span>
+<span class="font-caption text-caption text-status-available font-semibold">Exemplary</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-status-available h-full rounded-full" style="width: 98.4%;"></div>
+</div>
+</div>
+</div>
+<!-- Clearance & Governance Toggles -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-space-md">
+<h3 class="font-small text-small font-bold text-text-primary uppercase tracking-wider">Institutional Permissions</h3>
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary">Circulation Borrowing Clearance</span>
+<span class="font-caption text-caption text-text-secondary">Allow checking out physical repository volumes</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:border-surface-container-highest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-action-green"></div>
+</label>
+</div>
+<div class="w-full h-px bg-surface-container"></div>
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary">Account Standing</span>
+<span class="font-caption text-caption text-text-secondary">Active privileges vs account freeze</span>
+</div>
+<span class="font-caption text-caption px-2.5 py-1 rounded-full font-bold bg-status-available/20 text-status-available">
+              Active Privilege
+            </span>
+</div>
+<div class="w-full h-px bg-surface-container"></div>
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary">Academic Overdue Ledger</span>
+<span class="font-caption text-caption text-text-secondary">Pending financial obligations</span>
+</div>
+<span class="font-caption text-caption px-2.5 py-1 rounded-full font-bold bg-status-available/20 text-status-available">
+              ₱0.00 (Cleared)
+            </span>
+</div>
+</div>
+<!-- Currently Loaned Material -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<h3 class="font-small text-small font-bold text-text-primary uppercase tracking-wider">Active Volume Loans (2)</h3>
+<span class="font-caption text-caption text-primary font-semibold cursor-pointer hover:underline">Loan History</span>
+</div>
+<!-- Book Item 1 -->
+<div class="bg-surface-container-low p-space-sm rounded-xl flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-14 bg-primary/20 rounded flex items-center justify-center text-primary font-bold font-caption text-caption">
+                BOOK
+              </div>
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary line-clamp-1">Introduction to Algorithms (4th Ed.)</span>
+<span class="font-caption text-caption text-text-secondary">Due: Nov 18, 2024 (In 6 days)</span>
+</div>
+</div>
+<span class="font-caption text-caption px-2 py-0.5 rounded bg-status-available/15 text-status-available font-semibold">On-Time</span>
+</div>
+<!-- Book Item 2 -->
+<div class="bg-surface-container-low p-space-sm rounded-xl flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-14 bg-secondary/20 rounded flex items-center justify-center text-secondary font-bold font-caption text-caption">
+                BOOK
+              </div>
+<div class="flex flex-col">
+<span class="font-small text-small font-semibold text-text-primary line-clamp-1">Design Patterns: Reusable Elements</span>
+<span class="font-caption text-caption text-text-secondary">Due: Nov 24, 2024 (In 12 days)</span>
+</div>
+</div>
+<span class="font-caption text-caption px-2 py-0.5 rounded bg-status-available/15 text-status-available font-semibold">On-Time</span>
+</div>
+</div>
+<!-- Account Credentials & Security Summary -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-space-xs">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider">Security &amp; RFID Badge</span>
+<div class="flex items-center justify-between mt-1">
+<span class="font-small text-small text-text-primary font-medium">RFID Serial Code:</span>
+<span class="font-caption text-caption font-mono bg-surface-container px-2 py-0.5 rounded text-text-primary">RF-9821-KP77</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-small text-small text-text-primary font-medium">Registered Device PIN:</span>
+<span class="font-caption text-caption text-text-secondary">•••• Configured</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-small text-small text-text-primary font-medium">Institutional SSO:</span>
+<span class="font-caption text-caption text-primary font-semibold">Verified Active</span>
+</div>
+</div>
+</div>
+<!-- Drawer Footer Action Bar -->
+<div class="p-space-lg bg-surface-container-lowest flex items-center justify-between gap-space-sm">
+<button class="flex-1 py-2.5 px-space-md rounded-full bg-error-container text-on-error-container font-small text-small font-bold hover:bg-error hover:text-on-error transition-colors flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-[18px]">block</span>
+<span class="">Suspend Hold</span>
+</button>
+<button class="flex-1 py-2.5 px-space-md rounded-full bg-primary hover:bg-primary-container text-on-primary font-small text-small font-bold transition-colors flex items-center justify-center gap-1 shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">save</span>
+<span class="">Save Changes</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Client-side Interactive Drawer Logic -->
+<script>
+    function toggleDrawer(open) {
+      const backdrop = document.getElementById('drawer-backdrop');
+      const panel = document.getElementById('drawer-panel');
+      if (open) {
+        backdrop.classList.remove('pointer-events-none', 'opacity-0');
+        backdrop.classList.add('opacity-100');
+        panel.classList.remove('translate-x-full');
+        panel.classList.add('translate-x-0');
+      } else {
+        backdrop.classList.add('pointer-events-none', 'opacity-0');
+        backdrop.classList.remove('opacity-100');
+        panel.classList.add('translate-x-full');
+        panel.classList.remove('translate-x-0');
+      }
+    }
+
+    document.getElementById('open-new-user-btn')?.addEventListener('click', function() {
+      toggleDrawer(true);
+    });
+  </script>
+</div></main></div>
+
+</body></html>

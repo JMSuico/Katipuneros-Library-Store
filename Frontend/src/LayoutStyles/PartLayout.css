@@ -1,0 +1,29 @@
+/* [Layer: LayoutStyles]
+ * PartLayout.css -- Part-level CSS utility classes and cross-module effects.
+ * Contains reusable utility classes like modal-color-box, hover classes, card shadows.
+ * DO NOT add component-specific styles here.
+ */
+
+.modal-color-box {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.hover-color-green:hover {
+  background-color: var(--color-action-green, #9BE564);
+  color: var(--color-text-primary, #18323D);
+}
+
+.hover-color-blue:hover {
+  background-color: var(--color-primary-container, #287ea7);
+  color: #ffffff;
+}
+
+.card-shadow {
+  box-shadow: 0 4px 20px -2px rgba(0, 101, 138, 0.08);
+}
+
+.card-shadow-hover:hover {
+  box-shadow: 0 10px 25px -4px rgba(0, 101, 138, 0.14);
+}
