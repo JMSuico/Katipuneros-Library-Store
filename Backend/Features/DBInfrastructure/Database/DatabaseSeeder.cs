@@ -40,41 +40,111 @@ public static class DatabaseSeeder
             {
                 new()
                 {
+                    FirstName = "Chief",
+                    LastName = "Administrator",
                     FullName = "Chief Administrator",
+                    Username = "admin",
                     Email = "admin@katipuneros.edu.ph",
                     PasswordHash = PasswordHelper.HashPassword("Admin@2026!"),
                     Role = UserRole.Admin,
                     LibraryCardNumber = "KP-ADM-2026-00001",
                     Department = "University Library Administration",
+                    EmploymentStatus = "Employee",
+                    CurrentAddress = "Admin Hall Suite 304",
+                    PermanentAddress = "Admin Hall Suite 304",
                     PhoneNumber = "+63 917 100 0001",
+                    ProfilePictureUrl = "https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ",
                     IsActive = true
                 },
                 new()
                 {
-                    FullName = "Senior Circulation Cashier",
+                    FirstName = "Elena",
+                    LastName = "Vance",
+                    FullName = "Elena Vance",
+                    Username = "cashier",
                     Email = "cashier@katipuneros.edu.ph",
                     PasswordHash = PasswordHelper.HashPassword("Cashier@2026!"),
                     Role = UserRole.Cashier,
                     LibraryCardNumber = "KP-CSH-2026-00002",
                     Department = "Circulation & Stacks Terminal",
+                    EmploymentStatus = "Employee",
+                    CurrentAddress = "Staff Residence 102",
+                    PermanentAddress = "Staff Residence 102",
                     PhoneNumber = "+63 917 100 0002",
+                    ProfilePictureUrl = "https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg",
                     IsActive = true
                 },
                 new()
                 {
+                    FirstName = "Juan",
+                    MiddleName = "Rizal",
+                    LastName = "Dela Cruz",
                     FullName = "Juan Dela Cruz",
+                    Username = "patron",
                     Email = "patron@katipuneros.edu.ph",
                     PasswordHash = PasswordHelper.HashPassword("Patron@2026!"),
                     Role = UserRole.Customer,
                     LibraryCardNumber = "KP-LIB-2024-08912-JD",
                     Department = "College of Computer Studies",
+                    EmploymentStatus = "Student",
+                    CurrentAddress = "Dormitory Bldg 4, Room 201",
+                    PermanentAddress = "124 Rizal St, Katipunan",
                     PhoneNumber = "+63 917 100 0003",
+                    ProfilePictureUrl = "https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg",
                     IsActive = true
                 }
             };
 
             await context.Users.AddRangeAsync(users);
             await context.SaveChangesAsync();
+        }
+        else
+        {
+            var existingUsers = await context.Users.ToListAsync();
+            bool modified = false;
+            foreach (var u in existingUsers)
+            {
+                if (u.Email == "admin@katipuneros.edu.ph" && string.IsNullOrEmpty(u.Username))
+                {
+                    u.FirstName = "Chief";
+                    u.LastName = "Administrator";
+                    u.Username = "admin";
+                    u.EmploymentStatus = "Employee";
+                    u.CurrentAddress = "Admin Hall Suite 304";
+                    u.PermanentAddress = "Admin Hall Suite 304";
+                    u.ProfilePictureUrl ??= "https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ";
+                    modified = true;
+                }
+                else if (u.Email == "cashier@katipuneros.edu.ph" && string.IsNullOrEmpty(u.Username))
+                {
+                    u.FirstName = "Elena";
+                    u.LastName = "Vance";
+                    u.FullName = "Elena Vance";
+                    u.Username = "cashier";
+                    u.EmploymentStatus = "Employee";
+                    u.CurrentAddress = "Staff Residence 102";
+                    u.PermanentAddress = "Staff Residence 102";
+                    u.ProfilePictureUrl ??= "https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg";
+                    modified = true;
+                }
+                else if (u.Email == "patron@katipuneros.edu.ph" && string.IsNullOrEmpty(u.Username))
+                {
+                    u.FirstName = "Juan";
+                    u.MiddleName = "Rizal";
+                    u.LastName = "Dela Cruz";
+                    u.FullName = "Juan Dela Cruz";
+                    u.Username = "patron";
+                    u.EmploymentStatus = "Student";
+                    u.CurrentAddress = "Dormitory Bldg 4, Room 201";
+                    u.PermanentAddress = "124 Rizal St, Katipunan";
+                    u.ProfilePictureUrl ??= "https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg";
+                    modified = true;
+                }
+            }
+            if (modified)
+            {
+                await context.SaveChangesAsync();
+            }
         }
 
         // 3. Seed Books

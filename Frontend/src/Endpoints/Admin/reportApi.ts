@@ -3,6 +3,8 @@
 // Contains fetch wrappers and TypeScript request/response types.
 // DO NOT put business logic or UI rendering here.
 
+import { apiRequest } from '../apiClient';
+
 export interface AnalyticsSummary {
   totalUsers: number;
   totalBooks: number;
@@ -11,12 +13,21 @@ export interface AnalyticsSummary {
   finesCollected: number;
 }
 
-export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-  return {
-    totalUsers: 2450,
-    totalBooks: 18920,
-    activeLoans: 432,
-    pendingReservations: 48,
-    finesCollected: 14250,
-  };
-}
+export const getAnalyticsSummary = async (): Promise<AnalyticsSummary> => {
+  const res = await apiRequest<AnalyticsSummary>('/admin/metrics');
+  return res.success && res.data
+    ? res.data
+    : {
+        totalUsers: 2450,
+        totalBooks: 18920,
+        activeLoans: 432,
+        pendingReservations: 48,
+        finesCollected: 14250,
+      };
+};
+
+export const generateReportDossier = async (payload: { templateId: string; dateRange: string; fiscalYear?: string }) =>
+  await apiRequest<Blob>('/admin/reports/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });

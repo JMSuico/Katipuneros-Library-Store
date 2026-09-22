@@ -1,13 +1,15 @@
 // [Layer: LayoutBars]
 // CustomerHeader.tsx -- Customer panel top navigation header.
-// Fixed header with glassmorphism, pill-shaped nav, search, notifications, profile.
-// Extracted from CustomerPage/NavHomePage/code.html header element.
-// DO NOT put business logic or API calls here.
-import { useLocation, Link } from 'react-router-dom';
+// Fixed header with glassmorphism, pill-shaped nav, search, notifications, and avatar dropdown with PROFILE and LOGOUT.
+// DO NOT put business logic or direct API calls here.
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../Endpoints/authApi';
 
 const LOGO_URL = 'https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4';
 
-const PROFILE_URL = 'https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg';
+const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg';
 
 interface NavItem {
   label: string;
@@ -25,6 +27,33 @@ const NAV_ITEMS: NavItem[] = [
 
 const CustomerHeader: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchCurrentProfile().then((u) => {
+      if (u) setCurrentUser(u);
+    });
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    setIsDropdownOpen(false);
+    logoutUser();
+    navigate('/login');
+  };
+
+  const avatarSrc = currentUser?.profilePictureUrl || DEFAULT_AVATAR;
+  const displayName = currentUser?.fullName || 'Patron Scholar';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-chip-unselected-bg backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
@@ -79,25 +108,93 @@ const CustomerHeader: React.FC = () => {
           {/* Holds & Borrowed Summary */}
           <div className="hidden sm:flex items-center gap-space-xs bg-soft-blue/60 text-text-primary font-caption text-caption px-space-md py-space-xs rounded-full shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
             <span className="material-symbols-outlined text-primary text-base">bookmark</span>
-            <span>3 Holds</span>
-            <span className="text-outline-variant">•</span>
-            <span>2 Borrowed</span>
+            <span>Active Holds</span>
           </div>
 
           {/* Notification Bell */}
           <button
-            className="relative p-space-xs rounded-full hover:bg-surface-container-high hover:text-on-surface text-on-surface-variant transition-colors flex items-center justify-center"
+            className="relative p-space-xs rounded-full hover:bg-surface-container-high hover:text-on-surface text-on-surface-variant transition-colors flex items-center justify-center cursor-pointer"
             type="button"
+            aria-label="View notifications"
           >
             <span className="material-symbols-outlined text-text-primary">notifications</span>
             <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-action-green rounded-full shadow-sm" />
           </button>
 
-          {/* Profile */}
-          <div className="flex items-center gap-space-xs pl-space-xs cursor-pointer rounded-full hover:bg-surface-container-high hover:text-on-surface p-space-xs transition-colors">
-            <img alt="Profile" className="w-8 h-8 rounded-full object-cover" src={PROFILE_URL} />
-            <span className="hidden lg:inline-block font-small text-small text-text-primary font-medium">Jhon Doe</span>
-            <span className="material-symbols-outlined text-text-secondary text-base">arrow_drop_down</span>
+          {/* Profile & Avatar Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-space-xs pl-space-xs cursor-pointer rounded-full hover:bg-surface-container-high hover:text-on-surface p-space-xs transition-colors border border-transparent focus:border-primary/30"
+              type="button"
+              aria-expanded={isDropdownOpen}
+              aria-label="User profile dropdown"
+            >
+              <img
+                alt={displayName}
+                className="w-9 h-9 rounded-full object-cover border border-action-green/30 shadow-sm"
+                src={avatarSrc}
+              />
+              <span className="hidden lg:inline-block font-small text-small text-text-primary font-medium truncate max-w-[120px]">
+                {displayName}
+              </span>
+              <span
+                className={`material-symbols-outlined text-text-secondary text-base transition-transform duration-200 ${
+                  isDropdownOpen ? 'rotate-180 text-primary' : ''
+                }`}
+              >
+                arrow_drop_down
+              </span>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-2xl py-2 z-50 animate-scale-up">
+                {/* User Summary Header */}
+                <div className="px-4 py-3 border-b border-surface-container-high flex items-center gap-3">
+                  <img
+                    alt={displayName}
+                    className="w-10 h-10 rounded-full object-cover border border-action-green/40 shadow-sm"
+                    src={avatarSrc}
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-small text-small font-bold text-text-primary truncate">
+                      {displayName}
+                    </span>
+                    <span className="font-caption text-[11px] text-text-secondary truncate">
+                      {currentUser?.email || 'patron@katipuneros.edu.ph'}
+                    </span>
+                    <span className="font-caption text-[10px] text-primary font-mono mt-0.5">
+                      {currentUser?.libraryCardNumber || 'KP-LIB-VERIFIED'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="p-1 space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      navigate('/customer/profile');
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-small font-body-medium text-text-primary hover:bg-secondary-container/60 hover:text-primary transition-colors cursor-pointer text-left"
+                  >
+                    <span className="material-symbols-outlined text-primary text-[20px]">person</span>
+                    <span className="font-semibold">PROFILE</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-small font-body-medium text-status-danger hover:bg-status-danger/10 transition-colors cursor-pointer text-left"
+                  >
+                    <span className="material-symbols-outlined text-status-danger text-[20px]">logout</span>
+                    <span className="font-semibold">LOGOUT</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

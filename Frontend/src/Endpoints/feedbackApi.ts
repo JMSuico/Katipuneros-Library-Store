@@ -26,7 +26,7 @@ export interface FeedbackRecord {
   };
 }
 
-export async function submitFeedback(data: FeedbackSubmission): Promise<FeedbackResponse> {
+export const submitFeedback = async (data: FeedbackSubmission): Promise<FeedbackResponse> => {
   const res = await apiRequest<object>('/feedback', {
     method: 'POST',
     body: JSON.stringify({
@@ -39,9 +39,9 @@ export async function submitFeedback(data: FeedbackSubmission): Promise<Feedback
     success: res.success,
     message: res.message || (res.success ? 'Thank you for your rating and feedback.' : 'Failed to submit feedback.'),
   };
-}
+};
 
-export async function getPublicFeedbacks(): Promise<FeedbackRecord[]> {
+export const getPublicFeedbacks = async (): Promise<FeedbackRecord[]> => {
   const res = await apiRequest<FeedbackRecord[]>('/feedback');
   return res.success && Array.isArray(res.data) ? res.data : [];
-}
+};

@@ -12,6 +12,8 @@ public interface IUserRepository
 {
     Task<User?> GetByIdAsync(Guid id);
     Task<User?> GetByEmailAsync(string email);
+    Task<User?> GetByUsernameAsync(string username);
+    Task<User?> GetByIdentifierAsync(string identifier);
     Task<User?> GetByCardNumberAsync(string cardNumber);
     Task<List<User>> GetAllAsync(UserRole? role = null, bool? isActive = null);
     Task AddAsync(User user);

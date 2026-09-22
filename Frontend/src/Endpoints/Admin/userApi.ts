@@ -31,39 +31,51 @@ interface RawBackendUser {
   createdAt: string;
 }
 
-export async function getAdminUsersList(role?: number): Promise<AdminUserRecord[]> {
+export const getAdminUsersList = async (role?: number): Promise<AdminUserRecord[]> => {
   const url = role !== undefined ? `/users?role=${role}` : '/users';
   const res = await apiRequest<RawBackendUser[]>(url);
 
-  if (res.success && Array.isArray(res.data)) {
-    return res.data.map((u) => ({
-      id: u.id,
-      name: u.fullName,
-      fullName: u.fullName,
-      email: u.email,
-      role: (u.role === 'Admin' || u.role === 'Cashier' ? u.role : 'Customer') as 'Admin' | 'Cashier' | 'Customer',
-      status: u.isActive ? 'active' : 'suspended',
-      libraryCardNumber: u.libraryCardNumber,
-      department: u.department,
-      phoneNumber: u.phoneNumber,
-      isActive: u.isActive,
-      joinedDate: u.createdAt.slice(0, 10),
-    }));
-  }
+  return res.success && Array.isArray(res.data)
+    ? res.data.map((u) => ({
+        id: u.id,
+        name: u.fullName,
+        fullName: u.fullName,
+        email: u.email,
+        role: (u.role === 'Admin' || u.role === 'Cashier' ? u.role : 'Customer') as 'Admin' | 'Cashier' | 'Customer',
+        status: u.isActive ? 'active' : 'suspended',
+        libraryCardNumber: u.libraryCardNumber,
+        department: u.department,
+        phoneNumber: u.phoneNumber,
+        isActive: u.isActive,
+        joinedDate: u.createdAt.slice(0, 10),
+      }))
+    : [];
+};
 
-  return [];
-}
-
-export async function updateUserRole(userId: string, role: number) {
-  return apiRequest<object>(`/users/${userId}/role`, {
+export const updateUserRole = async (userId: string, role: number) =>
+  await apiRequest<object>(`/users/${userId}/role`, {
     method: 'PUT',
     body: JSON.stringify({ role }),
   });
-}
 
-export async function toggleUserStatus(userId: string, isActive: boolean) {
-  return apiRequest<object>(`/users/${userId}/status`, {
+export const toggleUserStatus = async (userId: string, isActive: boolean) =>
+  await apiRequest<object>(`/users/${userId}/status`, {
     method: 'PUT',
     body: JSON.stringify({ isActive }),
   });
-}
+
+export const createAdminUser = async (user: { fullName: string; email: string; password?: string; role: number; department?: string; libraryCardNumber?: string }) =>
+  await apiRequest<object>('/users', {
+    method: 'POST',
+    body: JSON.stringify(user),
+  });
+
+export const deleteAdminUser = async (userId: string) =>
+  await apiRequest<object>(`/users/${userId}`, {
+    method: 'DELETE',
+  });
+
+export const exportUsersCsv = async () =>
+  await apiRequest<Blob>('/users/export', {
+    method: 'GET',
+  });

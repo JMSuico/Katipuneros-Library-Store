@@ -24,6 +24,15 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByEmailAsync(string email) =>
         await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
 
+    public async Task<User?> GetByUsernameAsync(string username) =>
+        await _context.Users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == username.ToLower());
+
+    public async Task<User?> GetByIdentifierAsync(string identifier) =>
+        await _context.Users.FirstOrDefaultAsync(u => 
+            u.Email.ToLower() == identifier.ToLower() || 
+            (u.Username != null && u.Username.ToLower() == identifier.ToLower()) ||
+            u.LibraryCardNumber == identifier);
+
     public async Task<User?> GetByCardNumberAsync(string cardNumber) =>
         await _context.Users.FirstOrDefaultAsync(u => u.LibraryCardNumber == cardNumber);
 

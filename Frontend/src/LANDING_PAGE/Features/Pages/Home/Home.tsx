@@ -10,7 +10,7 @@ import LibraryMapSection from './Components/LibraryMapSection';
 import ContactForm from '../ContactMe/Components/ContactForm';
 import { BookDetailModal, BookDetailData } from './Components/BookDetailModal';
 import { ReservationModal } from './Components/ReservationModal';
-import { AuthModal } from './Components/AuthModal';
+import { AuthModal } from '../../../../Shared/Components/AuthModal';
 
 const Home: FC = () => {
   const [selectedDetailBook, setSelectedDetailBook] = useState<BookDetailData | null>(null);

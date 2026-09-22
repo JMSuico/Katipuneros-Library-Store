@@ -33,27 +33,30 @@ export interface WaiveFineRequest {
   reason: string;
 }
 
-export async function getAllFines(status?: string): Promise<FineRecord[]> {
+export const getAllFines = async (status?: string): Promise<FineRecord[]> => {
   const url = status ? `/fines?status=${encodeURIComponent(status)}` : '/fines';
   const res = await apiRequest<FineRecord[]>(url);
   return res.success && Array.isArray(res.data) ? res.data : [];
-}
+};
 
-export async function settleFine(req: FinePaymentRequest) {
-  return apiRequest<object>(`/fines/${req.fineId}/settle`, {
+export const settleFine = async (req: FinePaymentRequest) =>
+  await apiRequest<object>(`/fines/${req.fineId}/settle`, {
     method: 'POST',
     body: JSON.stringify({
       amountPaid: req.amountPaid,
       paymentMethod: req.paymentMethod,
     }),
   });
-}
 
-export async function waiveFine(req: WaiveFineRequest) {
-  return apiRequest<object>(`/fines/${req.fineId}/waive`, {
+export const waiveFine = async (req: WaiveFineRequest) =>
+  await apiRequest<object>(`/fines/${req.fineId}/waive`, {
     method: 'PUT',
     body: JSON.stringify({
       reason: req.reason,
     }),
   });
-}
+
+export const notifyPatronFine = async (fineId: string) =>
+  await apiRequest<object>(`/fines/${fineId}/notify`, {
+    method: 'POST',
+  });

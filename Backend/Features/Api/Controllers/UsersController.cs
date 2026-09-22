@@ -97,5 +97,28 @@ namespace Backend.Features.Api.Controllers
                     (true, _) => Ok(ApiResponse<object>.Ok(new { UserId = currentUserId }, "Profile updated successfully.")),
                     (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update profile."))
                 };
+
+        /// <summary> Create a Cashier account (Chief Admin only) </summary>
+        [HttpPost("cashier")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CreateCashier([FromBody] CreateCashierByAdminRequest request) =>
+            !ModelState.IsValid
+                ? BadRequest(ApiResponse<object>.Fail("Invalid cashier creation payload."))
+                : await _userService.CreateCashierByAdminAsync(request) switch
+                {
+                    (var cashier, null) when cashier != null => CreatedAtAction(nameof(GetById), new { id = cashier.Id }, ApiResponse<object>.Ok(new
+                    {
+                        cashier.Id,
+                        cashier.FullName,
+                        cashier.Email,
+                        cashier.Username,
+                        Role = cashier.Role.ToString(),
+                        cashier.LibraryCardNumber,
+                        cashier.Department
+                    }, "Cashier circulation desk account created successfully.")),
+                    (_, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to create cashier account."))
+                };
     }
 }

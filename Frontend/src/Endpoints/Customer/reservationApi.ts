@@ -39,12 +39,12 @@ export interface CustomerReservationResponse {
   queuePosition?: number;
 }
 
-export async function getCustomerReservations(): Promise<CustomerReservationRecord[]> {
+export const getCustomerReservations = async (): Promise<CustomerReservationRecord[]> => {
   const res = await apiRequest<CustomerReservationRecord[]>('/reservations/my-reservations');
   return res.success && Array.isArray(res.data) ? res.data : [];
-}
+};
 
-export async function requestCustomerReservation(req: CustomerReservationRequest): Promise<CustomerReservationResponse> {
+export const requestCustomerReservation = async (req: CustomerReservationRequest): Promise<CustomerReservationResponse> => {
   const res = await apiRequest<CustomerReservationRecord>('/reservations', {
     method: 'POST',
     body: JSON.stringify({
@@ -59,9 +59,9 @@ export async function requestCustomerReservation(req: CustomerReservationRequest
     holdCode: res.data?.id ? `HLD-${res.data.id.slice(0, 8).toUpperCase()}` : undefined,
     queuePosition: res.data?.queuePosition,
   };
-}
+};
 
-export async function cancelCustomerReservation(reservationId: string): Promise<{ success: boolean; message: string }> {
+export const cancelCustomerReservation = async (reservationId: string): Promise<{ success: boolean; message: string }> => {
   const res = await apiRequest<object>(`/reservations/${reservationId}`, {
     method: 'DELETE',
   });
@@ -70,4 +70,7 @@ export async function cancelCustomerReservation(reservationId: string): Promise<
     success: res.success,
     message: res.message || (res.success ? 'Reservation cancelled.' : 'Cancellation failed.'),
   };
-}
+};
+
+export const getPickupPass = async (reservationId: string) =>
+  await apiRequest<{ barcode: string; pin: string; expiryDate: string }>(`/reservations/${reservationId}/pass`);

@@ -13,3 +13,4 @@ export { default as Schedules } from './Schedules';
 export { default as OverdueFines } from './OverdueFines';
 export { default as CashierTransactions } from './Transactions';
 export { default as CashierNotifications } from './Notifications';
+export { default as CashierProfile } from './Profile';

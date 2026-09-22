@@ -36,6 +36,29 @@ public class User
     [MaxLength(30)]
     public string? PhoneNumber { get; set; }
 
+    [MaxLength(100)]
+    public string? FirstName { get; set; }
+
+    [MaxLength(100)]
+    public string? MiddleName { get; set; }
+
+    [MaxLength(100)]
+    public string? LastName { get; set; }
+
+    [MaxLength(100)]
+    public string? Username { get; set; }
+
+    [MaxLength(100)]
+    public string? EmploymentStatus { get; set; }
+
+    [MaxLength(300)]
+    public string? CurrentAddress { get; set; }
+
+    [MaxLength(300)]
+    public string? PermanentAddress { get; set; }
+
+    public string? ProfilePictureUrl { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

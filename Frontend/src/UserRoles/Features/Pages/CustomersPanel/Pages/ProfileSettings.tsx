@@ -2,10 +2,21 @@
 // ProfileSettings.tsx -- Customer Profile and Library Card Settings
 // Converted directly from NavProfile&Settings/code.html.
 // DO NOT put business logic or direct API calls here.
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useState, useRef } from 'react';
+import { getStoredUser, fetchCurrentProfile, uploadProfilePicture, AuthUser } from '../../../../../Endpoints/authApi';
+
+const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg';
 
 const ProfileSettings: FC = () => {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
+    fetchCurrentProfile().then((u) => {
+      if (u) setCurrentUser(u);
+    });
+
     const document: any = window.document;
     const w = window as any;
     try {
@@ -88,6 +99,30 @@ const ProfileSettings: FC = () => {
     }
   }, []);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      const res = await uploadProfilePicture(base64);
+      setIsUploading(false);
+      if (res.success && res.profilePictureUrl) {
+        setCurrentUser((prev) => prev ? { ...prev, profilePictureUrl: res.profilePictureUrl } : null);
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-6 right-6 z-50 px-space-md py-space-sm bg-text-primary text-surface-container-lowest rounded-full shadow-xl flex items-center gap-2 font-body-medium text-body-medium transition-all transform duration-200';
+        toast.innerHTML = '<span class="material-symbols-outlined text-action-green text-[20px]">check_circle</span><span>Profile picture updated successfully!</span>';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => toast.remove(), 200);
+        }, 2800);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="w-full">
       <div className="flex flex-col w-full">
@@ -126,23 +161,24 @@ const ProfileSettings: FC = () => {
 <div className="w-full bg-surface-container-lowest/70 backdrop-blur-xl p-space-lg rounded-xl shadow-sm flex flex-col xl:flex-row gap-space-lg items-stretch">
 {/* Left: Patron Identity Tile */}
 <div className="flex items-center gap-space-md p-space-md bg-surface-container-low/70 rounded-lg xl:w-5/12">
+<input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 <div className="relative shrink-0">
-<div className="w-20 h-20 rounded-xl bg-cover bg-center overflow-hidden shadow-inner" data-alt="Close up photographic portrait of Jhon Doe, a Filipino male computer science student in his early twenties wearing neat dark casual attire inside a bright modernist academic library setting with soft morning window light and warm ambient highlights." style={{ backgroundImage: 'url(\'https://lh3.googleusercontent.com/aida-public/AB6AXuAzh7geDRwLaTPjz9-U4P9tyK71KOb6VdUZGTkX-HQ83tmlrMzRXuEyZhkJPbm1Ick4vy57Ido1x5I11a0BP40FVPLZmKuXt_rRjFWiQAcafoCJijMp9RUA2dBLr4pm31KPKyvZk5haRpHfrApiLiW5KB-i3P2XqqSmNYFOB5BJM3i6EeJTZzTx6-TqypFr_1mEKca6t5rRwBwaDVBrnkm1r8kaVYV_m6b25EcEJsFHzWliMTbxAfWz\')' }}>
+<div className="w-20 h-20 rounded-xl bg-cover bg-center overflow-hidden shadow-inner border border-outline-variant/40" style={{ backgroundImage: `url('${currentUser?.profilePictureUrl || DEFAULT_AVATAR}')` }}>
 </div>
-<button aria-label="Change patron avatar" className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md hover:bg-primary-container transition-transform active:scale-95" type="button">
-<span className="material-symbols-outlined text-[15px]">photo_camera</span>
+<button onClick={() => fileInputRef.current?.click()} aria-label="Change patron avatar" className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md hover:bg-primary-container transition-transform active:scale-95 cursor-pointer" type="button">
+<span className="material-symbols-outlined text-[15px]">{isUploading ? 'sync' : 'photo_camera'}</span>
 </button>
 </div>
 <div className="flex flex-col min-w-0 flex-1">
 <div className="flex items-center gap-space-xs">
-<h2 className="font-headline-3 text-headline-3 text-text-primary truncate">Jhon Doe</h2>
+<h2 className="font-headline-3 text-headline-3 text-text-primary truncate">{currentUser?.fullName || 'Academic Patron'}</h2>
 <span className="material-symbols-outlined text-primary text-[20px]" title="Authenticated Patron Identity">check_circle</span>
 </div>
 <p className="font-small text-small text-text-secondary truncate mt-0.5">
-            Patron ID: <strong className="text-text-primary font-semibold font-mono">#2024-08912</strong>
+            Patron ID: <strong className="text-text-primary font-semibold font-mono">#{currentUser?.libraryCardNumber || 'KP-LIB-2024-08912'}</strong>
 </p>
 <p className="font-caption text-caption text-text-secondary truncate mt-0.5">
-            BS Computer Science • College of Science
+            {currentUser?.department || 'College of Computer Studies'} • {currentUser?.employmentStatus || 'Student'}
           </p>
 <div className="mt-space-xs flex items-center gap-space-xs">
 <span className="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-soft-blue text-secondary font-caption text-caption font-semibold tracking-wide">

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "aGDO+l58XsQ=",
+  "dgSpecHash": "7faJ41gCKzQ=",
   "success": true,
-  "projectFilePath": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Backend\\Backend.csproj",
+  "projectFilePath": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Katipuneros-Library-Store\\Backend\\Backend.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\provu\\.nuget\\packages\\azure.core\\1.50.0\\azure.core.1.50.0.nupkg.sha512",
     "C:\\Users\\provu\\.nuget\\packages\\azure.identity\\1.17.1\\azure.identity.1.17.1.nupkg.sha512",

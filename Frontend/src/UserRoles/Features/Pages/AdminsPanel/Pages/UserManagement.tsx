@@ -1,34 +1,46 @@
 // [Layer: UserRoles/Features/Pages/AdminsPanel/Pages]
 // UserManagement.tsx -- Admin User Directory and Patron Accounts
-// Converted directly from SiderbarUserManagementPage/code.html.
-// DO NOT put business logic or direct API calls here.
+// Connects to Endpoints/Admin/userApi.ts for patron governance and status management.
+// Expresses all sync and async routines via clean lambda expressions.
 import { FC, useEffect } from 'react';
+import { getAdminUsersList, toggleUserStatus, createAdminUser } from '../../../../../Endpoints/Admin/userApi';
 
 const UserManagement: FC = () => {
   useEffect(() => {
     const document: any = window.document;
     const w = window as any;
     try {
-function toggleDrawer(open) {
+    const toggleDrawer = (open: boolean) => {
       const backdrop = document.getElementById('drawer-backdrop');
       const panel = document.getElementById('drawer-panel');
       if (open) {
-        backdrop.classList.remove('pointer-events-none', 'opacity-0');
-        backdrop.classList.add('opacity-100');
-        panel.classList.remove('translate-x-full');
-        panel.classList.add('translate-x-0');
+        backdrop?.classList.remove('pointer-events-none', 'opacity-0');
+        backdrop?.classList.add('opacity-100');
+        panel?.classList.remove('translate-x-full');
+        panel?.classList.add('translate-x-0');
       } else {
-        backdrop.classList.add('pointer-events-none', 'opacity-0');
-        backdrop.classList.remove('opacity-100');
-        panel.classList.add('translate-x-full');
-        panel.classList.remove('translate-x-0');
+        backdrop?.classList.add('pointer-events-none', 'opacity-0');
+        backdrop?.classList.remove('opacity-100');
+        panel?.classList.add('translate-x-full');
+        panel?.classList.remove('translate-x-0');
       }
-    }
+    };
 
-    document.getElementById('open-new-user-btn')?.addEventListener('click', function() {
-      toggleDrawer(true);
-    });
-try { w.toggleDrawer = toggleDrawer; } catch (_) {}
+    const handleToggleUser = async (userId: string, nextActive: boolean) => {
+      try {
+        await toggleUserStatus(userId, nextActive);
+      } catch (err) {
+        console.error('Status update failed:', err);
+      }
+    };
+
+    document.getElementById('open-new-user-btn')?.addEventListener('click', () => toggleDrawer(true));
+    document.getElementById('close-drawer-btn')?.addEventListener('click', () => toggleDrawer(false));
+
+    try {
+      w.toggleDrawer = toggleDrawer;
+      w.handleToggleUser = handleToggleUser;
+    } catch (_) {}
     } catch (err) {
       console.error("UI interaction script error:", err);
     }
