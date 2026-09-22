@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Backend\\Backend.csproj": {}
+    "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Katipuneros-Library-Store\\Backend\\Backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Backend\\Backend.csproj": {
+    "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Katipuneros-Library-Store\\Backend\\Backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Backend\\Backend.csproj",
+        "projectUniqueName": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Katipuneros-Library-Store\\Backend\\Backend.csproj",
         "projectName": "Backend",
-        "projectPath": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Backend\\Backend.csproj",
+        "projectPath": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Katipuneros-Library-Store\\Backend\\Backend.csproj",
         "packagesPath": "C:\\Users\\provu\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Backend\\obj\\",
+        "outputPath": "C:\\Users\\provu\\Desktop\\KATIPUNEROS LIBRARY STORE\\Katipuneros-Library-Store\\Backend\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

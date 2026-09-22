@@ -17,8 +17,8 @@ export interface ReturnBookRequest {
   damageFee?: number;
 }
 
-export async function processCashierCheckout(req: CashierCheckoutRequest) {
-  return apiRequest<object>('/borrow/checkout', {
+export const processCashierCheckout = async (req: CashierCheckoutRequest) =>
+  await apiRequest<object>('/borrow/checkout', {
     method: 'POST',
     body: JSON.stringify({
       patronId: req.patronId,
@@ -26,16 +26,24 @@ export async function processCashierCheckout(req: CashierCheckoutRequest) {
       dueDate: req.dueDate ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     }),
   });
-}
 
-export async function processBookReturn(req: ReturnBookRequest) {
-  return apiRequest<object>('/borrow/return', {
+export const processBookReturn = async (req: ReturnBookRequest) =>
+  await apiRequest<object>('/borrow/return', {
     method: 'POST',
     body: JSON.stringify(req),
   });
-}
 
-export async function getCirculationLedger(status?: number) {
+export const getCirculationLedger = async (status?: number) => {
   const url = status !== undefined ? `/borrow/ledger?status=${status}` : '/borrow/ledger';
-  return apiRequest<object[]>(url);
-}
+  return await apiRequest<object[]>(url);
+};
+
+export const getDailyTransactions = async (date?: string) => {
+  const url = date ? `/cashier/transactions?date=${encodeURIComponent(date)}` : '/cashier/transactions';
+  return await apiRequest<object[]>(url);
+};
+
+export const exportTransactionsCsv = async () =>
+  await apiRequest<Blob>('/cashier/transactions/export', {
+    method: 'GET',
+  });

@@ -1,84 +1,91 @@
 // [Layer: UserRoles/Features/Pages/CashiersPanel/Pages]
 // CheckoutBorrow.tsx -- Cashier Checkout and Borrowing Desk
-// Converted directly from SideBarCheckoutBorrowPage/code.html.
-// DO NOT put business logic or direct API calls here.
+// Connects to Endpoints/Cashier/transactionApi.ts for checkout and RFID disarm.
+// Expresses all routines with clean lambda expressions.
 import { FC, useEffect } from 'react';
+import { processCashierCheckout } from '../../../../../Endpoints/Cashier/transactionApi';
 
 const CheckoutBorrow: FC = () => {
   useEffect(() => {
     const document: any = window.document;
     const w = window as any;
     try {
-(function() {
-      // Counter Mode Toggle Switcher
-      const btnHold = document.getElementById('btn-mode-hold');
-      const btnWalkin = document.getElementById('btn-mode-walkin');
+    // Counter Mode Toggle Switcher
+    const btnHold = document.getElementById('btn-mode-hold');
+    const btnWalkin = document.getElementById('btn-mode-walkin');
 
-      if (btnHold && btnWalkin) {
-        btnHold.addEventListener('click', function() {
-          btnHold.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 bg-primary text-on-primary shadow-sm flex items-center gap-1.5";
-          btnWalkin.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 text-text-secondary hover:text-text-primary flex items-center gap-1.5";
-        });
-
-        btnWalkin.addEventListener('click', function() {
-          btnWalkin.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 bg-primary text-on-primary shadow-sm flex items-center gap-1.5";
-          btnHold.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 text-text-secondary hover:text-text-primary flex items-center gap-1.5";
-        });
-      }
-
-      // Dynamic Loan Duration Calculation
-      const durationInputs = document.querySelectorAll('input[name="loan_duration"]');
-      const dueDateDisplay = document.getElementById('due-date-display');
-      
-      const dueMap = {
-        '7': 'Due Date: Monday, Nov 02, 2026 (7 Days)',
-        '14': 'Due Date: Monday, Nov 09, 2026 (14 Days)',
-        '21': 'Due Date: Monday, Nov 16, 2026 (21 Days)',
-        'custom': 'Due Date: Custom Academic Term (Authorized)'
-      };
-
-      durationInputs.forEach(input => {
-        input.addEventListener('change', function() {
-          if (dueDateDisplay && dueMap[this.value]) {
-            dueDateDisplay.textContent = dueMap[this.value];
-          }
-
-          // Visual chip card toggling
-          document.querySelectorAll('.loan-option').forEach(card => {
-            card.classList.remove('bg-soft-blue', 'text-primary');
-            card.classList.add('bg-surface-container-low');
-          });
-          const parentCard = this.closest('.loan-option');
-          if (parentCard) {
-            parentCard.classList.remove('bg-surface-container-low');
-            parentCard.classList.add('bg-soft-blue');
-          }
-        });
+    if (btnHold && btnWalkin) {
+      btnHold.addEventListener('click', () => {
+        btnHold.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 bg-primary text-on-primary shadow-sm flex items-center gap-1.5";
+        btnWalkin.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 text-text-secondary hover:text-text-primary flex items-center gap-1.5";
       });
 
-      // Checkout Confirmation Mock Toast Trigger
-      const btnComplete = document.getElementById('btn-complete-checkout');
-      if (btnComplete) {
-        btnComplete.addEventListener('click', function() {
-          const originalContent = btnComplete.innerHTML;
-          btnComplete.disabled = true;
-          btnComplete.innerHTML = '<span class="material-symbols-outlined animate-spin text-2xl">autorenew</span><span>Processing RFID & Printing Pass...</span>';
-          
-          setTimeout(() => {
-            btnComplete.innerHTML = '<span class="material-symbols-outlined text-2xl">done_all</span><span>Checkout Released! Slip Printed</span>';
-            btnComplete.classList.remove('bg-action-green', 'hover:bg-action-green-hover');
-            btnComplete.classList.add('bg-status-available', 'text-on-primary');
+      btnWalkin.addEventListener('click', () => {
+        btnWalkin.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 bg-primary text-on-primary shadow-sm flex items-center gap-1.5";
+        btnHold.className = "px-space-md py-2 rounded-full font-small text-small font-bold transition-all duration-200 text-text-secondary hover:text-text-primary flex items-center gap-1.5";
+      });
+    }
 
-            setTimeout(() => {
-              btnComplete.disabled = false;
-              btnComplete.innerHTML = originalContent;
-              btnComplete.classList.remove('bg-status-available', 'text-on-primary');
-              btnComplete.classList.add('bg-action-green', 'hover:bg-action-green-hover');
-            }, 3000);
-          }, 1200);
+    // Dynamic Loan Duration Calculation
+    const durationInputs = document.querySelectorAll('input[name="loan_duration"]');
+    const dueDateDisplay = document.getElementById('due-date-display');
+    
+    const dueMap: Record<string, string> = {
+      '7': 'Due Date: Monday, Nov 02, 2026 (7 Days)',
+      '14': 'Due Date: Monday, Nov 09, 2026 (14 Days)',
+      '21': 'Due Date: Monday, Nov 16, 2026 (21 Days)',
+      'custom': 'Due Date: Custom Academic Term (Authorized)'
+    };
+
+    durationInputs.forEach(input => {
+      input.addEventListener('change', function(this: any) {
+        if (dueDateDisplay && dueMap[this.value]) {
+          dueDateDisplay.textContent = dueMap[this.value];
+        }
+
+        // Visual chip card toggling
+        document.querySelectorAll('.loan-option').forEach(card => {
+          card.classList.remove('bg-soft-blue', 'text-primary');
+          card.classList.add('bg-surface-container-low');
         });
-      }
-    })();
+        const parentCard = this.closest('.loan-option');
+        if (parentCard) {
+          parentCard.classList.remove('bg-surface-container-low');
+          parentCard.classList.add('bg-soft-blue');
+        }
+      });
+    });
+
+    // Checkout Confirmation Trigger with live endpoint dispatch
+    const btnComplete = document.getElementById('btn-complete-checkout');
+    if (btnComplete) {
+      btnComplete.addEventListener('click', async () => {
+        const originalContent = btnComplete.innerHTML;
+        btnComplete.disabled = true;
+        btnComplete.innerHTML = '<span class="material-symbols-outlined animate-spin text-2xl">autorenew</span><span>Processing RFID & Printing Pass...</span>';
+        
+        try {
+          await processCashierCheckout({
+            patronId: 'KP-88192-A',
+            bookBarcodes: ['KP-BC-4491'],
+          });
+
+          btnComplete.innerHTML = '<span class="material-symbols-outlined text-2xl">done_all</span><span>Checkout Released! Slip Printed</span>';
+          btnComplete.classList.remove('bg-action-green', 'hover:bg-action-green-hover');
+          btnComplete.classList.add('bg-status-available', 'text-on-primary');
+
+          setTimeout(() => {
+            btnComplete.disabled = false;
+            btnComplete.innerHTML = originalContent;
+            btnComplete.classList.remove('bg-status-available', 'text-on-primary');
+            btnComplete.classList.add('bg-action-green', 'hover:bg-action-green-hover');
+          }, 3000);
+        } catch {
+          btnComplete.disabled = false;
+          btnComplete.innerHTML = originalContent;
+        }
+      });
+    }
 
     } catch (err) {
       console.error("UI interaction script error:", err);

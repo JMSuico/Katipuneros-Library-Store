@@ -33,6 +33,7 @@ const Schedules = lazy(() => import('./UserRoles/Features/Pages/CashiersPanel/Pa
 const OverdueFines = lazy(() => import('./UserRoles/Features/Pages/CashiersPanel/Pages/OverdueFines'));
 const CashierTransactions = lazy(() => import('./UserRoles/Features/Pages/CashiersPanel/Pages/Transactions'));
 const CashierNotifications = lazy(() => import('./UserRoles/Features/Pages/CashiersPanel/Pages/Notifications'));
+const CashierProfile = lazy(() => import('./UserRoles/Features/Pages/CashiersPanel/Pages/Profile'));
 
 // ─── Admin Panel ─────────────────────────────────────────────
 const AdminDashboard = lazy(() => import('./UserRoles/Features/Pages/AdminsPanel/Pages/AdminDashboard'));
@@ -51,7 +52,15 @@ const AuditLogs = lazy(() => import('./UserRoles/Features/Pages/AdminsPanel/Page
 const AdminSettings = lazy(() => import('./UserRoles/Features/Pages/AdminsPanel/Pages/Settings'));
 const AdminProfile = lazy(() => import('./UserRoles/Features/Pages/AdminsPanel/Pages/Profile'));
 
+// ─── Authentication Pages ─────────────────────────────────────
+const LoginPage = lazy(() => import('./Features/Auth/LoginPage'));
+const CashierLoginPage = lazy(() => import('./Features/Auth/CashierLoginPage'));
+const SignupPage = lazy(() => import('./Features/Auth/SignupPage'));
+const AdminLoginPage = lazy(() => import('./Features/Auth/AdminLoginPage'));
+
 function App() {
+  const isPortAdmin = typeof window !== 'undefined' && window.location.port === '5174';
+
   return (
     <Suspense
       fallback={
@@ -63,62 +72,105 @@ function App() {
         </div>
       }
     >
-      <Routes>
-        {/* ─── Landing Page ─── */}
-        <Route element={<LandingLayout />}>
-          <Route path="/" element={<LandingPage />} />
-        </Route>
+      {isPortAdmin ? (
+        /* ═══════════════════════════════════════════════════════════
+           PORT 5174: Security-Isolated Chief Administrator Console
+           ═══════════════════════════════════════════════════════════ */
+        <Routes>
+          <Route path="/" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/login" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
 
-        {/* ─── Customer Panel ─── */}
-        <Route element={<CustomerLayout />}>
-          <Route path="/customer" element={<Navigate to="/customer/home" replace />} />
-          <Route path="/customer/home" element={<CustomerDashboard />} />
-          <Route path="/customer/catalog" element={<CatalogPage />} />
-          <Route path="/customer/borrowings" element={<BorrowingsPage />} />
-          <Route path="/customer/reservations" element={<ReservationsPage />} />
-          <Route path="/customer/favorites" element={<FavoritesPage />} />
-          <Route path="/customer/profile" element={<ProfileSettings />} />
-          <Route path="/customer/settings" element={<ProfileSettings />} />
-        </Route>
+          {/* Admin Panel Layout */}
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/books" element={<BooksManager />} />
+            <Route path="/admin/reservations" element={<AdminReservations />} />
+            <Route path="/admin/borrowings" element={<AdminBorrowings />} />
+            <Route path="/admin/returns" element={<AdminReturns />} />
+            <Route path="/admin/inventory" element={<Inventory />} />
+            <Route path="/admin/analytics" element={<Analytics />} />
+            <Route path="/admin/categories" element={<Categories />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route path="/admin/roles" element={<RolesPermissions />} />
+            <Route path="/admin/audit-logs" element={<AuditLogs />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/profile" element={<AdminProfile />} />
+          </Route>
 
-        {/* ─── Cashier Panel ─── */}
-        <Route element={<CashierLayout />}>
-          <Route path="/cashier" element={<Navigate to="/cashier/dashboard" replace />} />
-          <Route path="/cashier/dashboard" element={<CashierDashboard />} />
-          <Route path="/cashier/pending-reservations" element={<PendingReservations />} />
-          <Route path="/cashier/checkout" element={<CheckoutBorrow />} />
-          <Route path="/cashier/returns" element={<ReturnsFines />} />
-          <Route path="/cashier/customers" element={<CustomerLookup />} />
-          <Route path="/cashier/book-availability" element={<BookAvailability />} />
-          <Route path="/cashier/schedules" element={<Schedules />} />
-          <Route path="/cashier/overdue-fines" element={<OverdueFines />} />
-          <Route path="/cashier/transactions" element={<CashierTransactions />} />
-          <Route path="/cashier/notifications" element={<CashierNotifications />} />
-        </Route>
+          {/* Catch-all on port 5174 */}
+          <Route path="*" element={<Navigate to="/admin/login" replace />} />
+        </Routes>
+      ) : (
+        /* ═══════════════════════════════════════════════════════════
+           PORT 5173: Public Landing, Customer & Cashier Desk Portal
+           ═══════════════════════════════════════════════════════════ */
+        <Routes>
+          {/* Landing Page */}
+          <Route element={<LandingLayout />}>
+            <Route path="/" element={<LandingPage />} />
+          </Route>
 
-        {/* ─── Admin Panel ─── */}
-        <Route element={<AdminLayout />}>
-          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<UserManagement />} />
-          <Route path="/admin/books" element={<BooksManager />} />
-          <Route path="/admin/reservations" element={<AdminReservations />} />
-          <Route path="/admin/borrowings" element={<AdminBorrowings />} />
-          <Route path="/admin/returns" element={<AdminReturns />} />
-          <Route path="/admin/inventory" element={<Inventory />} />
-          <Route path="/admin/analytics" element={<Analytics />} />
-          <Route path="/admin/categories" element={<Categories />} />
-          <Route path="/admin/reports" element={<Reports />} />
-          <Route path="/admin/notifications" element={<AdminNotifications />} />
-          <Route path="/admin/roles" element={<RolesPermissions />} />
-          <Route path="/admin/audit-logs" element={<AuditLogs />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          <Route path="/admin/profile" element={<AdminProfile />} />
-        </Route>
+          {/* Public & Desk Authentication */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/cashier/login" element={<CashierLoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
 
-        {/* ─── Fallback Redirect ─── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Customer Panel */}
+          <Route element={<CustomerLayout />}>
+            <Route path="/customer" element={<Navigate to="/customer/home" replace />} />
+            <Route path="/customer/home" element={<CustomerDashboard />} />
+            <Route path="/customer/catalog" element={<CatalogPage />} />
+            <Route path="/customer/borrowings" element={<BorrowingsPage />} />
+            <Route path="/customer/reservations" element={<ReservationsPage />} />
+            <Route path="/customer/favorites" element={<FavoritesPage />} />
+            <Route path="/customer/profile" element={<ProfileSettings />} />
+            <Route path="/customer/settings" element={<ProfileSettings />} />
+          </Route>
+
+          {/* Cashier Panel */}
+          <Route element={<CashierLayout />}>
+            <Route path="/cashier" element={<Navigate to="/cashier/dashboard" replace />} />
+            <Route path="/cashier/dashboard" element={<CashierDashboard />} />
+            <Route path="/cashier/pending-reservations" element={<PendingReservations />} />
+            <Route path="/cashier/checkout" element={<CheckoutBorrow />} />
+            <Route path="/cashier/returns" element={<ReturnsFines />} />
+            <Route path="/cashier/customers" element={<CustomerLookup />} />
+            <Route path="/cashier/book-availability" element={<BookAvailability />} />
+            <Route path="/cashier/schedules" element={<Schedules />} />
+            <Route path="/cashier/overdue-fines" element={<OverdueFines />} />
+            <Route path="/cashier/transactions" element={<CashierTransactions />} />
+            <Route path="/cashier/notifications" element={<CashierNotifications />} />
+            <Route path="/cashier/profile" element={<CashierProfile />} />
+          </Route>
+
+          {/* Admin Panel */}
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/books" element={<BooksManager />} />
+            <Route path="/admin/reservations" element={<AdminReservations />} />
+            <Route path="/admin/borrowings" element={<AdminBorrowings />} />
+            <Route path="/admin/returns" element={<AdminReturns />} />
+            <Route path="/admin/inventory" element={<Inventory />} />
+            <Route path="/admin/analytics" element={<Analytics />} />
+            <Route path="/admin/categories" element={<Categories />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route path="/admin/roles" element={<RolesPermissions />} />
+            <Route path="/admin/audit-logs" element={<AuditLogs />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/profile" element={<AdminProfile />} />
+          </Route>
+
+          {/* Fallback Redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
     </Suspense>
   );
 }

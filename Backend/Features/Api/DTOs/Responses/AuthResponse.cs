@@ -12,6 +12,15 @@ public class AuthResponse
     public string Role { get; set; } = string.Empty;
     public Guid UserId { get; set; }
     public string FullName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+    public string? Username { get; set; }
     public string Email { get; set; } = string.Empty;
     public string LibraryCardNumber { get; set; } = string.Empty;
+    public string? Department { get; set; }
+    public string? EmploymentStatus { get; set; }
+    public string? CurrentAddress { get; set; }
+    public string? PermanentAddress { get; set; }
+    public string? ProfilePictureUrl { get; set; }
 }

@@ -30,7 +30,7 @@ export interface CMSApiResponse {
   id?: string;
 }
 
-export async function adminCreateBook(payload: CreateBookPayload): Promise<CMSApiResponse> {
+export const adminCreateBook = async (payload: CreateBookPayload): Promise<CMSApiResponse> => {
   const res = await apiRequest<{ id: string }>('/books', {
     method: 'POST',
     body: JSON.stringify({
@@ -51,19 +51,27 @@ export async function adminCreateBook(payload: CreateBookPayload): Promise<CMSAp
     message: res.message || (res.success ? 'Book entry created in catalog ledger.' : 'Failed to create book.'),
     id: res.data?.id,
   };
-}
+};
 
-export async function adminGetCategories() {
-  return apiRequest<object[]>('/categories');
-}
+export const adminGetCategories = async () =>
+  await apiRequest<object[]>('/categories');
 
-export async function adminCreateCategory(payload: CategoryPayload) {
-  return apiRequest<object>('/categories', {
+export const adminCreateCategory = async (payload: CategoryPayload) =>
+  await apiRequest<object>('/categories', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-}
 
-export async function adminGetPersonnel() {
-  return apiRequest<object[]>('/personnel');
-}
+export const adminUpdateCategory = async (id: string, payload: CategoryPayload) =>
+  await apiRequest<object>(`/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+export const adminDeleteCategory = async (id: string) =>
+  await apiRequest<object>(`/categories/${id}`, {
+    method: 'DELETE',
+  });
+
+export const adminGetPersonnel = async () =>
+  await apiRequest<object[]>('/personnel');

@@ -94,15 +94,19 @@ const CashierSidebar: React.FC = () => {
             </span>
             <span className="font-small text-small">Profile</span>
           </NavLink>
-          <NavLink
-            to="/"
-            className="group flex items-center gap-space-sm px-space-sm py-space-sm rounded-xl text-error-container hover:bg-error-container hover:text-on-error-container transition-colors cursor-pointer"
+          <button
+            type="button"
+            onClick={() => {
+              logoutUser();
+              window.location.href = '/login';
+            }}
+            className="w-full group flex items-center gap-space-sm px-space-sm py-space-sm rounded-xl text-error-container hover:bg-error-container hover:text-on-error-container transition-colors cursor-pointer text-left"
           >
             <span className="material-symbols-outlined text-xl group-hover:text-on-error-container text-error-container">
               logout
             </span>
-            <span className="font-small text-small font-medium">Exit to Public</span>
-          </NavLink>
+            <span className="font-small text-small font-medium">LOGOUT</span>
+          </button>
         </nav>
       </div>
     </aside>

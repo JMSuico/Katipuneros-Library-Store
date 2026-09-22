@@ -2,11 +2,67 @@
 // Profile.tsx -- Admin User Profile and System Credentials
 // Converted directly from SidebarProfilePage/code.html.
 // DO NOT put business logic or direct API calls here.
-import { FC } from 'react';
+import { FC, useState, useEffect, useRef } from 'react';
+import { getStoredUser, fetchCurrentProfile, uploadProfilePicture, AuthUser } from '../../../../../Endpoints/authApi';
+
+const DEFAULT_ADMIN_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ';
 
 const Profile: FC = () => {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
+  const [isUploading, setIsUploading] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchCurrentProfile().then((u) => {
+      if (u) setCurrentUser(u);
+    });
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      const res = await uploadProfilePicture(base64);
+      setIsUploading(false);
+      if (res.success && res.profilePictureUrl) {
+        setCurrentUser((prev) => prev ? { ...prev, profilePictureUrl: res.profilePictureUrl } : null);
+        showToast('Admin profile picture updated successfully!');
+      } else {
+        showToast(res.message || 'Failed to update picture.');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const avatarSrc = currentUser?.profilePictureUrl || DEFAULT_ADMIN_AVATAR;
+  const displayName = currentUser?.fullName || 'Chief Administrator';
+
   return (
     <div className="w-full">
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-full bg-text-primary text-white shadow-2xl flex items-center gap-2 font-body-medium text-small animate-fade-in border border-white/20">
+          <span className="material-symbols-outlined text-action-green text-[20px]">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
       <div className="flex flex-col w-full">
 <div className="flex flex-col gap-space-lg">
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
@@ -20,13 +76,9 @@ const Profile: FC = () => {
 <p className="font-body text-small text-text-secondary">Official institutional registry, privileged cryptographic credentials, and authenticated terminal telemetry.</p>
 </div>
 <div className="flex items-center gap-space-sm flex-wrap">
-<button className="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-container-lowest text-primary hover:bg-secondary-container hover:text-on-secondary-container font-body-medium text-small font-semibold shadow-sm transition-all" type="button">
-<span className="material-symbols-outlined text-[18px]">badge</span>
-<span className="">Download Access Keycard</span>
-</button>
-<button className="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-action-green text-text-primary hover:bg-action-green-hover font-body-medium text-small font-bold shadow-sm transition-all" type="button">
-<span className="material-symbols-outlined text-[18px]">edit_square</span>
-<span className="">Edit Profile Information</span>
+<button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-action-green text-text-primary hover:bg-action-green-hover font-body-medium text-small font-bold shadow-sm transition-all cursor-pointer" type="button">
+<span className="material-symbols-outlined text-[18px]">photo_camera</span>
+<span className="">{isUploading ? 'Uploading...' : 'Change Profile Picture'}</span>
 </button>
 </div>
 </div>
@@ -35,10 +87,18 @@ const Profile: FC = () => {
 <div className="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-xl shadow-sm">
 <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-secondary-container/30 blur-3xl pointer-events-none"></div>
 <div className="flex flex-col md:flex-row gap-space-xl items-start relative z-10">
-<div className="relative shrink-0">
+<div className="relative shrink-0 group">
 <div className="w-36 h-36 rounded-2xl overflow-hidden shadow-md bg-surface-container">
-<img alt="University Chief Curator &amp; Systems Director" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ" />
+<img alt={displayName} className="w-full h-full object-cover" src={avatarSrc} />
 </div>
+<button
+  type="button"
+  onClick={() => fileInputRef.current?.click()}
+  className="absolute inset-0 bg-black/50 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer gap-1"
+>
+  <span className="material-symbols-outlined text-2xl">upload</span>
+  <span className="font-caption text-[11px] font-semibold">Change Photo</span>
+</button>
 <span className="absolute -bottom-2 -right-2 bg-status-available text-surface-container-lowest text-caption font-caption font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
 <span className="w-2 h-2 rounded-full bg-surface-container-lowest animate-pulse"></span>
                 ACTIVE

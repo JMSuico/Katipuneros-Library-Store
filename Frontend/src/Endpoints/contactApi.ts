@@ -28,7 +28,7 @@ export interface ContactInquiryRecord {
   submittedAt: string;
 }
 
-export async function submitContactMessage(data: ContactSubmission): Promise<ContactResponse> {
+export const submitContactMessage = async (data: ContactSubmission): Promise<ContactResponse> => {
   const payload = {
     name: data.name,
     email: data.email,
@@ -46,10 +46,10 @@ export async function submitContactMessage(data: ContactSubmission): Promise<Con
     message: res.message || (res.success ? 'Your inquiry has been submitted.' : 'Submission failed.'),
     referenceId: `KP-INQ-${Date.now().toString().slice(-6)}`,
   };
-}
+};
 
-export async function getContactInquiries(status?: number): Promise<ContactInquiryRecord[]> {
+export const getContactInquiries = async (status?: number): Promise<ContactInquiryRecord[]> => {
   const url = status !== undefined ? `/contact/inquiries?status=${status}` : '/contact/inquiries';
   const res = await apiRequest<ContactInquiryRecord[]>(url);
   return res.success && Array.isArray(res.data) ? res.data : [];
-}
+};

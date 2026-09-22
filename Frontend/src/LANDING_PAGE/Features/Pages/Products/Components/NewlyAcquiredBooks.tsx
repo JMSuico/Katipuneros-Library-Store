@@ -1,9 +1,10 @@
 // [Layer: LANDING_PAGE/Features/Pages/Products/Components]
 // NewlyAcquiredBooks.tsx -- Newly acquired book catalog grid with interactive category filtering.
 // Extracted from LandingPage/code.html lines 482-691.
-// DO NOT put business logic or API calls here.
-import { FC, useState } from 'react';
+// Connects to Endpoints/booksApi.ts for catalog data via expression lambdas.
+import { FC, useState, useEffect } from 'react';
 import { BookDetailData } from '../../Home/Components/BookDetailModal';
+import { getPublicBooks } from '../../../../../Endpoints/booksApi';
 
 interface NewlyAcquiredBooksProps {
   onOpenDetail: (book: BookDetailData) => void;
@@ -73,10 +74,33 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
   onOpenReserve,
   searchFilter = '',
 }) => {
+  const [books, setBooks] = useState<BookDetailData[]>(CATALOG_BOOKS);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const categories = ['All', 'Technology', 'Science', 'History'];
 
-  const filteredBooks = CATALOG_BOOKS.filter((b) => {
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const liveBooks = await getPublicBooks();
+        if (liveBooks && liveBooks.length > 0) {
+          setBooks(liveBooks.map((b) => ({
+            title: b.title,
+            author: b.author,
+            category: b.category,
+            stock: `${b.availableCopies} Available`,
+            isbn: b.isbn,
+            synopsis: b.summary || 'Curated volume from university archives.',
+            coverImage: b.coverImage || CATALOG_BOOKS[0].coverImage,
+          })));
+        }
+      } catch {
+        // Graceful fallback to static catalog
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  const filteredBooks = books.filter((b) => {
     const matchesCategory = selectedCategory === 'All' || b.category === selectedCategory;
     const matchesSearch =
       !searchFilter ||

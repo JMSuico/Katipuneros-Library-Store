@@ -16,35 +16,36 @@ export const API_BASE_URL: string =
 export const AUTH_TOKEN_KEY = 'katipuneros_token';
 export const USER_INFO_KEY = 'katipuneros_user';
 
-export function getAuthToken(): string | null {
+export const getAuthToken = (): string | null => {
   try {
     return localStorage.getItem(AUTH_TOKEN_KEY);
   } catch {
     return null;
   }
-}
+};
 
-export function setAuthToken(token: string): void {
+export const setAuthToken = (token: string): void => {
   try {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
   } catch {
     // Ignore storage exceptions
   }
-}
+};
 
-export function clearAuthSession(): void {
+export const clearAuthSession = (): void => {
   try {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(USER_INFO_KEY);
+    localStorage.removeItem('katipuneros_user_data');
   } catch {
     // Ignore storage exceptions
   }
-}
+};
 
-export async function apiRequest<T>(
+export const apiRequest = async <T>(
   path: string,
   options: RequestInit = {}
-): Promise<ApiResponse<T>> {
+): Promise<ApiResponse<T>> => {
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
   const token = getAuthToken();
 
@@ -92,4 +93,4 @@ export async function apiRequest<T>(
       errors: [message],
     };
   }
-}
+};
