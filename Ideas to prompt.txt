@@ -1,0 +1,271 @@
+perform comprehensive read, analyze and understand all codes and functions that contains toggle sidebars from the user admin, user cashier fix this 
+
+perform COMPREHENSIVE DEEP checking , searching and finding the already existing UI in the frontend TO AVOID hallucinate to creating/or redundancy duplication new UI , double check the ui to used to connect the functions for the user admin panel in the DASHBOARD
+
+for user admin recorrect the sidebar panel menu and toggle button to be close and open during close shows only icons of the menu matches the length display of the open menu
+
+add function in the toggle sidebar panel that the Katipuneros Logo KATIPUNEROS
+Library Store will have Icon login then sidebar header is default align the modules page header it can be scroll and also the Exist to Public the Footer of the sidebar panel will be not scrollable, add scroll bar indication on the sidebar only join to scrolling is the modules 
+
+
+
+add SEARCH BAR AS SHARED
+
+for the user admin panel in the DASHBOARD
+connect and add functions that search BAR AS AS SHARED THEN button sorts and filter algorithms with (which is "STATUS" and "SORT") 
+
+Circulation & Reservation Dynamics
+
+Weekly
+Monthly
+Term
+
+connect sort and filter capabilities 
+- plus add functions debouncing Hooks for search bars that could apply the hooks globally
+
+
+
+
+
+(ADD FUNCTION MATHEMATICALLY ALGORITHMS THAT WILL ACCURATE)
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+Total Users
+groups
+0
+—
+0 active borrowers today
+
+Total Book Titles
+collections_bookmark
+6
+titles
+31 physical copies total
+
+Available Books
+check_circle
+26
+83.9%
+Active catalog shelf rate
+
+Borrowed Books
+local_library
+0
+0.0%
+Active loans across departments
+
+Reserved Books
+bookmark_added
+0
+on shelf hold
+0 staged for locker / counter pickup
+
+Pending Holds
+hourglass_top
+0
+Nominal
+Requires supervisor queue review
+
+Overdue Books
+warning
+0
+₱0.00
+Pending unpaid balance & fines
+
+Returns Processed
+assignment_turned_in
+0
+check
+0% on-time
+₱0.00 fines collected
+
+
+
+
+
+also this
+(ADD FUNCTION MATHEMATICALLY ALGORITHMS THAT WILL ACCURATE)
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+a real time linear curvey based on read data
+
+Circulation & Reservation Dynamics
+Live comparison of student borrowings, hold requests, and returns
+
+Weekly
+Monthly
+Term
+Borrowings (0 active)
+Reservations (0 holds)
+Returns (0 checked-in)
+Mon
+Tue
+Wed
+Thu
+Fri
+Sat
+Sun
+
+
+
+also this
+(ADD FUNCTION MATHEMATICALLY ALGORITHMS THAT WILL ACCURATE)
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+Catalog Allocation
+pie_chart
+Holdings distribution across physical shelf states
+
+0
+Total Volumes
+On Shelf (Available)
+0% (0)
+Active Borrowings
+0% (0)
+Reserved / Holds
+0% (0)
+Bindery / Maintenance
+0% (0)
+
+
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+
+
+
+also this
+(ADD FUNCTION MATHEMATICALLY ALGORITHMS THAT WILL ACCURATE)
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+rule
+Urgent Pending Holds Queue
+0 hold request(s) requiring administrative release
+View All
+arrow_forward
+Hold ID	Patron Name	Book Title	Queue / Deadline	Action
+task_alt
+No pending hold requests awaiting review — queue nominal.
+
+add function with ui "View all" if being click show or display floating modal card in the shared 
+then show all list of pending with 
+add also functions HOOKS pagination of the table which can be select to display how many rows per pages (10,25,50,100) check the already existing ui (apply the SHARED UI DROPDOWN functions)
+
+
+also this 
+(ADD FUNCTION MATHEMATICALLY ALGORITHMS THAT WILL ACCURATE)
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+history
+Recent Institutional Activity Stream
+Real-time cryptographic audit journal logs
+filter_list
+All Logs
+No recent audit activities recorded in cryptographic journal.
+
+
+add function with ui "All Logs" if being click show or display floating modal card in the shared 
+then show all list of pending with 
+add also functions HOOKS pagination of the table which can be select to display how many rows per pages (10,25,50,100) check the already existing ui (apply the SHARED UI DROPDOWN functions)
+
+
+
+# REMOVE THIS Facility Circulation Status
+Active
+Katipunan Campus Main Reading Hall
+6 catalog titles · 31 holdings
+RFID Turnstiles: Active
+Normal Flow
+
+Real-time Ingestion
+View Raw Telemetry
+
+# BUT CHANGE IT TO REAL MONITORING status LOGIN LOGOUT automation monitoring example (admin user login) show what when it login with timestamps and dd:hh:mm:ss ago its successfully login with methods of 2FA or without 2FA
+
+
+also this
+(ADD FUNCTION MATHEMATICALLY ALGORITHMS THAT WILL ACCURATE)
+(add formulas for this to used as approach algorithms what does it connected by files or flow does it) then documents it by creating ADMIN DATA SHOW FORMULA.md include this below
+
+
+System Maintenance
+Catalog Barcode Sync
+badge
+Real-time circulation and reservation sync daemon active. 0 overdue notice(s) pending.
+
+Overdue Total: ₱0.00
+Run Manual Sync
+
+
+
+
+
+
+
+CREATE functions IN THE HOOKS ARE REQUIREMENT IT used to refresh the page (usePagesGlobalRefresh.ts) that will auto refresh the page if the system is back online then update the SKILL.md and AGENTS.md for it
+
+
+in the admin panel add the ui functions responsiveness for any devices and fluid responsiveness check the HOOKS/
+Responsive
+
+Standard
+
+iPhone SE
+
+iPhone XR
+
+iPhone 12 Pro
+
+iPhone 14 Pro Max
+
+iPhone 15 Pro Max
+
+iPhone 16 Pro Max
+
+Pixel 7
+
+Pixel 8
+
+Pixel 9
+
+Pixel 10
+
+Samsung Galaxy S8+
+
+Samsung Galaxy S20 Ultra
+
+iPad Mini
+
+iPad Air
+
+iPad Pro
+
+Surface Pro 7
+
+Surface Duo
+
+Galaxy Z Fold 5
+
+Asus Zenbook Fold
+
+Samsung Galaxy A51/71
+
+Nest Hub
+
+Nest Hub Max
+
+
+
+
+
+for perform challenged hard
+
+verify, validate, confirm, if not return and build then verify validate then confirm[ADMIN%20DATA%20SHOW%20FORMULA.md](file;file:///c%3A/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/ADMIN%20DATA%20SHOW%20FORMULA.md) 
+
+if all the formula in here are functionals
+
+
+perform comprehensive deep, read analyze and understand then search, double check and finds its non hardcoded function that will need to confirms all functions written in the formula FROM USERS to BORROWINGS
+
+then confirms if the data and formula still input or insert in the relevance and that file still apply the SKILL.md and AGENTS.md rules, do and donot rules, flowchain, architecture and approaches, database etc?
+
+update the if confirmed C:\Users\provu\Desktop\KATIPUNEROS LIBRARY STORE\Katipuneros-Library-Store\ADMIN DATA SHOW FORMULA.md
