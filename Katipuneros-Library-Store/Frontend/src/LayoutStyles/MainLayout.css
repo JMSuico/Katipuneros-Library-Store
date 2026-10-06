@@ -1,0 +1,39 @@
+/* [Layer: LayoutStyles]
+ * MainLayout.css -- Primary layout CSS & design system tokens.
+ * Contains primary, secondary, tertiary color variables and root spacing tokens.
+ * DO NOT put component-specific CSS here.
+ */
+
+:root {
+  --color-primary: #00658a;
+  --color-primary-container: #287ea7;
+  --color-secondary: #31647a;
+  --color-secondary-container: #b2e4fe;
+  --color-tertiary: #006681;
+  --color-tertiary-container: #26809d;
+  --color-action-green: #9BE564;
+  --color-action-green-hover: #82D64C;
+  --color-soft-blue: #D9EEF5;
+  --color-background: #f4fbfc;
+  --color-surface: #f4fbfc;
+  --color-surface-container-low: #eef5f6;
+  --color-surface-container: #e8eff0;
+  --color-surface-container-high: #e2e9ea;
+  --color-surface-container-highest: #dde4e5;
+  --color-surface-container-lowest: #ffffff;
+  --color-text-primary: #18323D;
+  --color-text-secondary: #647982;
+  --color-status-pending: #D9A85C;
+  --color-status-available: #7FA58D;
+  --color-status-danger: #B96F72;
+
+  --spacing-gutter: 24px;
+  --spacing-margin: 32px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+}
