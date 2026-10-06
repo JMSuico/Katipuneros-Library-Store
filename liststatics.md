@@ -562,3 +562,112 @@ This audit provides an exhaustive, line-by-line inspection across all 15 Admin P
 | **DELETE / REMOVE** | **Terminate Remote Sessions Action** | Invalidates all active session tokens across other devices, keeping only the current admin session active | `POST /api/auth/terminate-other-sessions` | `POST` | `UserSessions` |
 
 ---
+
+## 16. ARCHITECTURAL FOUNDATION: DBINFRASTRUCTURE, DATABASE SEEDER & SECURITY
+- **Files:**
+  - [`Backend/Features/DBInfrastructure/Database/DatabaseSeeder.cs`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/Backend/Features/DBInfrastructure/Database/DatabaseSeeder.cs)
+  - [`Backend/Features/DBInfrastructure/Connections/DbConnectionFactory.cs`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/Backend/Features/DBInfrastructure/Connections/DbConnectionFactory.cs)
+  - [`Backend/Features/DBInfrastructure/Health/DbHealthCheck.cs`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/Backend/Features/DBInfrastructure/Health/DbHealthCheck.cs)
+  - [`Backend/Features/Helpers/Infrastructure/AuditHelper.cs`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/Backend/Features/Helpers/Infrastructure/AuditHelper.cs)
+
+### 16.1 Purpose of `DatabaseSeeder.cs`
+`DatabaseSeeder.cs` is strictly the **Initial Infrastructure Bootstrap Orchestrator**. It adheres to the zero-static mandate:
+1. **Zero Static Books & Zero Static Users:**
+   - Books and patrons are **dynamic business entities** that must strictly follow the flowchain:
+     $$\text{UI / Frontend View} \longrightarrow \text{API Controller} \longrightarrow \text{Domain Service} \longrightarrow \text{Repository} \longrightarrow \text{Database}$$
+   - Pre-seeding static book titles (e.g., *Clean Architecture*, *SICP*, *CLRS*) creates ghost state disconnected from user cataloging operations. All hardcoded static books have been permanently removed.
+2. **Classification Taxonomy Bootstrap (Head Foundation):**
+   - A library management system cannot function without classification standards. `DatabaseSeeder.cs` seeds the formal **Dewey Decimal Classification (DDC 23)** ranges and core campus shelf bay coordinates:
+     - `000 - 099`: Computer Science & Information (Bay A-01 to A-08)
+     - `100 - 199`: Philosophy & Psychology (Bay B-01 to B-06)
+     - `300 - 399`: Social Sciences & Law (Bay C-01 to C-10)
+     - `500 - 599`: Pure Science & Mathematics (Bay D-01 to D-12)
+     - `600 - 699`: Technology & Applied Sciences (Bay E-01 to E-14)
+     - `800 - 899`: Literature & Rhetoric (Bay F-01 to F-10)
+     - `900 - 999`: History & Filipiniana (Bay G-01 to G-08)
+3. **Security & Cryptographic Genesis Head (`AuditHelper` Connection):**
+   - Establishes the immutable root anchor:
+     $$\text{AuditHelper.GenesisHash} = \text{"GENESIS\_ROOT\_HASH\_0000000000000000000000000000000000000000000000000000000000000000"}$$
+   - Every operational audit entry in the entire application chains its SHA-256 signature to the previous entry:
+     $$\text{Hash}_n = \text{SHA256}(\text{Hash}_{n-1} \mid \text{Action} \mid \text{Target} \mid \text{Delta} \mid \text{Timestamp})$$
+   - Without `DatabaseSeeder.cs` establishing this immutable root anchor (`SYSTEM_GENESIS_ROOT`), the cryptographic audit log cannot guarantee mathematical tamper-evidence or chain verification.
+
+### 16.2 Purpose of `DbConnectionFactory.cs`
+- Manages pooled, secure SQL Server connection strings with active connection pooling, timeouts, and `TrustServerCertificate` controls without leaking credentials.
+- Guarantees thread-safe database connection instantiation for high-throughput concurrency across API requests.
+
+### 16.3 Purpose of `DbHealthCheck.cs`
+- Powers the `/api/health` diagnostic endpoint and `SystemHealthService.cs`.
+- Verifies SQL Server responsiveness, latency, and memory footprint without executing heavy domain queries, providing instant telemetry for heartbeat monitoring.
+
+---
+
+## 17. ADMINISTRATIVE ROOT CLI TOOL (`cli.ps1`) & TERMINAL GOVERNANCE
+- **Files:**
+  - [`cli.ps1`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/cli.ps1) (Workspace Root)
+  - [`Katipuneros-Library-Store/cli.ps1`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/cli.ps1) (Repository Root)
+  - [`Backend/Program.cs`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/Backend/Program.cs) (CLI Command Dispatcher)
+  - [`Backend/Features/Services/Implementations/UserService.cs`](file:///c:/Users/provu/Desktop/KATIPUNEROS%20LIBRARY%20STORE/Katipuneros-Library-Store/Backend/Features/Services/Implementations/UserService.cs) (Protection Enforcement)
+
+### 17.1 Security Architecture: Protected Accounts (`IsProtected = true`)
+- Users created via the administrative CLI are designated as **Root Governance Accounts** (`IsProtected = true`).
+- **Web UI Immunity:**
+  - **Cannot be Deleted:** Web UI `DELETE /api/users/{id}` returns `HTTP 400 Bad Request` with:
+    `"Protected CLI root account cannot be deleted via the Web UI. Administrative CLI terminal authority is required."`
+  - **Cannot be Bulk Deleted:** Web UI bulk delete ignores and rejects protected users.
+  - **Cannot be Suspended:** Web UI status toggle is blocked for protected accounts.
+  - **Visual Indicator:** Frontend displays an amber `[CLI ROOT]` badge, disables row selection checkboxes, and disables delete/suspend buttons with explanatory tooltips.
+- **Terminal Authority:** Only the CLI tool (`cli.ps1`) or administrative terminal commands possess the cryptographic authority to edit, delete, or bulk wipe CLI-created users.
+
+### 17.2 CLI Commands Reference
+
+| Command | Syntax | Description |
+| :--- | :--- | :--- |
+| **`listusers`** | `powershell -ExecutionPolicy Bypass -File .\cli.ps1 listusers` | Queries SQL Server and renders an ASCII table of all CLI-created protected accounts. |
+| **`createsuperuseradmin`** | `powershell -ExecutionPolicy Bypass -File .\cli.ps1 createsuperuseradmin <username> <password> <email> [firstName] [lastName] [department]` | Creates a protected Administrator account with `KP-ADM` library card and `IsProtected = true`. |
+| **`createcustomersuperuseradmin`** | `powershell -ExecutionPolicy Bypass -File .\cli.ps1 createcustomersuperuseradmin <username> <password> <email> [firstName] [lastName] [department]` | Creates a protected Customer/Patron superuser with `KP-LIB` library card and `IsProtected = true`. |
+| **`edituser`** | `powershell -ExecutionPolicy Bypass -File .\cli.ps1 edituser <identifier> <field> <value>` | Updates field (`name`, `firstname`, `lastname`, `email`, `department`, `role`, `password`) of a CLI-protected user. |
+| **`deleteuser`** | `powershell -ExecutionPolicy Bypass -File .\cli.ps1 deleteuser <identifier>` | Cascades foreign keys and permanently removes a single CLI-created user. |
+| **`deleteallcliusers`** | `powershell -ExecutionPolicy Bypass -File .\cli.ps1 deleteallcliusers` | Prompts for confirmation and deletes all CLI-created protected users. |
+
+### 17.3 Interactive CLI Menu
+Running `powershell -ExecutionPolicy Bypass -File .\cli.ps1` without arguments launches the interactive terminal menu:
+```text
+==========================================================================================
+               KATIPUNEROS LIBRARY STORE -- ADMINISTRATIVE ROOT CLI TOOL                  
+               Governance Authority & Immutable Protected User Management                 
+==========================================================================================
+
+Select an administrative operation:
+  [1] List all CLI-created protected users (listusers)
+  [2] Create Superuser Admin (createsuperuseradmin)
+  [3] Create Customer Superuser (createcustomersuperuseradmin)
+  [4] Edit a CLI user (edituser)
+  [5] Delete a single CLI user (deleteuser)
+  [6] Delete ALL CLI users (deleteallcliusers)
+  [7] Exit
+
+Enter option (1-7):
+```
+
+### 17.4 Exact Visual Table Output (`listusers`)
+When `listusers` is invoked, the CLI queries the database and renders the exact formatted table:
+
+```text
+==========================================================================================
+               KATIPUNEROS LIBRARY STORE -- ADMINISTRATIVE ROOT CLI TOOL                  
+               Governance Authority & Immutable Protected User Management                 
+==========================================================================================
+
+[*] Querying database for CLI-created protected root users...
+  Total Protected Root Accounts: 2
+
++---------------------+------------------+--------------------------+-----------------------------------+-------------+----------+--------------+
+| CARD NUMBER         | USERNAME         | FULL NAME                | EMAIL                             | ROLE        | STATUS   | CREATED AT   |
++---------------------+------------------+--------------------------+-----------------------------------+-------------+----------+--------------+
+| KP-ADM-2026-69A4D   | customadmin1     | Andres Bonifacio         | customadmin1@katipuneros.edu.ph   | Admin       | Active   | 2026-10-03   |
+| KP-LIB-2026-26FDD   | custsuperuser1   | Emilio Aguinaldo         | custsuperuser1@katipuneros.edu.ph | Customer    | Active   | 2026-10-03   |
++---------------------+------------------+--------------------------+-----------------------------------+-------------+----------+--------------+
+
+  [i] All users above have 'IsProtected = true' and CANNOT be deleted or suspended via Web UI.
+```

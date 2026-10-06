@@ -375,6 +375,15 @@
 
 ---
 
+#### Metric 3.6: Category Management Ledger Architecture & Structural Governance
+- **Ledger Columns Displayed:** `Category ID` (e.g. `CAT-0001`), `Category Name`, `Subject Headings` (pill count), `Circulation` (real-time loan % progress bar), `Status` (`Active`), `Actions` (`Inspect`, `Edit`, `Archive`).
+- **Column Removal Justification (Titles & Copies):**
+  $$\text{ColumnsRemoved} = \{\text{TITLES}, \text{COPIES}\}$$
+  Categories represent ontological taxonomic classifications rather than physical inventory registries. Title accession metrics and physical copy volume are natively centralized in the Books Catalog (`BooksManager.tsx`) and Physical Inventory & Asset Registry (`Inventory.tsx`). Removing redundant Titles and Copies columns from the Category Management table eliminates visual clutter, prevents redundant $0$ displays, and enforces strict Domain-Driven Design (DDD) domain boundaries.
+- **Empty State Behavior:** If categories ledger is empty ($N=0$), table renders clean empty state spanning all 6 columns (`colSpan={6}`).
+
+---
+
 ### 3.4 Module 4: Admin Physical Inventory & Asset Registry (`Inventory.tsx`)
 
 #### Metric 4.1: Total Registered
@@ -1712,9 +1721,37 @@ A comprehensive, full-stack architectural audit and implementation was executed 
 - Whitelist table displays clean empty state (*"No IP subnets configured in campus whitelist"*).
 - Archives table displays live module status with real storage footprint tallies or empty indicators (`—`).
 
-#### 3. Interactive UI & Components Integration
-- **Navigation Architecture:** 6 Specialized Tabs (`Circulation & Loan Durations`, `Reservation Setups`, `Fine Calculation & Waiver Tariff`, `Appearance & Theme`, `Archives`, `Security & Access Governance`) with smooth scroll carousel arrows.
-- **Interactive Primitives:** Universal `AdminSwitch.tsx`, duration and concurrency steppers, live fine simulator slider with progress bar, 24-device fluid responsiveness selector (`useFluidResposiveness.ts`), account-bound theme persistence (`useAccountTheme.ts`), CIDR subnet whitelist table, centralized system archives table with bulk actions, and global network recovery (`usePagesGlobalRefresh.ts`).
+#### 3. Interactive UI & Productive 6-Tab Verification Architecture
+The Settings Console organizes system administration into 6 productive, database-connected tabs with smooth-scroll carousel navigation:
+1. **Tab 1: Circulation & Loan Durations:**
+   - Interactive duration & concurrency steppers for Undergrad (14d, 4 vols), Graduate (28d, 8 vols), and Faculty/Doctoral (60d, 15 vols) with bounds protection ($\max(1, \dots)$).
+   - Courtesy grace period buffer selector (12h, 24h, 48h).
+   - Instant auto-save & batch save persistence via `PUT /api/admin/settings/circulation`.
+2. **Tab 2: Reservation Setups:**
+   - Holding queue caps (2 undergraduate holds, 5 faculty holds) enforcing patron concurrency limits.
+   - Pickup retention window countdown ($48\text{h}$) with automatic shelf-return triage.
+   - Staging bay quota controls persisted via `PUT /api/admin/settings/reservations`.
+3. **Tab 3: Fine Calculation & Waiver Tariff:**
+   - Institutional daily delinquency tariff ($R_{\text{daily}} = \text{₱}15.00/\text{day}$) and legal liability maximum ($M_{\text{cap}} = \text{₱}500.00$).
+   - Interactive mathematical sandbox simulator calculating real-time accrued penalties:
+     $$F(d) = \min(\max(0, d) \times R_{\text{daily}}, M_{\text{cap}})$$
+   - Waiver authority thresholds and lost book replacement surcharges persisted via `PUT /api/admin/settings/fines`.
+4. **Tab 4: Appearance & Theme:**
+   - Dual-key persistence architecture: account-scoped key (`katipuneros_theme_${userId}`) with fallback to global preferences (`katipuneros_global_theme_preferences`).
+   - Global application on root bootstrap (`Frontend/src/App.tsx`), guaranteeing that themes (Light Academic, OLED, Dark, Auto), brand accents (Emerald, Indigo, Amber, Rose, Cyan), font scaling, and density tokens NEVER reset on reload or between routes.
+5. **Tab 5: Centralized Archives (Dynamic Live Ledger):**
+   - Direct database querying via `ISettingsRepository.GetLiveArchiveSummariesAsync()` and `ISettingsService.GetSystemArchivesSummaryAsync()`.
+   - Real-time live counts across all 9 institutional entities:
+     - `Users` (active vs inactive breakdown), `Books` catalog, `Categories`, `Physical Inventory`, `Reservations`, `BorrowTransactions` (`Active` loans), `Return Journal` (`Returned` transactions), `FineTransactions`, and `AuditLogs`.
+     - 100% purged of hardcoded mock numbers ($N=0$ empty state compliant).
+     - Cryptographic SHA-256 integrity seal calculated per archive domain.
+     - Live archive table, live export, purge mutations, and tombstone audit logs.
+6. **Tab 6: Security & Access Governance:**
+   - Campus IP & CIDR Subnet Whitelist with bitwise subnet matching:
+     $$(\operatorname{IpToUInt32}(\text{ClientIP}) \mathbin{\&} \text{SubnetMask}(p)) == (\operatorname{IpToUInt32}(\text{SubnetIP}) \mathbin{\&} \text{SubnetMask}(p))$$
+   - Live deletion of individual subnets via `handleDeleteSingleCidr(id)` and live endpoints `POST /api/admin/settings/security/cidr` and `DELETE /api/admin/settings/security/cidr/{id}`.
+   - POS terminal auto-logoff minutes and Super Admin timeout settings persisted via `PUT /api/admin/settings/security`.
+   - Real-time active Super Admin session tracking ($S_{\text{admin}}$).
 
 #### 4. Architecture & Clean Code Compliance
 - **Flowchain:** `AppDbContext` $\to$ `ISettingsRepository` (`SettingsRepository.cs`) $\to$ `ISettingsService` (`SettingsService.cs`) $\to$ `SettingsController.cs` (`[Route("api/admin/settings")]`) $\to$ `settingsApi.ts` $\to$ `Settings.tsx`.
