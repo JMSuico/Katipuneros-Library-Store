@@ -1,0 +1,69 @@
+/* [Layer: LayoutStyles]
+ * index.css -- Global stylesheet entry point.
+ * Imports TailwindCSS directives, Google Fonts, Material Symbols, and base resets.
+ * Imports MainLayout.css and PartLayout.css per SKILL.md.
+ * DO NOT add component-specific styles here.
+ */
+
+/* Master Typography & Font Styles */
+@import './FontSyle/fontStyles.css';
+
+/* Layout Styles tokens & utilities */
+@import './MainLayout.css';
+@import './PartLayout.css';
+
+/* TailwindCSS v3 Directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base Layer Resets -- extracted from source HTML @layer base blocks */
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+
+  main > :first-child {
+    margin-top: 0 !important;
+  }
+
+  main > :last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* Scrollbar Hiding -- consistent across all panels */
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* No-scrollbar utility for horizontal scrollable containers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Scrollbar-none utility (used in filter chips containers) */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

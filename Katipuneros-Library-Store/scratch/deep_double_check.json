@@ -1,0 +1,1851 @@
+{
+  "Customer / Home & Dashboard": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search books, authors, ISBN... (Ctrl+K)"
+      },
+      {
+        "type": "text",
+        "id": "catalog-instant-search",
+        "placeholder": "Search by title, author, Dewey decimal, or ISBN..."
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 27,
+    "unique_buttons": [
+      "notifications",
+      "Explore Stacks arrow_forward",
+      "All Disciplines",
+      "Technology",
+      "Science",
+      "Literature",
+      "History",
+      "Business",
+      "Education",
+      "Engineering",
+      "book Reserve Book Now",
+      "info Inspect Stacks Details",
+      "favorite_border",
+      "chevron_left",
+      "chevron_right",
+      "Reserve",
+      "Join Waitlist",
+      "bookmark"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "All Disciplines"
+    ],
+    "modals": []
+  },
+  "Customer / Catalog & OPAC Search": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search books, authors, ISBN... (Ctrl+K)"
+      },
+      {
+        "type": "text",
+        "id": "catalog-search",
+        "placeholder": "Search by keyword, author, full title, or Dewey Decimal/ISBN code..."
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 51,
+    "unique_buttons": [
+      "notifications",
+      "Clear",
+      "tune Filters",
+      "grid_view",
+      "view_list",
+      "Search Stacks arrow_forward",
+      "All Disciplines 1,248",
+      "Technology &amp; Systems",
+      "Pure Science &amp; Physics",
+      "Classic Literature",
+      "Philosophy &amp; Logic",
+      "Business &amp; Macro-Econ",
+      "Education &amp; Pedagogy",
+      "Law &amp; Governance",
+      "Applied Engineering",
+      "All Formats",
+      "Hardcover Monograph",
+      "Trade Paperback",
+      "Digital eFolio (PDF)",
+      "close",
+      "favorite_border",
+      "bookmark_add Reserve Book",
+      "View Details &amp; Stacks",
+      "favorite",
+      "bookmark_add Claim Last Copy",
+      "hourglass_top Join Waitlist",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "156",
+      "chevron_right"
+    ],
+    "export_actions": [
+      "Digital eFolio (PDF)"
+    ],
+    "filter_actions": [
+      "tune Filters",
+      "All Disciplines 1,248",
+      "All Formats"
+    ],
+    "modals": []
+  },
+  "Customer / Borrowings & Loan Ledger": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search books, authors, ISBN... (Ctrl+K)"
+      },
+      {
+        "type": "text",
+        "id": "ledgerSearchInput",
+        "placeholder": "Filter by book, barcode, or receipt..."
+      }
+    ],
+    "table_headers": [
+      "Book Title &amp; Barcode",
+      "Borrow Date",
+      "Return Date",
+      "Duration",
+      "Fine Status",
+      "Audit / Receipt",
+      "Actions"
+    ],
+    "total_buttons": 18,
+    "unique_buttons": [
+      "notifications",
+      "sync_saved_locally Live Sync",
+      "download Ledger Export",
+      "update Request 7-Day Renewal",
+      "report_problem Report Issue",
+      "history Renew Loan",
+      "info View Details",
+      "Show Return Pass (Passbook)",
+      "All Past Loans",
+      "Returned on Time",
+      "Renewals",
+      "Fines &amp; Clearances",
+      "receipt_long",
+      "chevron_left",
+      "chevron_right"
+    ],
+    "export_actions": [
+      "download Ledger Export"
+    ],
+    "filter_actions": [
+      "sync_saved_locally Live Sync",
+      "All Past Loans"
+    ],
+    "modals": []
+  },
+  "Customer / Reservations & Staging": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search books, authors, ISBN... (Ctrl+K)"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Filter by Title or Hold ID..."
+      }
+    ],
+    "table_headers": [
+      "Hold Reference",
+      "Book / Catalog Title",
+      "Reserved / Completed",
+      "Fulfillment Desk",
+      "Status",
+      "Actions"
+    ],
+    "total_buttons": 20,
+    "unique_buttons": [
+      "notifications",
+      "sync Refresh Ledger",
+      "All Reservations",
+      "Pending Approval 1",
+      "Ready for Pickup 1",
+      "Completed History (14)",
+      "Cancelled (1)",
+      "download Patron Slip",
+      "directions_walk Pickup Guide",
+      "close Cancel Reservation",
+      "info Inspect Request",
+      "View Receipt",
+      "Audit Log",
+      "close",
+      "Keep Hold",
+      "delete_forever Confirm Cancellation",
+      "Understood"
+    ],
+    "export_actions": [
+      "download Patron Slip"
+    ],
+    "filter_actions": [
+      "All Reservations",
+      "Pending Approval 1"
+    ],
+    "modals": [
+      "cancelModal",
+      "pickupModal"
+    ]
+  },
+  "Customer / Favorites & Wishlist": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search books, authors, ISBN... (Ctrl+K)"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Filter by title, author, call no..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Add a research note for a saved volume..."
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 27,
+    "unique_buttons": [
+      "notifications",
+      "close",
+      "playlist_add + Create Reading List",
+      "download Export (BibTeX / CSV)",
+      "shopping_bag_speed Reserve All Available (8)",
+      "All Saved 12",
+      "Thesis &amp; Dissertation Stacks 5",
+      "Software Architecture &amp; Systems 4",
+      "Classical Philosophy 3",
+      "grid_view",
+      "view_list",
+      "favorite",
+      "bookmark_add Reserve",
+      "hourglass_top Join Waitlist",
+      "edit",
+      "Add",
+      "View All 12 Notes"
+    ],
+    "export_actions": [
+      "download Export (BibTeX / CSV)"
+    ],
+    "filter_actions": [
+      "shopping_bag_speed Reserve All Available (8)",
+      "All Saved 12",
+      "View All 12 Notes"
+    ],
+    "modals": []
+  },
+  "Customer / Profile & Patron Clearance": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": "patron-fullname",
+        "placeholder": null
+      },
+      {
+        "type": "email",
+        "id": "patron-email",
+        "placeholder": null
+      },
+      {
+        "type": "tel",
+        "id": "patron-phone",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": "patron-id",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": "patron-dept",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": "patron-expiry",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": "default-bay",
+        "placeholder": null
+      }
+    ],
+    "table_headers": [
+      "Notification Type",
+      "SMS Alert",
+      "University Email",
+      "Mobile Push"
+    ],
+    "total_buttons": 15,
+    "unique_buttons": [
+      "searchSearch stacks...\u2318K",
+      "notifications",
+      "download Export Reading History CSV / BibTeX",
+      "check_circle Save Profile &amp; Preferences",
+      "photo_camera",
+      "badge Personal &amp; Academic Info",
+      "notifications_active Reminders &amp; Notification Channels",
+      "tune Borrowing &amp; Reading Preferences",
+      "shield Security &amp; Connected Devices",
+      "Upgrade Tier",
+      "content_copy Copy Card No.",
+      "qr_code_2 Enlarge QR Pass",
+      "add Add Tag",
+      "pin Change Circulation Desk PIN / Password chevron_right",
+      "logout Terminate All Other Browser Sessions 1 other"
+    ],
+    "export_actions": [
+      "download Export Reading History CSV / BibTeX"
+    ],
+    "filter_actions": [
+      "notifications_active Reminders &amp; Notification Channels",
+      "logout Terminate All Other Browser Sessions 1 other"
+    ],
+    "modals": []
+  },
+  "Cashier / Terminal Dashboard": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      }
+    ],
+    "table_headers": [
+      "Reservation &amp; Patron",
+      "Book Title &amp; Call No.",
+      "Physical Stacks",
+      "Requested Pickup",
+      "Actions"
+    ],
+    "total_buttons": 26,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "shopping_cart_checkout + Fast Checkout",
+      "pending_actions Review Reservations 5",
+      "keyboard_return Process Return",
+      "qr_code_scanner Scan Barcode/QR",
+      "person_search Find Patron",
+      "All (5)",
+      "Today (3)",
+      "Tomorrow (2)",
+      "Priority",
+      "check Approve",
+      "Review / Reject",
+      "View All Pending Intake Queue arrow_forward",
+      "Manual Input Key",
+      "Process Return",
+      "notifications_active",
+      "Collect &amp; Return",
+      "outgoing_mail",
+      "lock_clock Close Shift / Reconcile Drawer"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "pending_actions Review Reservations 5",
+      "All (5)",
+      "View All Pending Intake Queue arrow_forward",
+      "notifications_active"
+    ],
+    "modals": []
+  },
+  "Cashier / Pending Reservations & Pickup": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      },
+      {
+        "type": "text",
+        "id": "reservation-search",
+        "placeholder": "Filter by Ref, Patron, or ISBN..."
+      },
+      {
+        "type": "text",
+        "id": "sort-select",
+        "placeholder": null
+      },
+      {
+        "type": "checkbox",
+        "id": "select-all-checkbox",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Optional notes visible to circulation supervisor..."
+      }
+    ],
+    "table_headers": [
+      "Reservation Ref",
+      "Patron Details",
+      "Requested Volume",
+      "Stacks &amp; Staging",
+      "Hold Schedule",
+      "Standing",
+      "Actions"
+    ],
+    "total_buttons": 31,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "sync Refresh Queue",
+      "download Export Intake Sheet (CSV)",
+      "check_circle Approve Selected (3)",
+      "All Pending (5)",
+      "Due Today (2)",
+      "Tomorrow (2)",
+      "Scholastic Priority (1)",
+      "Waitlist (0)",
+      "check",
+      "close",
+      "visibility",
+      "mark_email_read Confirm Approval &amp; Dispatch PIN",
+      "broken_image Reject: Damaged",
+      "block Reject: Limit Hit",
+      "Cancel",
+      "Confirm Decline"
+    ],
+    "export_actions": [
+      "download Export Intake Sheet (CSV)"
+    ],
+    "filter_actions": [
+      "All Pending (5)",
+      "Due Today (2)"
+    ],
+    "modals": [
+      "btn-modal-confirm-approve",
+      "btn-modal-reject-damage",
+      "btn-modal-reject-limit",
+      "rejection-modal",
+      "btn-close-modal",
+      "btn-cancel-modal"
+    ]
+  },
+  "Cashier / Rapid Barcode Checkout": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan Patron Card Barcode or Enter Patron ID / Email (e.g. KP-88192)..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan Physical Book Barcode (e.g., KP-BC-4491) or Select from Approved Holds..."
+      }
+    ],
+    "table_headers": [
+      "Timestamp / Tx ID",
+      "Patron Details",
+      "Physical Book Asset",
+      "Asset Barcode",
+      "Due Date",
+      "Gate Status",
+      "Actions"
+    ],
+    "total_buttons": 13,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "book_online Reservation Hold Release",
+      "directions_walk Direct Walk-In Checkout",
+      "qr_code_scanner",
+      "add Stage Copy",
+      "delete",
+      "print Complete Checkout &amp; Print Pass",
+      "restart_alt Clear Staging",
+      "pause Suspend Cart",
+      "receipt"
+    ],
+    "export_actions": [],
+    "filter_actions": [],
+    "modals": []
+  },
+  "Cashier / Returns & Condition Assessment": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      },
+      {
+        "type": "text",
+        "id": "scannerInput",
+        "placeholder": "Scan Book Barcode, Patron ID, or Smart Drop-Box Batch ID..."
+      },
+      {
+        "type": "checkbox",
+        "id": "batchToggle",
+        "placeholder": null
+      }
+    ],
+    "table_headers": [
+      "Barcode",
+      "Book Volume",
+      "Patron",
+      "Overdue Status",
+      "Fee Assessed",
+      "Settlement",
+      "Receipt Code"
+    ],
+    "total_buttons": 7,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "Scan",
+      "task_alt Complete Return &amp; Issue Receipt",
+      "print Print Return Slip",
+      "restart_alt Clear Counter",
+      "download"
+    ],
+    "export_actions": [
+      "download"
+    ],
+    "filter_actions": [],
+    "modals": []
+  },
+  "Cashier / Patron Lookup & Clearance": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      },
+      {
+        "type": "text",
+        "id": "patronSearchInput",
+        "placeholder": "Scan Student/Faculty RFID, Barcode, #KP-ID, or Name..."
+      }
+    ],
+    "table_headers": [
+      "Patron Name &amp; Contact",
+      "Patron ID / Program",
+      "Active Loans",
+      "Holds",
+      "Overdue Fines",
+      "Standing",
+      "Action",
+      "Transaction",
+      "Title",
+      "Borrow Date",
+      "Return Date",
+      "Fine Assessed",
+      "Status"
+    ],
+    "total_buttons": 29,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "sync Refresh Ledger",
+      "print Daily Census",
+      "filter_alt_off Reset",
+      "barcode_scanner Scan Pass",
+      "All Patrons (3,420)",
+      "Eligible / In Good Standing (3,280)",
+      "Restricted / Hold (14)",
+      "Faculty Exemptions (86)",
+      "Pending Clearance (22)",
+      "visibility Inspect Profile",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "684",
+      "chevron_right",
+      "close",
+      "Active Loans (2)",
+      "Hold Requests (1)",
+      "Past Circulation &amp; Receipts",
+      "forward_to_inbox Send Courtesy Account Notice",
+      "Done",
+      "verified Issue Clearance Certificate"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "filter_alt_off Reset",
+      "All Patrons (3,420)",
+      "Pending Clearance (22)",
+      "Active Loans (2)"
+    ],
+    "modals": [
+      "patronModal"
+    ]
+  },
+  "Cashier / Book Shelf Availability": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search by Book Title, Author, ISBN-13, or Dewey Call # (e.g., 005.133)..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan or type physical item barcode (e.g. KP-BC-4491-01)..."
+      }
+    ],
+    "table_headers": [
+      "Book &amp; Bibliographic Details",
+      "Dewey / Stacks Location",
+      "Copy Allocation (Avail / Total)",
+      "Circulation Dynamics",
+      "Status Badge",
+      "Physical Asset Drawer"
+    ],
+    "total_buttons": 25,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "barcode_scanner Scan Physical Copy",
+      "cancel",
+      "000 - Computer Science (418)",
+      "100 - Philosophy (88)",
+      "300 - Social Sciences (264)",
+      "600 - Technology (312)",
+      "900 - History &amp; Geography (166)",
+      "restart_alt",
+      "inventory_2 Inspect 6 Copies",
+      "inventory_2 Inspect 4 Copies",
+      "inventory_2 Inspect 5 Copies",
+      "inventory_2 Inspect 8 Copies",
+      "chevron_left",
+      "1",
+      "2",
+      "chevron_right",
+      "close",
+      "map Show Stacks Floorplan (Bay 14)",
+      "Verify",
+      "Close Inspection",
+      "print Print Bay 14 Slip",
+      "Close Blueprint View"
+    ],
+    "export_actions": [],
+    "filter_actions": [],
+    "modals": [
+      "floorplanModal"
+    ]
+  },
+  "Cashier / Shift Schedules & Roster": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID, or Hold Code (Press \u2318K)..."
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 19,
+    "unique_buttons": [
+      "menu",
+      "notifications",
+      "chevron_left",
+      "chevron_right",
+      "today Today",
+      "Day View",
+      "Week View",
+      "Month View",
+      "Agenda List",
+      "add_alarm Book Timeslot",
+      "View Resolution Log",
+      "Acknowledge",
+      "check",
+      "Check Locker Grid",
+      "Quick Book Window",
+      "7 Days",
+      "14 Days",
+      "21 Days",
+      "schedule_send Apply Date to Current Checkout"
+    ],
+    "export_actions": [],
+    "filter_actions": [],
+    "modals": []
+  },
+  "Cashier / Overdue Fines & Waivers": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID (F2)"
+      },
+      {
+        "type": "text",
+        "id": "overdue-search-input",
+        "placeholder": "Search Patron ID, Book title, Barcode..."
+      }
+    ],
+    "table_headers": [
+      "Patron / ID",
+      "Borrowed Volume",
+      "Due Date / Elapsed",
+      "Grace &amp; Net Days",
+      "Fine Accrued",
+      "Standing",
+      "Quick Desk Action"
+    ],
+    "total_buttons": 17,
+    "unique_buttons": [
+      "notifications",
+      "point_of_sale Open Cash Drawer",
+      "All Overdue 18",
+      "Due 1\u20133 Days Past 9",
+      "4\u20137 Days 5",
+      "8+ Days Critical 4",
+      "Repeated Delinquents 2",
+      "outgoing_mail",
+      "receipt Settle",
+      "sms",
+      "send Dispatch Immediate Notice",
+      "payments Collect &amp; Print Receipt: \u20b175.00"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "All Overdue 18",
+      "Due 1\u20133 Days Past 9"
+    ],
+    "modals": []
+  },
+  "Cashier / Transactions & Register Ledger": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID (F2)"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search by Transaction ID (#TX-..), Student ID (#KP-..), title, or patron name..."
+      }
+    ],
+    "table_headers": [
+      "Transaction ID",
+      "Time / Shift",
+      "Type",
+      "Patron Details",
+      "Book / Volume",
+      "Amount",
+      "Payment / Status",
+      "Receipt"
+    ],
+    "total_buttons": 20,
+    "unique_buttons": [
+      "notifications",
+      "calendar_month Today: Monday, Oct 26, 2026 expand_more",
+      "download Export Audit CSV",
+      "print Print Shift Receipt Register",
+      "tune More Filters",
+      "All (48)",
+      "Checkouts (22)",
+      "Returns (19)",
+      "Fine Settlements (5)",
+      "Fee Waivers (2)",
+      "Lost/Damaged Fees (0)",
+      "receipt #REC-9041",
+      "receipt #REC-9040",
+      "visibility Log",
+      "receipt #REC-9039",
+      "fact_check Audit Memo",
+      "chevron_left",
+      "chevron_right",
+      "print Re-Print Receipt Slip",
+      "account_box View Patron Circulation Record"
+    ],
+    "export_actions": [
+      "download Export Audit CSV"
+    ],
+    "filter_actions": [
+      "tune More Filters",
+      "All (48)"
+    ],
+    "modals": []
+  },
+  "Cashier / Terminal Notifications & Broadcast": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan barcode, ISBN, Customer ID (F2)"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g., Priority pickup needed for CLRS book at Bay 01 counter..."
+      },
+      {
+        "type": "checkbox",
+        "id": "chimeToggle",
+        "placeholder": null
+      },
+      {
+        "type": "checkbox",
+        "id": "autoDismissToggle",
+        "placeholder": null
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 18,
+    "unique_buttons": [
+      "notifications",
+      "done_all Mark All as Read",
+      "filter_list Filter by Priority expand_more",
+      "tune Notification Settings",
+      "All Alerts 14",
+      "Urgent / Action Required 4",
+      "Hold Reservations 5",
+      "Returns &amp; Overdue 3",
+      "System &amp; Shift 2",
+      "Send Final Notice",
+      "manage_search Review Overdue Account",
+      "Release Hold",
+      "receipt View Reservation Slip",
+      "Check Queue (3)",
+      "flag Flag for Priority Reshelve",
+      "Dismiss",
+      "verified Review &amp; Approve",
+      "send Broadcast"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "done_all Mark All as Read",
+      "filter_list Filter by Priority expand_more",
+      "All Alerts 14",
+      "Returns &amp; Overdue 3",
+      "manage_search Review Overdue Account"
+    ],
+    "modals": []
+  },
+  "Admin / Executive Dashboard": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      }
+    ],
+    "table_headers": [
+      "Hold ID",
+      "Patron Name",
+      "Book Title",
+      "Deadline",
+      "Action"
+    ],
+    "total_buttons": 22,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "person_add + Add User",
+      "menu_book + Add Book",
+      "analytics View Analytics",
+      "receipt_long Generate Audit Report",
+      "Weekly",
+      "Monthly",
+      "Term Q3",
+      "Approve",
+      "Review",
+      "send Notice",
+      "filter_list Filter Logs",
+      "Run Manual Sync"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "Weekly",
+      "Monthly",
+      "filter_list Filter Logs"
+    ],
+    "modals": []
+  },
+  "Admin / User Management & Staff Directory": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search patron by full name, KP-ID (#KP-77401), email, or RFID barcode..."
+      }
+    ],
+    "table_headers": [
+      "User ID",
+      "Patron / User Details",
+      "Institutional Role",
+      "Account Status",
+      "Registration &amp; Login",
+      "Active Circulation",
+      "Actions"
+    ],
+    "total_buttons": 39,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "file_download Export CSV / Excel",
+      "person_add + Add User",
+      "All (3,420)",
+      "Customers / Patrons (3,380)",
+      "Cashiers (24)",
+      "Administrators (16)",
+      "Active (3,280)",
+      "Inactive (95)",
+      "Suspended / Hold (45)",
+      "visibility",
+      "edit_square",
+      "more_vert",
+      "lock_reset",
+      "Approve",
+      "keyboard_double_arrow_left",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "342",
+      "chevron_right",
+      "keyboard_double_arrow_right",
+      "close",
+      "block Suspend Hold",
+      "save Save Changes"
+    ],
+    "export_actions": [
+      "file_download Export CSV / Excel"
+    ],
+    "filter_actions": [
+      "All (3,420)",
+      "Active (3,280)",
+      "Inactive (95)"
+    ],
+    "modals": []
+  },
+  "Admin / Books Catalog & MARC 21 Manager": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search Title, Author, ISBN-13, Dewey Call No..."
+      }
+    ],
+    "table_headers": [
+      "Title &amp; Edition",
+      "Dewey / ISBN",
+      "Academic Area",
+      "Copies Breakdown",
+      "Catalog Status",
+      "Actions"
+    ],
+    "total_buttons": 38,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "file_download Export MARC 21 / CSV",
+      "input Batch ISBN Import",
+      "add_circle Add New Book",
+      "table_rows",
+      "All Categories",
+      "Computer Science (312)",
+      "History &amp; Philosophy (184)",
+      "Mathematics (142)",
+      "Literature (280)",
+      "Natural Sciences (198)",
+      "edit",
+      "qr_code_2",
+      "more_vert",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "156",
+      "chevron_right",
+      "+ Add Copy",
+      "edit_note Edit Classification",
+      "inventory Manage Copies",
+      "archive Archive Record",
+      "history Audit History"
+    ],
+    "export_actions": [
+      "file_download Export MARC 21 / CSV"
+    ],
+    "filter_actions": [
+      "All Categories"
+    ],
+    "modals": []
+  },
+  "Admin / Master Reservations Queue": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Filter by Hold ID (#HLD-...), patron name, student number, or title..."
+      }
+    ],
+    "table_headers": [
+      "Hold ID",
+      "Patron Details",
+      "Reserved Title &amp; Call No.",
+      "Request / Expiry",
+      "Pickup Location",
+      "Status",
+      "Actions"
+    ],
+    "total_buttons": 29,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "download Export Roster",
+      "tune Locker Matrix",
+      "task_alt Batch Hold Clearance",
+      "All Locations",
+      "Main Circulation Desk",
+      "Smart Lockers (Bay A-D)",
+      "Graduate Annex",
+      "All 248",
+      "Pending Review 28",
+      "Approved &amp; Staged 142",
+      "Completed / Picked Up 1,840",
+      "Expired / Cancelled 42",
+      "Approve",
+      "Reject",
+      "send Notify Patron",
+      "receipt_long",
+      "Release",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "25",
+      "chevron_right",
+      "Adjust Hold Quotas",
+      "Run diagnostics arrow_forward"
+    ],
+    "export_actions": [
+      "download Export Roster"
+    ],
+    "filter_actions": [
+      "All Locations",
+      "All 248",
+      "Pending Review 28"
+    ],
+    "modals": []
+  },
+  "Admin / Circulation Audit & Loan Policies": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": "circulationSearch",
+        "placeholder": "Search loan ID (#LN-xxxx), patron barcode (#KP-BC-xxxx), or student name..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. ST-2023-0842"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. KP-BC-4491-03"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. Dean approved thesis field study"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "State reason for manual extension..."
+      }
+    ],
+    "table_headers": [
+      "Loan ID",
+      "Patron Details",
+      "Book Title &amp; Catalog Barcode",
+      "Checkout",
+      "Due Date",
+      "Days Remaining",
+      "Renewals",
+      "Status",
+      "Actions"
+    ],
+    "total_buttons": 30,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "file_download Export Loan Ledger",
+      "policy Lending Rules",
+      "add_circle New Circulation Loan Override",
+      "All Loans (1,384)",
+      "Due Soon (42)",
+      "Overdue (18)",
+      "Faculty Holds",
+      "tune",
+      "chevron_left",
+      "chevron_right",
+      "Extend Loan",
+      "forward_to_inbox",
+      "Inspect",
+      "receipt_long",
+      "View Delinquency",
+      "lock_person",
+      "Renew",
+      "history",
+      "Send Group SMS Reminders",
+      "Export CSV",
+      "Edit Policies \u2192",
+      "badge",
+      "document_scanner",
+      "Clear",
+      "Authorize &amp; Print Circulation Slip",
+      "close",
+      "Cancel",
+      "Confirm 14-Day Extension"
+    ],
+    "export_actions": [
+      "file_download Export Loan Ledger",
+      "Export CSV"
+    ],
+    "filter_actions": [
+      "All Loans (1,384)",
+      "Due Soon (42)",
+      "Overdue (18)"
+    ],
+    "modals": [
+      "renewalModal",
+      "btnCloseRenewalModal",
+      "modalBookTitle",
+      "modalLoanDetails",
+      "btnCancelRenewalModal"
+    ]
+  },
+  "Admin / Returns Clearance & Inspection Journal": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search Return ID, patron, barcode..."
+      }
+    ],
+    "table_headers": [
+      "Return ID",
+      "Patron Details",
+      "Item &amp; Barcode",
+      "Timeline &amp; Overdue",
+      "Assessed Fine",
+      "Condition",
+      "Clearance Status",
+      "Station / Desk",
+      "Actions"
+    ],
+    "total_buttons": 22,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "file_download Export Daily Returns Journal",
+      "fact_check Process Bulk Returns",
+      "All Returns (58)",
+      "On-Time (53)",
+      "Late / Fined (5)",
+      "Damaged / Flagged (4)",
+      "Courtesy Waived (2)",
+      "View Receipt",
+      "Print Audit",
+      "View Dossier",
+      "Inspect Damage",
+      "chevron_left",
+      "2",
+      "3",
+      "chevron_right",
+      "build Route to Campus Bindery Unit arrow_forward",
+      "inventory Order Publisher Replacement arrow_forward",
+      "archive Deaccession &amp; Salvage Archive arrow_forward",
+      "Authorize Routing",
+      "Hold"
+    ],
+    "export_actions": [
+      "file_download Export Daily Returns Journal"
+    ],
+    "filter_actions": [
+      "All Returns (58)"
+    ],
+    "modals": []
+  },
+  "Admin / Physical Inventory & RFID Stacks": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Scan or type barcode..."
+      }
+    ],
+    "table_headers": [
+      "Barcode &amp; RFID",
+      "Title &amp; Edition",
+      "Dewey Call No",
+      "Stacks Coordinate",
+      "Condition",
+      "Current Custody / Status",
+      "Acquired",
+      "Actions"
+    ],
+    "total_buttons": 24,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "nfc RFID Sync Batch",
+      "print Print Shelf Tags",
+      "add_box Ingest Physical Barcodes",
+      "All Copies (4,892)",
+      "Available (3,112)",
+      "On Loan (1,402)",
+      "Staged Hold (248)",
+      "Bindery/Repair (85)",
+      "Lost/Audit (45)",
+      "visibility",
+      "label",
+      "Recall",
+      "Update Status",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "979",
+      "chevron_right",
+      "View Replacements"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "All Copies (4,892)",
+      "Recall"
+    ],
+    "modals": []
+  },
+  "Admin / Circulation Analytics & Demographics": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 14,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "picture_as_pdf Export Dossier (PDF/CSV) arrow_forward",
+      "Review Stacks Allocation shelves",
+      "7D",
+      "30D",
+      "90D",
+      "1Y",
+      "All",
+      "Borrowings check_circle",
+      "Reservations check_circle",
+      "Returns check_circle",
+      "Overdue check_circle",
+      "refresh Refresh Telemetry"
+    ],
+    "export_actions": [
+      "picture_as_pdf Export Dossier (PDF/CSV) arrow_forward"
+    ],
+    "filter_actions": [
+      "Review Stacks Allocation shelves",
+      "All",
+      "Overdue check_circle"
+    ],
+    "modals": []
+  },
+  "Admin / Dewey Categories & Taxonomy": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": "categorySearchInput",
+        "placeholder": "Search call code, discipline, keyword..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. 700 - 799"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "LoC (e.g. N, NA, NK)"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. The Arts &amp; Fine Recreation"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. Bays 01-08"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. Architecture, Painting, Sculpture, Photography"
+      }
+    ],
+    "table_headers": [
+      "Call Range",
+      "Category / Field Name",
+      "Sub-Fields",
+      "Titles",
+      "Copies",
+      "Circulation",
+      "Status",
+      "Actions"
+    ],
+    "total_buttons": 36,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "ios_share Export Schema expand_more",
+      "data_object JSON Concordance",
+      "table_view CSV Master Index",
+      "add Add Category",
+      "All Classes (42)",
+      "STEM Ranges",
+      "Humanities",
+      "Filipiniana",
+      "visibility",
+      "edit",
+      "archive",
+      "chevron_left",
+      "1",
+      "2",
+      "3",
+      "chevron_right",
+      "rule Edit Category Rules",
+      "alt_route Manage Cross-References",
+      "refresh",
+      "close",
+      "Cancel",
+      "Save Category"
+    ],
+    "export_actions": [
+      "ios_share Export Schema expand_more",
+      "table_view CSV Master Index"
+    ],
+    "filter_actions": [
+      "All Classes (42)"
+    ],
+    "modals": [
+      "openCreateModal",
+      "addCategoryModal",
+      "closeModalBtn",
+      "cancelModalBtn"
+    ]
+  },
+  "Admin / Official Compliance Reports Dossier": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": "report-template",
+        "placeholder": null
+      },
+      {
+        "type": "checkbox",
+        "id": "delinquency-flag",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Filter completed archives..."
+      },
+      {
+        "type": "text",
+        "id": "checksum-input",
+        "placeholder": "Enter SHA-256 hash or dossier ID..."
+      }
+    ],
+    "table_headers": [
+      "Dossier Reference &amp; Title",
+      "Execution Timestamp",
+      "Certified Generator",
+      "Payload Size",
+      "Verification Status",
+      "Encrypted Download",
+      "Ledger Event &amp; Target Dossier",
+      "SHA-256 Digest Signature",
+      "Certified Signer &amp; Role",
+      "Timestamp (UTC+8)",
+      "Attestation Status"
+    ],
+    "total_buttons": 44,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "descriptionOfficial Dossiers &amp; Suites",
+      "verified_userAudit Integrity Log",
+      "schedule_sendAutomated Schedule Config",
+      "add_circleBuild Schema",
+      "instant_mix Generate Official Report Dossier",
+      "filter_list",
+      "grid_view",
+      "picture_as_pdf PDF",
+      "table_view CSV",
+      "download XLSX",
+      "picture_as_pdf Full Dossier PDF",
+      "table_view Raw CSV",
+      "refresh Refresh",
+      "download",
+      "fingerprint",
+      "Previous",
+      "Next",
+      "ruleVerify Seal",
+      "Dismiss",
+      "more_timeAdd Schedule Trigger",
+      "play_arrowRun Now",
+      "settings"
+    ],
+    "export_actions": [
+      "picture_as_pdf PDF",
+      "table_view CSV",
+      "download XLSX",
+      "picture_as_pdf Full Dossier PDF",
+      "table_view Raw CSV",
+      "download"
+    ],
+    "filter_actions": [
+      "filter_list"
+    ],
+    "modals": []
+  },
+  "Admin / Dispatch Gateways & Incident Alerts": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g., Extended Stacks Hours During Examination Week..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Detail opening hours, access protocols, affected stack zones, and assistance contact details..."
+      }
+    ],
+    "table_headers": [
+      "Dispatch ID",
+      "Recipient Patron",
+      "Trigger Event",
+      "Channel",
+      "Delivery Status",
+      "Timestamp",
+      "Action"
+    ],
+    "total_buttons": 47,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "campaign Broadcast System Announcement",
+      "tune Configure Dispatch Templates",
+      "done_all Mark All Resolved",
+      "notification_importantSystem Alerts3",
+      "campaignCampus Announcements2 Live",
+      "outboxAutomated Dispatch Queue342 Dispatched",
+      "code_blocksPatron SMS/Email Templates8 Active",
+      "shopping_cart_checkout Trigger Acquisition Order",
+      "visibility",
+      "forward_to_inbox Send Formal Registrar Notice",
+      "list_alt",
+      "build Ping Hardware Team",
+      "sync",
+      "add_circle+ Create New Announcement",
+      "more_vert",
+      "analyticsAnalytics",
+      "Edit",
+      "Unpublish",
+      "analyticsPreview",
+      "Cancel",
+      "Publish Draft",
+      "syncRefresh Stream",
+      "Inspect Payload",
+      "Active Preview",
+      "Configure",
+      "SMS",
+      "Email",
+      "scienceSend Test SMS",
+      "Save Template",
+      "close",
+      "Student &amp; Faculty Portal",
+      "Mobile App Push",
+      "Circulation Kiosk Screens",
+      "Staff Only Intranet",
+      "Dismiss",
+      "send Broadcast Announcement"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "done_all Mark All Resolved",
+      "code_blocksPatron SMS/Email Templates8 Active",
+      "Active Preview"
+    ],
+    "modals": [
+      "broadcast-modal"
+    ]
+  },
+  "Admin / RBAC Roles & Privilege Matrix": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Filter module privileges..."
+      }
+    ],
+    "table_headers": [
+      "Functional Module",
+      "shield_personAdmin(16)",
+      "point_of_saleCashier(24)",
+      "personPatron(3,372)",
+      "auto_storiesCurator(8)",
+      "Operational Grant Scope"
+    ],
+    "total_buttons": 18,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "restart_alt Reset to Defaults",
+      "file_download Export Security Policy",
+      "add_moderator Create Custom Role",
+      "grid_viewAll Roles Matrix",
+      "shield_personAdministrator (16)",
+      "point_of_saleCashier Desk (24)",
+      "personPatron / Customer (3,372)",
+      "auto_storiesDepartment Curator (8)",
+      "Audit Changelog arrow_forward",
+      "shield_personAdmin",
+      "point_of_saleCashier",
+      "personPatron",
+      "auto_storiesCurator",
+      "saveSave Role Policy",
+      "Clone as Custom Profile",
+      "View Raw Telemetry"
+    ],
+    "export_actions": [
+      "file_download Export Security Policy"
+    ],
+    "filter_actions": [
+      "grid_viewAll Roles Matrix"
+    ],
+    "modals": []
+  },
+  "Admin / Cryptographic Audit Logs & Hash Chain": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "text",
+        "id": "searchInput",
+        "placeholder": "Filter by Actor, Email, Record ID, IP, or Hash suffix..."
+      }
+    ],
+    "table_headers": [
+      "Timestamp",
+      "Actor &amp; Identity",
+      "Role",
+      "Module / Scope",
+      "Event Action",
+      "Record Ref",
+      "Delta / Modification",
+      "Node &amp; IP",
+      "Integrity Seal",
+      "Audit"
+    ],
+    "total_buttons": 28,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "verified_user Verify Hash Chain",
+      "lock_clock Export Cryptographic Dossier expand_more",
+      "All Severities",
+      "Info",
+      "Warning",
+      "Critical",
+      "Today (Oct 26)",
+      "7D",
+      "30D",
+      "calendar_today Custom",
+      "restart_alt",
+      "terminal",
+      "Previous",
+      "1",
+      "2",
+      "3",
+      "369",
+      "Next",
+      "close",
+      "content_copy Copy Raw Object",
+      "Close",
+      "download Download Audit Token (.jwt)"
+    ],
+    "export_actions": [
+      "lock_clock Export Cryptographic Dossier expand_more",
+      "download Download Audit Token (.jwt)"
+    ],
+    "filter_actions": [
+      "All Severities"
+    ],
+    "modals": []
+  },
+  "Admin / System Policies, DB & SMTP Settings": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      },
+      {
+        "type": "number",
+        "id": "rate-input",
+        "placeholder": null
+      },
+      {
+        "type": "number",
+        "id": "cap-input",
+        "placeholder": null
+      },
+      {
+        "type": "range",
+        "id": "overdue-slider",
+        "placeholder": null
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "e.g. 10.20.0.0/16"
+      }
+    ],
+    "table_headers": [
+      "Subnet / CIDR",
+      "Network Classification",
+      "Access Level",
+      "Action"
+    ],
+    "total_buttons": 23,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "replay Reset Defaults",
+      "save Save Configurations",
+      "\u2039",
+      "scheduleCirculation &amp; Loan Durations",
+      "lock_clockReservations &amp; Locker Staging",
+      "calculateFine Calculation &amp; Waiver Tariff",
+      "paletteAppearance &amp; Theme",
+      "cell_towerNotification Dispatch Gateways",
+      "shieldSecurity &amp; Access Governance",
+      "nfcHardware &amp; RFID Sync",
+      "\u203a",
+      "check Academic Blue #287EA7 (Default)",
+      "Action Lime #9BE564",
+      "Deep Navy #164E63",
+      "Send Test Ping",
+      "Verify SMTP Connection",
+      "Configure Service Account",
+      "Remove",
+      "+ Add Subnet",
+      "restart_alt Run Edge Self-Test"
+    ],
+    "export_actions": [],
+    "filter_actions": [],
+    "modals": []
+  },
+  "Admin / Administrator Profile & Session Security": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Search users, books, reservations..."
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 8,
+    "unique_buttons": [
+      "menu_open",
+      "notifications3",
+      "badge Download Access Keycard",
+      "edit_square Edit Profile Information",
+      "Rotate Password Now",
+      "Manage Registered Tokens",
+      "lock_reset Terminate All Other Sessions",
+      "logout"
+    ],
+    "export_actions": [
+      "badge Download Access Keycard"
+    ],
+    "filter_actions": [
+      "lock_reset Terminate All Other Sessions"
+    ],
+    "modals": []
+  },
+  "Landing / Public Home, Showcase & Modals": {
+    "inputs": [
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Dr. Sofia Morales"
+      },
+      {
+        "type": "email",
+        "id": null,
+        "placeholder": "smorales@university.edu"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Please outline book titles, accession codes, or research topics you require holds for..."
+      },
+      {
+        "type": "date",
+        "id": "pickupDate",
+        "placeholder": null
+      },
+      {
+        "type": "email",
+        "id": null,
+        "placeholder": "patron@university.edu"
+      },
+      {
+        "type": "password",
+        "id": null,
+        "placeholder": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+      },
+      {
+        "type": "text",
+        "id": null,
+        "placeholder": "Maria Santos"
+      },
+      {
+        "type": "email",
+        "id": null,
+        "placeholder": "msantos@admu.edu.ph"
+      },
+      {
+        "type": "password",
+        "id": null,
+        "placeholder": "Min. 8 characters"
+      }
+    ],
+    "table_headers": [],
+    "total_buttons": 39,
+    "unique_buttons": [
+      "bookmark_add Reserve Book",
+      "All",
+      "Technology",
+      "Science",
+      "Literature",
+      "History",
+      "Business",
+      "Education",
+      "Engineering",
+      "Details",
+      "Reserve",
+      "menu_book View Full Details",
+      "send Send Message",
+      "close",
+      "bookmark_add Reserve This Copy",
+      "Close",
+      "7 Days",
+      "14 Days",
+      "21 Days",
+      "check Confirm Reservation",
+      "Done",
+      "Sign In",
+      "Sign Up",
+      "Continue with Google",
+      "Sign In to Account",
+      "Register Patron Account"
+    ],
+    "export_actions": [],
+    "filter_actions": [
+      "All"
+    ],
+    "modals": [
+      "bookDetailModal",
+      "detailModalImg",
+      "reservationModal",
+      "authModal"
+    ]
+  }
+}
