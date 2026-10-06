@@ -1,5 +1,5 @@
 // [Layer: UserRoles/Features/Pages/AdminsPanel/Pages]
-// Reservations.tsx -- Admin Reservation Ledger, Queue Governance, and Smart Locker Telemetry.
+// Reservations.tsx -- Admin Reservation Ledger, Queue Governance, and Counter Staging Bay Telemetry.
 // Strictly adheres to real-time data mandate: if database is empty, renders 0 / empty state.
 // Consumes shared primitives (SearchBar, Dropdown, RadioButton, AdminModalCard) and hooks (useDebounce, usePagination, useTableDraggable).
 
@@ -624,7 +624,7 @@ const Reservations: FC = () => {
                 type="button"
                 onClick={() => setRouteFilter('lockers')}
               >
-                Smart Lockers (Bay A-D)
+                Counter Staging Bays (Bay A-D)
               </button>
               <button
                 className={`px-space-md py-1.5 rounded-full font-caption text-caption font-semibold whitespace-nowrap transition-colors ${
@@ -733,7 +733,7 @@ const Reservations: FC = () => {
                   setIsBatchClearanceModalOpen(true);
                 }}
               >
-                Batch Stage in Lockers
+                Batch Stage in Counter Bays
               </button>
               <button
                 className="px-space-md py-1.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-semibold transition-all"
@@ -1149,7 +1149,7 @@ const Reservations: FC = () => {
           </div>
         </div>
 
-        {/* Operational Policy Engine & Smart Locker Telemetry Visualizer */}
+        {/* Operational Policy Engine & Counter Staging Bay Visualizer */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-lg mt-space-xs">
           {/* Policy & Quotas Parameters */}
           <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
@@ -1164,7 +1164,7 @@ const Reservations: FC = () => {
                       Reservation Policy &amp; Shelf Allocation Parameters
                     </h3>
                     <p className="font-caption text-caption text-text-secondary">
-                      Autonomous thresholds for queue retention, user hold caps, and automatic locker release.
+                      Autonomous thresholds for queue retention, user hold caps, and automatic staging bay release.
                     </p>
                   </div>
                 </div>
@@ -1247,20 +1247,20 @@ const Reservations: FC = () => {
             </div>
           </div>
 
-          {/* Smart Locker Bay Telemetry Matrix */}
+          {/* Counter Staging Bay Telemetry Matrix */}
           <div className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
             <div className="flex flex-col">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-space-xs">
                   <span className="material-symbols-outlined text-primary text-[20px]">grid_view</span>
-                  <h4 className="font-headline-4 text-headline-4 text-text-primary font-bold">Locker Bay Telemetry</h4>
+                  <h4 className="font-headline-4 text-headline-4 text-text-primary font-bold">Staging Bay Telemetry</h4>
                 </div>
                 <span className="font-caption text-caption text-status-available font-bold flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-status-available animate-pulse"></span> ONLINE
                 </span>
               </div>
               <p className="font-caption text-caption text-text-secondary mt-1">
-                Ground Floor Cluster A-01 to C-04 smart locker state.
+                Ground Floor Cluster A-01 to C-04 counter staging bays status.
               </p>
 
               {/* 4x3 Interactive Cluster Matrix */}
@@ -1289,10 +1289,10 @@ const Reservations: FC = () => {
                           setSelectedReservation(stagedHold);
                           setIsViewModalOpen(true);
                         } else {
-                          setOperationMessage({ text: `Locker ${bayCode} is vacant and ready for new book holds.`, type: 'success' });
+                          setOperationMessage({ text: `Staging Bay ${bayCode} is vacant and ready for new book holds.`, type: 'success' });
                         }
                       }}
-                      title={stagedHold ? `Staged: ${stagedHold.bookTitle}` : `Locker ${bayCode} Vacant`}
+                      title={stagedHold ? `Staged: ${stagedHold.bookTitle}` : `Staging Bay ${bayCode} Vacant`}
                     >
                       <span className="font-caption text-[11px] font-bold">{bayCode}</span>
                       <span className="material-symbols-outlined text-[16px] my-0.5">
@@ -1309,7 +1309,7 @@ const Reservations: FC = () => {
 
             <div className="mt-space-md pt-space-xs flex items-center justify-between text-caption font-caption text-text-secondary border-t border-surface-container">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded bg-status-available"></span> {metrics.occupiedLockers} of {metrics.totalLockerSlots} Occupied
+                <span className="w-2 h-2 rounded bg-status-available"></span> {metrics.occupiedLockers} of {metrics.totalLockerSlots} Bays Occupied
               </span>
               <button
                 className="text-primary font-semibold hover:underline flex items-center gap-0.5"
@@ -1363,7 +1363,7 @@ const Reservations: FC = () => {
                   <span className="font-bold text-text-primary">{selectedReservation.pickupBranch || 'Main Desk'}</span>
                 </div>
                 <div>
-                  <span className="font-caption text-caption text-text-secondary block">Smart Locker Bay</span>
+                  <span className="font-caption text-caption text-text-secondary block">Counter Staging Bay</span>
                   <span className="font-bold text-primary">{selectedReservation.lockerBay || 'Unassigned'}</span>
                 </div>
                 <div>
@@ -1727,19 +1727,19 @@ const Reservations: FC = () => {
           </AdminModalCard>
         )}
 
-        {/* Modal 7: Smart Locker Diagnostics */}
+        {/* Modal 7: Counter Staging Bay Diagnostics */}
         {isDiagnosticsModalOpen && (
           <AdminModalCard
             isOpen={isDiagnosticsModalOpen}
             onClose={() => setIsDiagnosticsModalOpen(false)}
-            title="Smart Locker Cluster Telemetry Diagnostics"
-            subtitle="Automated solenoid lock and RFID antenna status check"
+            title="Circulation Staging Bay Diagnostics"
+            subtitle="Circulation counter staging bays and capacity audit"
           >
             <div className="flex flex-col gap-space-md text-small font-small">
               {diagnosticsLoading ? (
                 <div className="py-12 flex flex-col items-center justify-center gap-2 text-text-secondary">
                   <span className="material-symbols-outlined text-[32px] animate-spin text-primary">sync</span>
-                  <span>Pinging smart locker cluster bays...</span>
+                  <span>Verifying physical staging bay allocations...</span>
                 </div>
               ) : diagnosticsData ? (
                 <>
@@ -1920,7 +1920,7 @@ const Reservations: FC = () => {
                   value={batchAction}
                   onChange={(e) => setBatchAction(e.target.value as 'Stage' | 'Cancel' | 'Release')}
                 >
-                  <option value="Stage">Stage in Smart Lockers</option>
+                  <option value="Stage">Stage at Counter Bay</option>
                   <option value="Release">Release / Mark Fulfilled</option>
                   <option value="Cancel">Cancel Holds</option>
                 </select>
@@ -1929,16 +1929,16 @@ const Reservations: FC = () => {
               {batchAction === 'Stage' && (
                 <div>
                   <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary block mb-1">
-                    Target Locker Bay Group
+                    Target Staging Bay Group
                   </label>
                   <select
                     className="w-full bg-surface-container-low px-space-md py-2.5 rounded-xl text-text-primary focus:outline-none"
                     value={batchLockerBay}
                     onChange={(e) => setBatchLockerBay(e.target.value)}
                   >
-                    <option value="Smart Lockers (Cluster A)">Smart Lockers (Cluster A)</option>
-                    <option value="Smart Lockers (Cluster B)">Smart Lockers (Cluster B)</option>
-                    <option value="Smart Lockers (Cluster C)">Smart Lockers (Cluster C)</option>
+                    <option value="Counter Staging Bays (Cluster A)">Counter Staging Bays (Cluster A)</option>
+                    <option value="Counter Staging Bays (Cluster B)">Counter Staging Bays (Cluster B)</option>
+                    <option value="Counter Staging Bays (Cluster C)">Counter Staging Bays (Cluster C)</option>
                     <option value="Bay 01 Counter">Bay 01 Circulation Desk</option>
                   </select>
                 </div>
@@ -1968,13 +1968,13 @@ const Reservations: FC = () => {
           </AdminModalCard>
         )}
 
-        {/* Modal 10: Locker Matrix Visualizer Full Modal */}
+        {/* Modal 10: Staging Bay Grid Visualizer */}
         {isLockerMatrixModalOpen && (
           <AdminModalCard
             isOpen={isLockerMatrixModalOpen}
             onClose={() => setIsLockerMatrixModalOpen(false)}
-            title="Ground Floor Smart Locker Matrix"
-            subtitle="Full interactive telemetry for automated lockers cluster A-01 to C-04"
+            title="Ground Floor Counter Staging Bay Matrix"
+            subtitle="Full interactive status for physical counter staging bays cluster A-01 to C-04"
           >
             <div className="flex flex-col gap-space-md text-small font-small">
               <div className="grid grid-cols-4 gap-3">

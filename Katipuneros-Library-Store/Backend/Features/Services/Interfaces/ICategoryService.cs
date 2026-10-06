@@ -13,4 +13,5 @@ public interface ICategoryService
     Task<(Category? Category, string? Error)> CreateCategoryAsync(string name, string description);
     Task<(bool Success, string? Error)> UpdateCategoryAsync(Guid id, string name, string description);
     Task<(bool Success, string? Error)> DeleteCategoryAsync(Guid id);
+    Task<(int DeletedCount, string? Error)> BulkDeleteCategoriesAsync(List<Guid> categoryIds);
 }

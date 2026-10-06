@@ -43,6 +43,11 @@ export const getCustomerActiveLoans = async (): Promise<CustomerLoanRecord[]> =>
   return res.success && Array.isArray(res.data) ? res.data : [];
 };
 
+export const getCustomerLoanHistory = async (): Promise<CustomerLoanRecord[]> => {
+  const res = await apiRequest<CustomerLoanRecord[]>('/borrow/my-history');
+  return res.success && Array.isArray(res.data) ? res.data : [];
+};
+
 export const renewCustomerLoan = async (loanId: string): Promise<{ success: boolean; message: string }> => {
   const res = await apiRequest<CustomerLoanRecord>(`/borrow/${loanId}/renew`, {
     method: 'POST',

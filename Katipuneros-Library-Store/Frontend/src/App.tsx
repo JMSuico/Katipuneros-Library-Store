@@ -13,6 +13,9 @@ import AdminLayout from './LayoutBars/AdminLayout';
 
 // ─── Landing Page ────────────────────────────────────────────
 const LandingPage = lazy(() => import('./LANDING_PAGE/Features/Pages/Home/Home'));
+const AboutPage = lazy(() => import('./LANDING_PAGE/Features/Pages/About/About'));
+const ProductsPage = lazy(() => import('./LANDING_PAGE/Features/Pages/Products/Product'));
+const ContactPage = lazy(() => import('./LANDING_PAGE/Features/Pages/ContactMe/ContactMe'));
 
 // ─── Customer Panel ──────────────────────────────────────────
 const CustomerDashboard = lazy(() => import('./UserRoles/Features/Pages/CustomersPanel/Pages/CustomerDashboard'));
@@ -115,6 +118,9 @@ function App() {
           {/* Landing Page */}
           <Route element={<LandingLayout />}>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
           </Route>
 
           {/* Public & Desk Authentication */}

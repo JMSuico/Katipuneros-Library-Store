@@ -21,7 +21,9 @@ export interface CustomerReservationRecord {
   expiryDate: string;
   fulfilledDate?: string;
   status: number;
+  counterBay?: string;
   lockerBay?: string;
+  accessionPassCode?: string;
   lockerPin?: string;
   pickupBranch?: string;
   queuePosition: number;
@@ -40,7 +42,7 @@ export interface CustomerReservationResponse {
 }
 
 export const getCustomerReservations = async (): Promise<CustomerReservationRecord[]> => {
-  const res = await apiRequest<CustomerReservationRecord[]>('/reservations/my-reservations');
+  const res = await apiRequest<CustomerReservationRecord[]>('/reservations/my-holds');
   return res.success && Array.isArray(res.data) ? res.data : [];
 };
 

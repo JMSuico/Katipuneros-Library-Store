@@ -69,6 +69,7 @@ interface AnalyticalRecordItem {
   deweyCode?: string;
   categoryId?: string;
   publishedYear?: number;
+  accessionBarcode?: string;
   rfidTag?: string;
   description?: string;
 }
@@ -190,6 +191,7 @@ const Analytics: FC = () => {
             deweyCode: b.deweyCode,
             categoryId: b.categoryId,
             publishedYear: b.publishedYear,
+            accessionBarcode: b.isbnBarcode || b.rfidTag || `KP-ACC-${b.isbn.replace(/[^0-9]/g, '').slice(-6)}`,
             rfidTag: b.rfidTag,
             description: b.description,
           };
@@ -924,7 +926,7 @@ const Analytics: FC = () => {
           <div className="mt-space-md pt-space-sm border-t border-outline-variant/15 flex items-center justify-between text-text-secondary font-caption text-caption">
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-[16px] text-primary">sync</span>
-              <span>{density?.rfidStatusText ?? 'RFID telemetry idle'}</span>
+              <span>{density?.inventoryAuditStatusText ?? density?.rfidStatusText ?? 'Physical stacks census idle'}</span>
             </span>
             <button
               type="button"
@@ -972,7 +974,7 @@ const Analytics: FC = () => {
                   {(community?.recordedVisits ?? 0).toLocaleString()}
                 </span>
                 <span className="font-caption text-[11px] text-primary font-semibold flex items-center gap-0.5 mt-1">
-                  <span className="material-symbols-outlined text-[14px]">door_front</span> Turnstile counter
+                  <span className="material-symbols-outlined text-[14px]">door_front</span> Entrance traffic sensor
                 </span>
               </div>
             </div>
@@ -1672,8 +1674,8 @@ const Analytics: FC = () => {
       <DefaultFloatingModalCard
         isOpen={isAuditLogsModalOpen}
         onClose={() => setIsAuditLogsModalOpen(false)}
-        title="Physical Stacks RFID Audit Trail"
-        subtitle="Sensor antenna scans, shelf bay beacon telemetry, and sync verification"
+        title="Physical Stacks Accession Census"
+        subtitle="Shelf bay accession records, physical counts, and catalog verification"
         size="lg"
       >
         <div className="space-y-2 py-2">
@@ -1688,7 +1690,7 @@ const Analytics: FC = () => {
                     {rec.availableCopies === 0 ? 'SHELF_DISCREPANCY_FLAGGED' : 'PASSIVE_SYNC_COMPLETED'}
                   </span>
                   <span className="text-text-secondary">
-                    {rec.rfidTag || `RFID-${rec.shelfBay.replace(/[^A-Za-z0-9]/g, '').slice(0, 6) || 'BAY01'}-${rec.rank}`} • {rec.title} ({rec.shelfBay})
+                    {rec.accessionBarcode || rec.rfidTag || `ACC-${rec.shelfBay.replace(/[^A-Za-z0-9]/g, '').slice(0, 6) || 'BAY01'}-${rec.rank}`} • {rec.title} ({rec.shelfBay})
                   </span>
                 </div>
                 <span className="text-text-secondary font-medium">
@@ -1699,8 +1701,8 @@ const Analytics: FC = () => {
           ) : (
             <div className="py-8 text-center text-text-secondary flex flex-col items-center gap-2">
               <span className="material-symbols-outlined text-4xl text-outline-variant">sensors</span>
-              <p className="font-semibold text-text-primary">No RFID Stacks Telemetry</p>
-              <p className="font-caption text-caption">Catalog telemetry will register sensor events upon accessioning volumes.</p>
+              <p className="font-semibold text-text-primary">No Physical Stacks Inventory Discrepancies</p>
+              <p className="font-caption text-caption">Catalog telemetry registers census events upon accessioning volumes.</p>
             </div>
           )}
         </div>
@@ -2179,9 +2181,9 @@ const Analytics: FC = () => {
                 <span className="font-mono text-text-primary">{selectedBookForAction.isbn || 'N/A'}</span>
               </div>
               <div className="flex justify-between items-center py-1">
-                <span className="text-text-secondary">RFID Beacon Tag</span>
+                <span className="text-text-secondary">Accession Barcode Tag</span>
                 <span className="font-mono text-primary font-semibold">
-                  {selectedBookForAction.rfidTag || `RFID-${selectedBookForAction.shelfBay.replace(/[^A-Za-z0-9]/g, '').slice(0, 6) || 'BAY01'}-${selectedBookForAction.rank}`}
+                  {selectedBookForAction.accessionBarcode || selectedBookForAction.rfidTag || `ACC-${selectedBookForAction.shelfBay.replace(/[^A-Za-z0-9]/g, '').slice(0, 6) || 'BAY01'}-${selectedBookForAction.rank}`}
                 </span>
               </div>
             </div>

@@ -5,8 +5,16 @@
 // Strictly adheres to real-time data mandate: zero hardcoded mock values, zero browser alert().
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getStoredUser, fetchCurrentProfile, uploadProfilePicture, AuthUser } from '../../../../../Endpoints/authApi';
+import {
+  getStoredUser,
+  fetchCurrentProfile,
+  uploadProfilePicture,
+  updateUserProfile,
+  changePasswordApi,
+  AuthUser,
+} from '../../../../../Endpoints/authApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 
 export const CashierProfile: React.FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
@@ -14,6 +22,58 @@ export const CashierProfile: React.FC = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [avatarError, setAvatarError] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit Profile Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+  const [editFullName, setEditFullName] = useState<string>('');
+  const [editPhone, setEditPhone] = useState<string>('');
+  const [editDepartment, setEditDepartment] = useState<string>('');
+  const [editCurrentAddress, setEditCurrentAddress] = useState<string>('');
+  const [editPermanentAddress, setEditPermanentAddress] = useState<string>('');
+  const [editEmploymentStatus, setEditEmploymentStatus] = useState<string>('');
+
+  // Password Rotation Modal State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
+  const [currentPassword, setCurrentPassword] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState<boolean>(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('All password fields are required.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      const res = await changePasswordApi(currentPassword, newPassword, confirmPassword);
+      setPasswordSaving(false);
+      if (res.success) {
+        setIsPasswordModalOpen(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        addToast('Cashier credentials rotated successfully.', 'success');
+      } else {
+        setPasswordError(res.message || 'Failed to rotate password.');
+      }
+    } catch {
+      setPasswordSaving(false);
+      setPasswordError('An unexpected network error occurred while rotating password.');
+    }
+  };
 
   useEffect(() => {
     fetchCurrentProfile().then((u) => {
@@ -23,6 +83,64 @@ export const CashierProfile: React.FC = () => {
       }
     });
   }, []);
+
+  const openEditModal = () => {
+    if (currentUser) {
+      setEditFullName(currentUser.fullName || '');
+      setEditPhone(currentUser.phoneNumber || '');
+      setEditDepartment(currentUser.department || '');
+      setEditCurrentAddress(currentUser.currentAddress || '');
+      setEditPermanentAddress(currentUser.permanentAddress || '');
+      setEditEmploymentStatus(currentUser.employmentStatus || 'Staff');
+    }
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFullName.trim()) {
+      addToast('Full name is required.', 'warning');
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      const res = await updateUserProfile({
+        fullName: editFullName.trim(),
+        phoneNumber: editPhone.trim(),
+        department: editDepartment.trim(),
+        currentAddress: editCurrentAddress.trim(),
+        permanentAddress: editPermanentAddress.trim(),
+        employmentStatus: editEmploymentStatus.trim(),
+      });
+
+      if (res.success) {
+        setCurrentUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                fullName: editFullName.trim(),
+                phoneNumber: editPhone.trim(),
+                department: editDepartment.trim(),
+                currentAddress: editCurrentAddress.trim(),
+                permanentAddress: editPermanentAddress.trim(),
+                employmentStatus: editEmploymentStatus.trim(),
+              }
+            : null
+        );
+        window.dispatchEvent(new Event('profile-updated'));
+        window.dispatchEvent(new Event('katipuneros-auth-changed'));
+        addToast('Cashier profile updated and synchronized successfully.', 'success');
+        setIsEditModalOpen(false);
+      } else {
+        addToast(res.message || 'Failed to update profile.', 'error');
+      }
+    } catch {
+      addToast('Error communicating with authentication server.', 'error');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,7 +179,9 @@ export const CashierProfile: React.FC = () => {
   const displayDept = currentUser?.department || 'Circulation & Stacks Desk 01';
   const displayEmail = currentUser?.email || 'N/A';
   const displayPhone = currentUser?.phoneNumber || 'N/A';
+  const displayAddress = currentUser?.currentAddress || 'Katipunan Campus Main Stacks';
   const displayUsername = currentUser?.username || 'cashier';
+  const displayEmployment = currentUser?.employmentStatus || 'Staff';
 
   const initials = currentUser?.fullName
     ? currentUser.fullName
@@ -114,6 +234,169 @@ export const CashierProfile: React.FC = () => {
         </div>
       )}
 
+      {/* Edit Profile Modal */}
+      <DefaultFloatingModalCard
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Desk Operator Details"
+        subtitle="Update personal and terminal credentials stored in university authentication directory"
+        size="lg"
+      >
+        <form onSubmit={handleSaveProfile} className="flex flex-col gap-space-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Full Name *</label>
+              <input
+                type="text"
+                required
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Enter operator full name"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Phone Number</label>
+              <input
+                type="text"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="+63 9XX XXX XXXX"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Department / Unit</label>
+              <input
+                type="text"
+                value={editDepartment}
+                onChange={(e) => setEditDepartment(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Circulation & Stacks Desk 01"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Position / Employment</label>
+              <input
+                type="text"
+                value={editEmploymentStatus}
+                onChange={(e) => setEditEmploymentStatus(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Staff / Faculty / Librarian"
+              />
+            </div>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Current Station / Address</label>
+              <input
+                type="text"
+                value={editCurrentAddress}
+                onChange={(e) => setEditCurrentAddress(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Katipunan Campus Main Stacks Room 102"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-space-sm mt-4 pt-4 border-t border-surface-container-high">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="h-10 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-primary font-small text-small font-medium transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingProfile}
+              className="h-10 px-5 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {isSavingProfile ? 'progress_activity' : 'save'}
+              </span>
+              <span>{isSavingProfile ? 'Saving...' : 'Save Profile'}</span>
+            </button>
+          </div>
+        </form>
+      </DefaultFloatingModalCard>
+
+      {/* Password Rotation Modal */}
+      <DefaultFloatingModalCard
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="Rotate Cashier Password"
+        subtitle="Safeguard circulation desk credentials with .NET 10 Identity security"
+        size="md"
+      >
+        <form onSubmit={handleChangePassword} className="flex flex-col gap-space-md">
+          {passwordError && (
+            <div className="p-3 bg-status-danger/10 text-status-danger text-small rounded-xl font-medium border border-status-danger/20 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">error</span>
+              <span>{passwordError}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption font-semibold text-text-secondary">Current Password *</label>
+            <input
+              type="password"
+              required
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption font-semibold text-text-secondary">New Password * (Min 6 characters)</label>
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption font-semibold text-text-secondary">Confirm New Password *</label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface-container-high">
+            <button
+              type="button"
+              onClick={() => setIsPasswordModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-text-secondary hover:bg-surface-container text-small font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={passwordSaving}
+              className="px-5 py-2 rounded-xl bg-primary text-on-primary font-semibold text-small hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-sm"
+            >
+              {passwordSaving ? (
+                <>
+                  <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                  <span>Rotating...</span>
+                </>
+              ) : (
+                <span>Update Password</span>
+              )}
+            </button>
+          </div>
+        </form>
+      </DefaultFloatingModalCard>
+
       {/* Hidden File Input for Picture Upload */}
       <input
         type="file"
@@ -140,7 +423,15 @@ export const CashierProfile: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-space-sm">
+          <div className="flex items-center gap-space-sm flex-wrap">
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-surface-container-lowest hover:bg-surface-container border border-surface-container-high text-text-primary font-body-medium text-small font-semibold shadow-xs transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] text-primary">edit</span>
+              <span>Edit Details</span>
+            </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -198,21 +489,31 @@ export const CashierProfile: React.FC = () => {
                 <div className="flex flex-col flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-space-xs mb-1">
                     <span className="font-caption text-caption font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed">
-                      Clearance Level 2 • Circulation Desk
+                      {currentUser?.role === 'Admin' ? 'Admin Access • Desk 01' : 'Circulation Station 01'}
                     </span>
                     <span className="font-caption text-caption px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-mono">
                       {displayCard}
                     </span>
                   </div>
 
-                  <h2 className="font-headline-3 text-headline-3 text-text-primary font-bold tracking-tight">
-                    {displayName}
-                  </h2>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-headline-3 text-headline-3 text-text-primary font-bold tracking-tight">
+                      {displayName}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={openEditModal}
+                      className="p-1 rounded-lg text-text-secondary hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
+                      title="Edit Profile"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">edit</span>
+                    </button>
+                  </div>
                   <p className="font-body-large text-body-large text-primary font-semibold">
                     {displayRole}
                   </p>
                   <p className="font-body text-small text-text-secondary mt-0.5">
-                    {displayDept}
+                    {displayDept} • {displayEmployment}
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm mt-space-md pt-space-md bg-surface-container-low/60 p-space-md rounded-xl">
@@ -229,8 +530,8 @@ export const CashierProfile: React.FC = () => {
                       <span className="font-body text-small">{displayPhone}</span>
                     </div>
                     <div className="flex items-center gap-space-xs text-text-primary">
-                      <span className="material-symbols-outlined text-primary text-[18px]">schedule</span>
-                      <span className="font-body text-small">Shift: 08:00 - 17:00 PHT</span>
+                      <span className="material-symbols-outlined text-primary text-[18px]">location_on</span>
+                      <span className="font-body text-small truncate">{displayAddress}</span>
                     </div>
                   </div>
                 </div>
@@ -319,6 +620,21 @@ export const CashierProfile: React.FC = () => {
               </div>
 
               <div className="border-t border-surface-container-high pt-4 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordError(null);
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setIsPasswordModalOpen(true);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-primary text-on-primary hover:bg-primary/90 font-body-medium text-small font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">lock_reset</span>
+                  <span>Rotate Password</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}

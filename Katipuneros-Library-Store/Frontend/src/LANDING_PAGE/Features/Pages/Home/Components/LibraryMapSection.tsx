@@ -78,7 +78,7 @@ export const LibraryMapSection: FC = () => {
                       Entry Requirements
                     </span>
                     <span className="font-small text-small text-text-secondary">
-                      Validated student/faculty RFID or Visitor Pass. Physical hold pickup vouchers require student badge.
+                      Validated student/faculty Barcode Pass or Visitor ID. Physical hold pickup vouchers require student badge.
                     </span>
                   </div>
                 </div>

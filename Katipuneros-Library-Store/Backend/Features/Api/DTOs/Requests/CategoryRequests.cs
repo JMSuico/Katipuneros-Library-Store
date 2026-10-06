@@ -29,3 +29,10 @@ public class UpdateCategoryRequest
     [MaxLength(500)]
     public string Description { get; set; } = string.Empty;
 }
+
+public class BulkDeleteCategoriesRequest
+{
+    [Required]
+    public List<Guid> CategoryIds { get; set; } = new();
+}
+

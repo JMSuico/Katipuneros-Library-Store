@@ -75,7 +75,7 @@ export interface CashierShiftSummary {
   floatBase: number;
   finesCollectedToday: number;
   totalRegisterCash: number;
-  isHardwareScannerActive: boolean;
+  isBarcodeScannerReady: boolean;
   lastSyncedAt: string;
 }
 
@@ -144,7 +144,7 @@ export const getCashierShiftStatus = async (): Promise<CashierShiftSummary> => {
         floatBase: 1000.0,
         finesCollectedToday: 0.0,
         totalRegisterCash: 1000.0,
-        isHardwareScannerActive: true,
+        isBarcodeScannerReady: true,
         lastSyncedAt: new Date().toISOString(),
       };
 };

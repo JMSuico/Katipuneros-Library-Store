@@ -26,4 +26,5 @@ public interface IUserService
     Task<(int DeletedCount, string? Error)> BulkDeleteUsersAsync(List<Guid> userIds);
     Task<(bool Success, string? Error)> AdminUpdateUserAsync(Guid userId, AdminUpdateUserRequest request);
     Task<(User? User, string? Error)> AdminCreateUserAsync(AdminCreateUserRequest request);
+    Task<(bool Success, string? Error)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
 }

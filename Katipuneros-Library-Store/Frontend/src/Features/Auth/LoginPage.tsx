@@ -14,6 +14,7 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,9 +117,13 @@ export const LoginPage: React.FC = () => {
               <label className="font-caption text-caption uppercase tracking-wider text-text-secondary font-semibold">
                 Password
               </label>
-              <a href="#forgot" className="font-caption text-caption text-primary hover:underline font-medium">
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(true)}
+                className="font-caption text-caption text-primary hover:underline font-medium cursor-pointer"
+              >
                 Forgot password?
-              </a>
+              </button>
             </div>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">
@@ -178,6 +183,32 @@ export const LoginPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* Forgot Password Information Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md p-6 sm:p-8 bg-surface-container-lowest/95 backdrop-blur-2xl rounded-3xl border border-white/80 shadow-2xl flex flex-col items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+              <span className="material-symbols-outlined text-2xl">lock_reset</span>
+            </div>
+            <div>
+              <h3 className="font-headline-3 text-headline-3 text-text-primary font-bold">
+                Credential Reset Protocol
+              </h3>
+              <p className="font-body text-small text-text-secondary mt-2 leading-relaxed">
+                For academic patron and circulation safety, credentials cannot be reset via unverified links. Please present your Institutional ID card in person at <strong>Circulation Desk Counter Bay-B4</strong> or send an inquiry from your registered university email to <strong>desk@katipuneros.edu.ph</strong>.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(false)}
+              className="w-full mt-2 py-3 px-4 rounded-2xl bg-action-green hover:bg-action-green-hover text-text-primary font-bold text-small shadow-sm transition-all cursor-pointer"
+            >
+              Understood
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

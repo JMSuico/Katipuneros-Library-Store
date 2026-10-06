@@ -1101,7 +1101,7 @@ const Borrowings: FC = () => {
 
                 <div className="flex flex-col gap-1.5">
                   <label className="font-caption text-caption text-text-primary font-semibold">
-                    Catalog RFID / Volume Barcode
+                    Accession / Volume Barcode
                   </label>
                   <div className="relative">
                     <input

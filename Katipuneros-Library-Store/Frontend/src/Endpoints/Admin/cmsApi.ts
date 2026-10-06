@@ -79,5 +79,11 @@ export const adminDeleteCategory = async (id: string) =>
     method: 'DELETE',
   });
 
+export const adminBulkDeleteCategories = async (categoryIds: string[]) =>
+  await apiRequest<{ deletedCount: number }>('/categories/bulk-delete', {
+    method: 'POST',
+    body: JSON.stringify({ categoryIds }),
+  });
+
 export const adminGetPersonnel = async () =>
   await apiRequest<object[]>('/personnel');

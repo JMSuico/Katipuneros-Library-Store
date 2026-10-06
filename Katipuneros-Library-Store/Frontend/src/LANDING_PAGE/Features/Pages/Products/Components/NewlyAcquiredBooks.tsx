@@ -4,7 +4,7 @@
 // Connects to Endpoints/booksApi.ts for catalog data via expression lambdas.
 import { FC, useState, useEffect } from 'react';
 import { BookDetailData } from '../../Home/Components/BookDetailModal';
-import { getPublicBooks } from '../../../../../Endpoints/booksApi';
+import { getPublicBooks, getCategories } from '../../../../../Endpoints/booksApi';
 
 interface NewlyAcquiredBooksProps {
   onOpenDetail: (book: BookDetailData) => void;
@@ -76,22 +76,33 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
 }) => {
   const [books, setBooks] = useState<BookDetailData[]>(CATALOG_BOOKS);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const categories = ['All', 'Technology', 'Science', 'History'];
+  const [categories, setCategories] = useState<string[]>(['All', 'Technology', 'Science', 'History']);
 
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const liveBooks = await getPublicBooks();
+        const [liveBooks, liveCats] = await Promise.all([
+          getPublicBooks(),
+          getCategories(),
+        ]);
+
+        if (liveCats && liveCats.length > 0) {
+          const catNames = Array.from(new Set(liveCats.map((c) => c.name).filter(Boolean)));
+          setCategories(['All', ...catNames]);
+        }
+
         if (liveBooks && liveBooks.length > 0) {
-          setBooks(liveBooks.map((b) => ({
-            title: b.title,
-            author: b.author,
-            category: b.category,
-            stock: `${b.availableCopies} Available`,
-            isbn: b.isbn,
-            synopsis: b.summary || 'Curated volume from university archives.',
-            coverImage: b.coverImage || CATALOG_BOOKS[0].coverImage,
-          })));
+          setBooks(
+            liveBooks.map((b) => ({
+              title: b.title,
+              author: b.author,
+              category: b.category,
+              stock: `${b.availableCopies} Available`,
+              isbn: b.isbn,
+              synopsis: b.summary || 'Curated volume from university archives.',
+              coverImage: b.coverImage || CATALOG_BOOKS[0].coverImage,
+            }))
+          );
         }
       } catch {
         // Graceful fallback to static catalog
@@ -151,59 +162,76 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
 
       {/* Book Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
-        {filteredBooks.map((book) => (
-          <div
-            key={book.title}
-            className="group p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-          >
-            <div>
-              <div className="relative w-full h-56 rounded-2xl overflow-hidden mb-space-md bg-secondary-container shadow-inner flex items-center justify-center group-hover:scale-[1.02] transition-transform">
-                <img
-                  className="w-full h-full object-cover"
-                  alt={book.title}
-                  src={book.coverImage}
-                />
-                <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/90 backdrop-blur-md font-caption text-caption text-status-available font-semibold shadow-sm">
-                  {book.stock}
-                </div>
-                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-primary/90 backdrop-blur-md font-caption text-caption text-white font-medium">
-                  {book.category}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 text-[#EAB308] mb-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <span
-                    key={s}
-                    className="material-symbols-outlined text-[16px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    star
-                  </span>
-                ))}
-                <span className="font-caption text-caption text-text-primary font-bold ml-1">4.9</span>
-              </div>
-              <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold line-clamp-1">
-                {book.title}
-              </h3>
-              <p className="font-small text-small text-text-secondary mb-3">{book.author}</p>
-              <p className="font-small text-small text-text-secondary line-clamp-2">{book.synopsis}</p>
-            </div>
-            <div className="pt-space-md grid grid-cols-2 gap-2 mt-2">
-              <button
-                className="py-2.5 px-3 rounded-xl bg-soft-blue text-primary font-body-medium text-small font-semibold hover:bg-white transition-colors cursor-pointer"
-                onClick={() => onOpenDetail(book)}
-              >
-                Details
-              </button>
-              <button
-                className="py-2.5 px-3 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-small font-semibold transition-all shadow-sm cursor-pointer"
-                onClick={() => onOpenReserve(book)}
-              >
-                Reserve
-              </button>
-            </div>
+        {filteredBooks.length === 0 ? (
+          <div className="col-span-full py-16 text-center flex flex-col items-center justify-center p-8 bg-white/70 rounded-3xl border border-dashed border-outline-variant/40">
+            <span className="material-symbols-outlined text-5xl text-text-secondary/50 mb-3">menu_book</span>
+            <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold">No Catalog Items Found</h3>
+            <p className="font-small text-small text-text-secondary mt-1 max-w-md">
+              No books currently match &quot;{selectedCategory}&quot; {searchFilter ? `with keyword "${searchFilter}"` : ''}.
+              Try selecting &quot;All&quot; or clearing your search filters.
+            </p>
+            <button
+              onClick={() => setSelectedCategory('All')}
+              className="mt-4 px-5 py-2 rounded-full bg-action-green text-text-primary font-body-medium text-small font-semibold shadow-sm hover:bg-action-green-hover transition-colors cursor-pointer"
+            >
+              Show All Categories
+            </button>
           </div>
-        ))}
+        ) : (
+          filteredBooks.map((book) => (
+            <div
+              key={book.title}
+              className="group p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+            >
+              <div>
+                <div className="relative w-full h-56 rounded-2xl overflow-hidden mb-space-md bg-secondary-container shadow-inner flex items-center justify-center group-hover:scale-[1.02] transition-transform">
+                  <img
+                    className="w-full h-full object-cover"
+                    alt={book.title}
+                    src={book.coverImage}
+                  />
+                  <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/90 backdrop-blur-md font-caption text-caption text-status-available font-semibold shadow-sm">
+                    {book.stock}
+                  </div>
+                  <div className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-primary/90 backdrop-blur-md font-caption text-caption text-white font-medium">
+                    {book.category}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-[#EAB308] mb-1">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <span
+                      key={s}
+                      className="material-symbols-outlined text-[16px]"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      star
+                    </span>
+                  ))}
+                  <span className="font-caption text-caption text-text-primary font-bold ml-1">4.9</span>
+                </div>
+                <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold line-clamp-1">
+                  {book.title}
+                </h3>
+                <p className="font-small text-small text-text-secondary mb-3">{book.author}</p>
+                <p className="font-small text-small text-text-secondary line-clamp-2">{book.synopsis}</p>
+              </div>
+              <div className="pt-space-md grid grid-cols-2 gap-2 mt-2">
+                <button
+                  className="py-2.5 px-3 rounded-xl bg-soft-blue text-primary font-body-medium text-small font-semibold hover:bg-white transition-colors cursor-pointer"
+                  onClick={() => onOpenDetail(book)}
+                >
+                  Details
+                </button>
+                <button
+                  className="py-2.5 px-3 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-small font-semibold transition-all shadow-sm cursor-pointer"
+                  onClick={() => onOpenReserve(book)}
+                >
+                  Reserve
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

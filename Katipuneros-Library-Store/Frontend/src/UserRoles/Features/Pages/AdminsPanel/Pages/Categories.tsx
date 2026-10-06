@@ -6,11 +6,14 @@
 
 import React, { FC, useState, useEffect, useMemo, useCallback } from 'react';
 import { getCategories, getCatalogBooks, BackendCategory, BackendBook } from '../../../../../Endpoints/booksApi';
-import { adminCreateCategory, adminUpdateCategory, adminDeleteCategory } from '../../../../../Endpoints/Admin/cmsApi';
+import { adminCreateCategory, adminUpdateCategory, adminDeleteCategory, adminBulkDeleteCategories } from '../../../../../Endpoints/Admin/cmsApi';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
+import { useSelection } from '../../../../../Hooks/useSelection';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
+import { Checkbox } from '../../../../../Shared/Checkbox';
 import { SearchBar } from '../../../../../Shared/SearchBar';
 import { Dropdown, DropdownItem } from '../../../../../Shared/Dropdown';
 
@@ -27,6 +30,7 @@ const PAGE_SIZE_OPTIONS: DropdownItem<number>[] = [
 ];
 
 const Categories: FC = () => {
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
   const [categories, setCategories] = useState<BackendCategory[]>([]);
   const [books, setBooks] = useState<BackendBook[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,6 +38,11 @@ const Categories: FC = () => {
   const debouncedSearchQuery = useDebounce(searchQuery, 250);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'stem' | 'humanities' | 'filipiniana'>('all');
+
+  // Multi-Selection State for Bulk Operations
+  const selection = useSelection<string>();
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState<boolean>(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState<boolean>(false);
 
   // Modal State (Add)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -90,8 +99,8 @@ const Categories: FC = () => {
   usePagesGlobalRefresh(loadData);
 
   // Compute Metrics strictly using formulas defined in ADMIN DATA SHOW FORMULA.md
-  // Metric 3.1: Total Disciplines
-  const totalDisciplines = categories.length;
+  // Metric 3.1: Total Categories
+  const totalCategories = categories.length;
 
   // Metric 3.2: Indexed Titles (Books with valid CategoryId)
   const indexedTitles = useMemo(
@@ -270,7 +279,7 @@ const Categories: FC = () => {
           setSelectedCategoryId(null);
         }
         await loadData();
-        setToast({ message: 'Discipline category de-accessioned.', type: 'success' });
+        setToast({ message: 'Category deleted successfully.', type: 'success' });
       } else {
         setToast({ message: res.message || 'Failed to remove category.', type: 'error' });
       }
@@ -280,6 +289,34 @@ const Categories: FC = () => {
     } finally {
       setIsDeleting(false);
       setCategoryToDelete(null);
+    }
+  };
+
+  // Confirm Bulk Delete Categories Handler
+  const confirmBulkDeleteCategories = async () => {
+    if (selection.selectedCount === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await adminBulkDeleteCategories(selection.selectedList);
+      if (res.success) {
+        if (selectedCategoryId && selection.selectedIds.has(selectedCategoryId)) {
+          setSelectedCategoryId(null);
+        }
+        selection.clearSelection();
+        setIsBulkDeleteModalOpen(false);
+        await loadData();
+        setToast({
+          message: `${res.data?.deletedCount ?? selection.selectedCount} categories de-accessioned successfully.`,
+          type: 'success',
+        });
+      } else {
+        setToast({ message: res.message || 'Failed to remove selected categories.', type: 'error' });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'An error occurred during bulk deletion.';
+      setToast({ message: msg, type: 'error' });
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -340,7 +377,7 @@ const Categories: FC = () => {
               <span className="text-primary font-bold">Categories</span>
             </div>
             <h1 className="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">
-              Academic Disciplines &amp; Catalog Classification
+              Catalog Categories &amp; Dewey Classification
             </h1>
             <p className="font-small text-small text-text-secondary mt-0.5">
               Manage hierarchical ontology, Dewey Decimal ranges, and physical repository bay allocations.
@@ -379,19 +416,19 @@ const Categories: FC = () => {
 
         {/* 4 Real-Time KPI Cards strictly calculated from real ledger data */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-space-md mb-space-xl">
-          {/* Card 1: Total Disciplines */}
+          {/* Card 1: Total Categories */}
           <div className="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
                 <span className="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">
-                  Total Disciplines
+                  Total Categories
                 </span>
                 <div className="flex items-baseline gap-space-xs mt-1">
                   <span className="font-headline-2 text-headline-2 text-text-primary tracking-tight font-bold">
-                    {totalDisciplines}
+                    {totalCategories}
                   </span>
                   <span className="font-caption text-caption text-status-available font-bold uppercase">
-                    {totalDisciplines > 0 ? 'Active Class' : 'Empty'}
+                    {totalCategories > 0 ? 'Active Class' : 'Empty'}
                   </span>
                 </div>
               </div>
@@ -401,7 +438,7 @@ const Categories: FC = () => {
             </div>
             <div className="flex items-center gap-space-xs mt-4 font-caption text-caption text-text-secondary">
               <span className="material-symbols-outlined text-[16px] text-primary">verified</span>
-              <span>{totalDisciplines > 0 ? `${totalDisciplines} classifications cataloged` : 'No categories in ledger'}</span>
+              <span>{totalCategories > 0 ? `${totalCategories} classifications cataloged` : 'No categories in ledger'}</span>
             </div>
           </div>
 
@@ -486,7 +523,7 @@ const Categories: FC = () => {
                 <SearchBar
                   value={searchQuery}
                   onChange={setSearchQuery}
-                  placeholder="Search call code, discipline, keyword..."
+                  placeholder="Search call code, category, keyword..."
                   shortcutKey="⌘K"
                 />
               </div>
@@ -538,12 +575,49 @@ const Categories: FC = () => {
               </div>
             </div>
 
+            {/* Bulk Selection Action Bar */}
+            {selection.selectedCount > 0 && (
+              <div className="flex items-center justify-between p-3.5 mb-4 bg-primary/10 border border-primary/30 rounded-xl shadow-xs animate-scale-up">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+                  <span className="font-small text-small font-bold text-text-primary">
+                    {selection.selectedCount} {selection.selectedCount === 1 ? 'category' : 'categories'} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => selection.clearSelection()}
+                    className="px-3 py-1.5 rounded-lg text-small font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer"
+                  >
+                    Clear selection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkDeleteModalOpen(true)}
+                    className="px-4 py-1.5 rounded-lg text-small font-bold bg-status-danger text-white hover:bg-status-danger/90 transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <span>De-Accession Selected ({selection.selectedCount})</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Real-Time Table */}
             <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline-variant/15">
-              <div className="overflow-x-auto">
+              <div ref={tableContainerRef} className="overflow-x-auto cursor-grab active:cursor-grabbing select-none">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-surface-container text-text-secondary font-caption text-caption uppercase tracking-wider select-none">
+                      <th className="py-space-md px-space-md w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selection.isAllSelected(pagination.paginatedItems)}
+                          indeterminate={selection.isPartiallySelected(pagination.paginatedItems)}
+                          onChange={() => selection.toggleSelectAll(pagination.paginatedItems)}
+                          ariaLabel="Select all categories on current page"
+                        />
+                      </th>
                       <th className="py-space-md px-space-md font-semibold">Category ID</th>
                       <th className="py-space-md px-space-md font-semibold">Category Name</th>
                       <th className="py-space-md px-space-sm font-semibold text-center">Subject Headings</th>
@@ -555,7 +629,7 @@ const Categories: FC = () => {
                   <tbody className="divide-y divide-surface-container-low font-small text-small text-text-primary" id="categoriesTableBody">
                     {loading ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-text-secondary">
+                        <td colSpan={7} className="py-12 text-center text-text-secondary">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <span className="material-symbols-outlined text-[32px] animate-spin text-primary">sync</span>
                             <span>Synchronizing classification taxonomy with database...</span>
@@ -564,7 +638,7 @@ const Categories: FC = () => {
                       </tr>
                     ) : pagination.paginatedItems.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-text-secondary font-small">
+                        <td colSpan={7} className="py-12 text-center text-text-secondary font-small">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <span className="material-symbols-outlined text-[40px] text-text-secondary/40">category</span>
                             <p className="font-semibold text-text-primary">
@@ -594,14 +668,23 @@ const Categories: FC = () => {
                           : [];
                         const isSelected = selectedCategory?.id === c.id;
 
+                        const isChecked = selection.isSelected(c.id);
+
                         return (
                           <tr
                             key={c.id}
                             className={`category-row hover:bg-surface-container-low/70 transition-colors cursor-pointer ${
-                              isSelected ? 'bg-soft-blue/25 font-medium' : ''
+                              isChecked ? 'bg-primary/5 font-medium' : isSelected ? 'bg-soft-blue/25 font-medium' : ''
                             }`}
                             onClick={() => setSelectedCategoryId(c.id)}
                           >
+                            <td className="py-3.5 px-space-md text-center" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isChecked}
+                                onChange={() => selection.toggle(c.id)}
+                                ariaLabel={`Select category ${c.name}`}
+                              />
+                            </td>
                             <td className="py-3.5 px-space-md">
                               <span className="font-caption text-caption font-mono font-bold px-2 py-1 bg-surface-container rounded text-primary">
                                 {c.deweyRange}
@@ -651,11 +734,11 @@ const Categories: FC = () => {
                                 </button>
                                 <button
                                   className="p-1.5 rounded-lg hover:bg-error-container text-error transition-colors cursor-pointer"
-                                  title="Archive / Remove"
+                                  title="Delete Category"
                                   type="button"
                                   onClick={() => handleDeleteCategory(c.id, c.name)}
                                 >
-                                  <span className="material-symbols-outlined text-[18px]">archive</span>
+                                  <span className="material-symbols-outlined text-[18px]">delete</span>
                                 </button>
                               </div>
                             </td>
@@ -838,11 +921,11 @@ const Categories: FC = () => {
           </div>
         </div>
 
-        {/* Add Academic Discipline Modal */}
+        {/* Add Catalog Category Modal */}
         <DefaultFloatingModalCard
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Add Academic Discipline"
+          title="Add Catalog Category"
           maxWidth="max-w-lg"
           footer={
             <div className="flex items-center justify-end gap-space-sm w-full">
@@ -968,39 +1051,122 @@ const Categories: FC = () => {
           </form>
         </DefaultFloatingModalCard>
 
-        {/* Delete Discipline Confirmation Modal */}
-        <DefaultFloatingModalCard
-          isOpen={!!categoryToDelete}
-          onClose={() => setCategoryToDelete(null)}
-          title="Remove Discipline Category"
-          maxWidth="max-w-md"
-          footer={
-            <div className="flex items-center justify-end gap-space-sm w-full">
-              <button
-                type="button"
-                onClick={() => setCategoryToDelete(null)}
-                className="px-space-md py-2 rounded-xl bg-surface-container text-text-secondary hover:text-text-primary font-small text-small font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteCategory}
-                disabled={isDeleting}
-                className="px-space-lg py-2 rounded-xl bg-status-danger hover:bg-status-danger/80 text-white font-small text-small font-bold shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-              >
-                {isDeleting && <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>}
-                <span>Remove Category</span>
-              </button>
-            </div>
-          }
-        >
-          <p className="font-small text-small text-text-secondary leading-relaxed">
-            Are you sure you want to remove the discipline{' '}
-            <strong className="text-text-primary font-bold">"{categoryToDelete?.name}"</strong>?
-            Books currently associated with this category will require reclassification.
-          </p>
-        </DefaultFloatingModalCard>
+        {/* Delete Category Confirmation Modal */}
+        {(() => {
+          const assignedBooksCount = categoryToDelete ? books.filter((b) => b.categoryId === categoryToDelete.id).length : 0;
+          return (
+            <DefaultFloatingModalCard
+              isOpen={!!categoryToDelete}
+              onClose={() => setCategoryToDelete(null)}
+              title="Remove Category"
+              maxWidth="max-w-md"
+              footer={
+                <div className="flex items-center justify-end gap-space-sm w-full">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryToDelete(null)}
+                    className="px-space-md py-2 rounded-xl bg-surface-container text-text-secondary hover:text-text-primary font-small text-small font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDeleteCategory}
+                    disabled={isDeleting || assignedBooksCount > 0}
+                    className="px-space-lg py-2 rounded-xl bg-status-danger hover:bg-status-danger/80 text-white font-small text-small font-bold shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isDeleting && <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>}
+                    <span>Remove Category</span>
+                  </button>
+                </div>
+              }
+            >
+              <div className="flex flex-col gap-3">
+                <p className="font-small text-small text-text-secondary leading-relaxed">
+                  Are you sure you want to remove the category{' '}
+                  <strong className="text-text-primary font-bold">"{categoryToDelete?.name}"</strong>?
+                </p>
+
+                {assignedBooksCount > 0 ? (
+                  <div className="p-3 bg-error-container/20 border border-error/30 rounded-xl text-status-danger text-caption font-semibold flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">block</span>
+                    <span>
+                      Cannot delete this category because <strong>{assignedBooksCount}</strong> title{assignedBooksCount === 1 ? '' : 's'} {assignedBooksCount === 1 ? 'is' : 'are'} currently assigned to it in the catalog. Please reassign those titles before removing.
+                    </span>
+                  </div>
+                ) : (
+                  <p className="font-caption text-caption text-text-secondary">
+                    This category has zero assigned books and can be safely de-accessioned from the system taxonomy.
+                  </p>
+                )}
+              </div>
+            </DefaultFloatingModalCard>
+          );
+        })()}
+
+        {/* Bulk Delete Categories Confirmation Modal */}
+        {(() => {
+          const selectedCategories = categories.filter((c) => selection.isSelected(c.id));
+          const blockedCategories = selectedCategories.filter((c) =>
+            books.some((b) => b.categoryId === c.id || (b.category && b.category.id === c.id))
+          );
+          const hasBlocked = blockedCategories.length > 0;
+
+          return (
+            <DefaultFloatingModalCard
+              isOpen={isBulkDeleteModalOpen}
+              onClose={() => setIsBulkDeleteModalOpen(false)}
+              title="De-Accession Selected Categories"
+              subtitle={`Permanently remove ${selection.selectedCount} classification records from active taxonomy`}
+              maxWidth="max-w-md"
+              footer={
+                <div className="flex items-center justify-end gap-space-sm w-full">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkDeleteModalOpen(false)}
+                    className="px-space-md py-2 rounded-xl bg-surface-container text-text-secondary hover:text-text-primary font-small text-small font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmBulkDeleteCategories}
+                    disabled={isBulkDeleting || hasBlocked}
+                    className="px-space-lg py-2 rounded-xl bg-status-danger hover:bg-status-danger/80 text-white font-small text-small font-bold shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isBulkDeleting && <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>}
+                    <span>De-Accession ({selection.selectedCount})</span>
+                  </button>
+                </div>
+              }
+            >
+              <div className="flex flex-col gap-3">
+                <p className="font-small text-small text-text-secondary leading-relaxed">
+                  You have selected <strong className="text-text-primary font-bold">{selection.selectedCount}</strong> categories for de-accessioning.
+                </p>
+
+                {hasBlocked ? (
+                  <div className="p-3 bg-error-container/20 border border-error/30 rounded-xl text-status-danger text-caption font-semibold flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">block</span>
+                    <div className="flex flex-col gap-1">
+                      <span>
+                        Cannot delete: <strong>{blockedCategories.length}</strong> selected category ({blockedCategories.map((c) => c.name).join(', ')}) has active catalog titles assigned to it.
+                      </span>
+                      <span className="text-[11px] font-normal text-text-secondary">
+                        Please reassign books or deselect blocked categories before proceeding with bulk deletion.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-action-green/10 border border-action-green/30 rounded-xl text-primary text-caption font-medium flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-action-green shrink-0 mt-0.5">check_circle</span>
+                    <span>All selected categories have 0 assigned books and can be safely purged from the taxonomy.</span>
+                  </div>
+                )}
+              </div>
+            </DefaultFloatingModalCard>
+          );
+        })()}
       </div>
     </div>
   );

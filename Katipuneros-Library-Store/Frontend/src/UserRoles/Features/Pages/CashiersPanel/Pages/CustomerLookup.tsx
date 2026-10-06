@@ -5,16 +5,36 @@
 // Universal lambda syntax (=>), zero browser alert().
 
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { getAdminUsersList, AdminUserRecord } from '../../../../../Endpoints/Admin/userApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const CustomerLookup: FC = () => {
+  const navigate = useNavigate();
   const { toasts, addToast, removeToast } = useToasts();
 
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'restricted' | 'faculty'>('all');
+  const [sortBy, setSortBy] = useState<'az' | 'za' | 'newest' | 'oldest'>('az');
+
+  // View state (persisted)
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_patrons_view') || 'table';
+  });
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_patrons_view', mode);
+  };
 
   // Inspection Modal State
   const [inspectedUser, setInspectedUser] = useState<AdminUserRecord | null>(null);
@@ -42,9 +62,9 @@ export const CustomerLookup: FC = () => {
   const activePercentage = totalUsers > 0 ? ((goodStandingCount / totalUsers) * 100).toFixed(1) : '0.0';
   const facultyCount = useMemo(() => users.filter((u) => u.role === 'Admin' || (u.department || '').toLowerCase().includes('faculty')).length, [users]);
 
-  // Filtered List
+  // Filtered and Sorted List
   const filteredUsers = useMemo(() => {
-    return users
+    const list = users
       .filter((u) => {
         if (statusFilter === 'active') return u.isActive && u.status === 'active';
         if (statusFilter === 'restricted') return !u.isActive || u.status === 'suspended';
@@ -52,8 +72,8 @@ export const CustomerLookup: FC = () => {
         return true;
       })
       .filter((u) => {
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
+        if (!debouncedSearch.trim()) return true;
+        const q = debouncedSearch.toLowerCase();
         return (
           u.fullName?.toLowerCase().includes(q) ||
           u.name?.toLowerCase().includes(q) ||
@@ -62,7 +82,35 @@ export const CustomerLookup: FC = () => {
           u.department?.toLowerCase().includes(q)
         );
       });
-  }, [users, statusFilter, searchQuery]);
+
+    return [...list].sort((a, b) => {
+      const nameA = (a.fullName || a.name || '').toLowerCase();
+      const nameB = (b.fullName || b.name || '').toLowerCase();
+      if (sortBy === 'az') return nameA.localeCompare(nameB);
+      if (sortBy === 'za') return nameB.localeCompare(nameA);
+      if (sortBy === 'newest') return (b.joinedDate ? new Date(b.joinedDate).getTime() : 0) - (a.joinedDate ? new Date(a.joinedDate).getTime() : 0);
+      if (sortBy === 'oldest') return (a.joinedDate ? new Date(a.joinedDate).getTime() : 0) - (b.joinedDate ? new Date(b.joinedDate).getTime() : 0);
+      return 0;
+    });
+  }, [users, statusFilter, debouncedSearch, sortBy]);
+
+  // Pagination hook
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems,
+    startIndex,
+    endIndex,
+    canNextPage,
+    canPrevPage,
+    goToPage,
+    nextPage,
+    prevPage,
+    setPageSize,
+    pageSizeOptions,
+  } = usePagination(filteredUsers, { initialPageSize: 10, pageSizeOptions: [10, 25, 50, 100] });
 
   return (
     <div className="w-full">
@@ -190,105 +238,136 @@ export const CustomerLookup: FC = () => {
           </div>
         </div>
 
-        {/* Directory Controls & Table */}
+        {/* Directory Controls & View Toggle */}
         <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
-          {/* Search & Filter Header */}
-          <div className="p-4 border-b border-surface-container flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-text-secondary text-base">
-                search
-              </span>
-              <input
+          {/* Search, Sort & View Mode Header */}
+          <div className="p-4 border-b border-surface-container flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
+            <div className="flex-1 max-w-lg">
+              <SearchBar
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-xl text-small font-small text-text-primary placeholder:text-text-secondary outline-none focus:bg-surface-container transition-colors"
+                onChange={setSearchQuery}
                 placeholder="Search by patron name, library card, email, or dept..."
-                type="text"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-              <button
-                onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 'all'
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
-                }`}
-                type="button"
-              >
-                All Patrons ({users.length})
-              </button>
-              <button
-                onClick={() => setStatusFilter('active')}
-                className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 'active'
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
-                }`}
-                type="button"
-              >
-                In Good Standing
-              </button>
-              <button
-                onClick={() => setStatusFilter('restricted')}
-                className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 'restricted'
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
-                }`}
-                type="button"
-              >
-                Restricted / Suspended
-              </button>
-              <button
-                onClick={() => setStatusFilter('faculty')}
-                className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 'faculty'
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
-                }`}
-                type="button"
-              >
-                Faculty / Staff
-              </button>
+            <div className="flex items-center gap-3 flex-wrap justify-between xl:justify-end">
+              {/* Sort Selector */}
+              <div className="flex items-center gap-1.5 text-caption font-caption text-text-secondary">
+                <span className="font-semibold uppercase tracking-wider">Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'az' | 'za' | 'newest' | 'oldest')}
+                  className="h-9 px-2.5 rounded-lg bg-surface-container-low font-small text-small text-text-primary outline-none cursor-pointer border border-surface-container-high"
+                >
+                  <option value="az">Name (A–Z)</option>
+                  <option value="za">Name (Z–A)</option>
+                  <option value="newest">Newest Joined</option>
+                  <option value="oldest">Oldest Member</option>
+                </select>
+              </div>
+
+              {/* View Mode Toggle */}
+              <RadioGroup
+                name="cashier-patrons-view-toggle"
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+                options={[
+                  { value: 'table', label: 'Table', icon: 'table_rows' },
+                  { value: 'card', label: 'Cards', icon: 'grid_view' },
+                ]}
+              />
             </div>
           </div>
 
-          {/* Patrons Table */}
-          {isLoading ? (
-            <div className="py-16 flex flex-col items-center justify-center">
-              <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <span className="font-caption text-caption text-text-secondary mt-2">Loading directory...</span>
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="py-16 flex flex-col items-center justify-center text-center p-6">
-              <span className="material-symbols-outlined text-5xl text-text-secondary/40 mb-2">
-                group_off
-              </span>
-              <p className="font-body-medium text-body-medium text-text-primary font-semibold">
-                No university patrons found
-              </p>
-              <p className="font-caption text-caption text-text-secondary max-w-sm mt-1">
-                {searchQuery
-                  ? `No accounts matching "${searchQuery}". Check spelling or clear filters.`
-                  : 'The patron directory currently contains no registered users.'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-surface-container-low text-text-secondary font-caption text-caption uppercase tracking-wider">
-                    <th className="py-3 px-4">Patron Name &amp; Contact</th>
-                    <th className="py-3 px-4">Library Card &amp; Department</th>
-                    <th className="py-3 px-4">Role</th>
-                    <th className="py-3 px-4">Standing Status</th>
-                    <th className="py-3 px-4 text-right">Action</th>
+          {/* Filter Chips Bar */}
+          <div className="px-4 py-2.5 bg-surface-container-low/40 border-b border-surface-container flex items-center gap-2 overflow-x-auto select-none">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
+                statusFilter === 'all'
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container text-text-secondary hover:text-text-primary'
+              }`}
+              type="button"
+            >
+              All Patrons ({users.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter('active')}
+              className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
+                statusFilter === 'active'
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container text-text-secondary hover:text-text-primary'
+              }`}
+              type="button"
+            >
+              In Good Standing ({goodStandingCount})
+            </button>
+            <button
+              onClick={() => setStatusFilter('restricted')}
+              className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
+                statusFilter === 'restricted'
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container text-text-secondary hover:text-text-primary'
+              }`}
+              type="button"
+            >
+              Restricted / Suspended ({totalUsers - goodStandingCount})
+            </button>
+            <button
+              onClick={() => setStatusFilter('faculty')}
+              className={`px-3 py-1.5 rounded-full text-caption font-caption font-bold transition-all cursor-pointer whitespace-nowrap ${
+                statusFilter === 'faculty'
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container text-text-secondary hover:text-text-primary'
+              }`}
+              type="button"
+            >
+              Faculty / Staff ({facultyCount})
+            </button>
+          </div>
+
+          {/* Draggable Table (Always mounted to preserve drag listeners) */}
+          <div
+            ref={tableContainerRef}
+            className={`w-full overflow-x-auto select-none ${viewMode === 'table' ? '' : 'hidden'}`}
+          >
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-surface-container-low text-text-secondary font-caption text-caption uppercase tracking-wider">
+                  <th className="py-3 px-4">Patron Name &amp; Contact</th>
+                  <th className="py-3 px-4">Library Card &amp; Department</th>
+                  <th className="py-3 px-4">Role</th>
+                  <th className="py-3 px-4">Standing Status</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-container-high/40 text-small font-small">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-16 text-center text-text-secondary">
+                      <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                      <p>Loading university patron directory...</p>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-container-high/40 text-small font-small">
-                  {filteredUsers.map((u) => {
+                ) : paginatedItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-16 text-center text-text-secondary">
+                      <span className="material-symbols-outlined text-5xl text-text-secondary/40 mb-2">
+                        group_off
+                      </span>
+                      <p className="font-body-medium text-body-medium text-text-primary font-semibold">
+                        No university patrons found
+                      </p>
+                      <p className="font-caption text-caption text-text-secondary max-w-sm mt-1 mx-auto">
+                        {searchQuery
+                          ? `No accounts matching "${searchQuery}". Check spelling or clear filters.`
+                          : 'The patron directory currently contains zero registered users.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedItems.map((u) => {
                     const isGood = u.isActive && u.status === 'active';
                     return (
                       <tr key={u.id} className="hover:bg-surface-container-low/60 transition-colors">
@@ -353,19 +432,151 @@ export const CustomerLookup: FC = () => {
                         </td>
                       </tr>
                     );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Patron Cards Grid (Active when viewMode === 'card') */}
+          {viewMode === 'card' && (
+            <div className="p-4">
+              {isLoading ? (
+                <div className="py-16 text-center text-text-secondary">
+                  <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p>Loading patron cards...</p>
+                </div>
+              ) : paginatedItems.length === 0 ? (
+                <div className="py-16 text-center text-text-secondary">
+                  <span className="material-symbols-outlined text-5xl text-text-secondary/40 mb-2">
+                    group_off
+                  </span>
+                  <p className="font-semibold text-text-primary">No university patrons found</p>
+                  <p className="font-caption text-caption mt-1">
+                    Zero accounts match current search criteria.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedItems.map((u) => {
+                    const isGood = u.isActive && u.status === 'active';
+                    return (
+                      <div
+                        key={u.id}
+                        className="rounded-2xl bg-surface-container-low p-4 border border-surface-container-high/60 flex flex-col justify-between hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 rounded-full bg-soft-blue text-primary flex items-center justify-center font-bold text-lg shadow-sm flex-shrink-0">
+                              {u.fullName?.charAt(0) || u.name?.charAt(0) || 'U'}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <h4 className="font-body-large text-body-large font-bold text-text-primary truncate">
+                                {u.fullName || u.name}
+                              </h4>
+                              <span className="font-caption text-caption text-text-secondary truncate">
+                                {u.email}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-surface-container text-text-primary">
+                            {u.role}
+                          </span>
+                        </div>
+
+                        <div className="my-3 py-2 border-y border-surface-container flex items-center justify-between font-caption text-caption">
+                          <div>
+                            <span className="text-text-secondary block">Card No.</span>
+                            <span className="font-mono font-bold text-primary">
+                              {u.libraryCardNumber || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-text-secondary block">Department</span>
+                            <span className="text-text-primary font-medium truncate max-w-[120px] block">
+                              {u.department || 'General'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-caption text-[11px] font-bold ${
+                              isGood
+                                ? 'bg-status-available/20 text-status-available'
+                                : 'bg-error-container text-on-error-container'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isGood ? 'bg-status-available' : 'bg-status-danger'
+                              }`}
+                            ></span>
+                            {isGood ? 'Good Standing' : 'Suspended'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInspectedUser(u);
+                              setActiveModalTab('details');
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-small text-small font-semibold transition-colors cursor-pointer"
+                          >
+                            Inspect
+                          </button>
+                        </div>
+                      </div>
+                    );
                   })}
-                </tbody>
-              </table>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Footer */}
-          <div className="p-4 border-t border-surface-container flex items-center justify-between font-caption text-caption text-text-secondary">
-            <span>
-              Showing {filteredUsers.length} of {users.length} verified patrons
-            </span>
-            <span className="font-mono text-primary font-bold">Terminal Desk 01 Directory Live</span>
-          </div>
+          {/* Pagination Footer */}
+          {totalItems > 0 && (
+            <div className="p-4 border-t border-surface-container flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="font-caption text-caption text-text-secondary">
+                Showing {startIndex + 1}–{endIndex} of {totalItems} verified patrons
+              </span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={!canPrevPage}
+                    onClick={prevPage}
+                    className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    aria-label="Previous page"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_left</span>
+                  </button>
+                  <span className="font-caption text-caption px-2 py-1 text-text-secondary">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!canNextPage}
+                    onClick={nextPage}
+                    className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    aria-label="Next page"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_right</span>
+                  </button>
+                </div>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="h-8 px-2 rounded-lg bg-surface-container text-text-secondary font-caption text-caption outline-none cursor-pointer"
+                >
+                  {pageSizeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt} / page
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

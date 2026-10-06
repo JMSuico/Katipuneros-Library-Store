@@ -78,6 +78,9 @@ const BooksManager: FC = () => {
   const [isBatchImportModalOpen, setIsBatchImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isSingleDeleteModalOpen, setIsSingleDeleteModalOpen] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState<BackendBook | null>(null);
+  const [singleDeleteError, setSingleDeleteError] = useState<string>('');
 
   // Modal Forms
   const [addForm, setAddForm] = useState<CreateBookDto>({
@@ -444,6 +447,26 @@ const BooksManager: FC = () => {
     setIsManageCopiesModalOpen(false);
   };
 
+  // Single Item De-accession / Delete
+  const handleSingleDelete = async () => {
+    if (!bookToDelete) return;
+    try {
+      const res = await deleteCatalogBook(bookToDelete.id);
+      if (res.success) {
+        showToast(`Book "${bookToDelete.title}" de-accessioned successfully.`);
+        setBooks((prev) => prev.filter((b) => b.id !== bookToDelete.id));
+        setIsSingleDeleteModalOpen(false);
+        setBookToDelete(null);
+        setSingleDeleteError('');
+        loadData();
+      } else {
+        setSingleDeleteError(res.message || 'Failed to delete book.');
+      }
+    } catch (err: any) {
+      setSingleDeleteError(err?.message || 'Failed to delete book.');
+    }
+  };
+
   // Bulk Operations
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
@@ -563,7 +586,7 @@ const BooksManager: FC = () => {
             `=245  10$a${cleanTitle}$c${cleanAuthor}`,
             `=264  \\1$c${cleanYear}`,
             `=650  \\0$a${categoryName}`,
-            `=852  \\\\$aJRMSU Katipuneros Library Store$c${b.bayLocation || 'General Stacks'}$p${b.rfidTag || b.isbnBarcode || cleanIsbn}`,
+            `=852  \\\\$aJRMSU Katipuneros Library Store$c${b.bayLocation || 'General Stacks'}$p${b.isbnBarcode || cleanIsbn}`,
           ].filter(Boolean);
 
           return lines.join('\n');
@@ -1087,6 +1110,18 @@ const BooksManager: FC = () => {
                                 >
                                   <span className="material-symbols-outlined text-[18px]">visibility</span>
                                 </button>
+                                <button
+                                  onClick={() => {
+                                    setBookToDelete(book);
+                                    setSingleDeleteError('');
+                                    setIsSingleDeleteModalOpen(true);
+                                  }}
+                                  className="p-1.5 rounded-lg text-text-secondary hover:bg-error-container hover:text-error transition-colors cursor-pointer"
+                                  title="De-accession Book"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">delete</span>
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1213,6 +1248,18 @@ const BooksManager: FC = () => {
                               type="button"
                             >
                               <span className="material-symbols-outlined text-[18px]">visibility</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setBookToDelete(book);
+                                setSingleDeleteError('');
+                                setIsSingleDeleteModalOpen(true);
+                              }}
+                              className="p-1 rounded-lg text-text-secondary hover:bg-error-container hover:text-error transition-colors"
+                              title="De-accession Book"
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
                             </button>
                           </div>
                         </div>
@@ -1354,9 +1401,9 @@ const BooksManager: FC = () => {
                       <span className="font-bold text-text-primary">{selectedBook.bayLocation}</span>
                     </div>
                     <div>
-                      <span className="text-text-secondary block">RFID Tag:</span>
+                      <span className="text-text-secondary block">Accession Serial:</span>
                       <span className="font-bold text-text-primary font-mono">
-                        {selectedBook.rfidTag || 'RFID-PENDING'}
+                        {selectedBook.isbnBarcode || 'ACC-PENDING'}
                       </span>
                     </div>
                   </div>
@@ -1640,13 +1687,13 @@ const BooksManager: FC = () => {
 
           <div>
             <label className="block text-caption font-caption text-text-secondary uppercase mb-1">
-              RFID Tag (Optional)
+              Accession Code / Serial (Optional)
             </label>
             <input
               type="text"
               value={addForm.rfidTag}
               onChange={(e) => setAddForm({ ...addForm, rfidTag: e.target.value })}
-              placeholder="e.g. RFID-0051-MAR-01"
+              placeholder="e.g. ACC-0051-MAR-01"
               className="w-full bg-surface-container-low px-3 py-2 rounded-xl text-small font-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 border border-outline-variant/20"
             />
           </div>
@@ -1817,8 +1864,8 @@ const BooksManager: FC = () => {
                 <span className="font-bold text-text-primary">{selectedBook.bayLocation}</span>
               </div>
               <div>
-                <span className="text-text-secondary block">RFID Tag:</span>
-                <span className="font-bold text-text-primary font-mono">{selectedBook.rfidTag || 'Unassigned'}</span>
+                <span className="text-text-secondary block">Accession Serial:</span>
+                <span className="font-bold text-text-primary font-mono">{selectedBook.isbnBarcode || 'Unassigned'}</span>
               </div>
             </div>
 
@@ -1839,6 +1886,18 @@ const BooksManager: FC = () => {
                 className="px-4 py-2 rounded-xl bg-soft-blue text-primary font-bold text-small hover:bg-secondary-fixed transition-colors cursor-pointer"
               >
                 Edit Book
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsInspectorModalOpen(false);
+                  setBookToDelete(selectedBook);
+                  setSingleDeleteError('');
+                  setIsSingleDeleteModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl bg-status-danger/10 text-status-danger font-bold text-small hover:bg-status-danger/20 transition-colors cursor-pointer"
+              >
+                Delete Book
               </button>
               <button
                 type="button"
@@ -1981,9 +2040,9 @@ const BooksManager: FC = () => {
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-xl">qr_code_scanner</span>
               <div className="flex flex-col">
-                <span className="font-bold text-text-primary">RFID Tag Scan</span>
+                <span className="font-bold text-text-primary">Accession Barcode Scan</span>
                 <span className="text-caption text-text-secondary">
-                  Physical tag verified at {selectedBook?.bayLocation}
+                  Accession volume verified at {selectedBook?.bayLocation}
                 </span>
               </div>
             </div>
@@ -2267,6 +2326,53 @@ const BooksManager: FC = () => {
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
               Download {exportFormat === 'marc21' ? 'MARC 21' : exportFormat.toUpperCase()}
+            </button>
+          </div>
+        </div>
+      </DefaultFloatingModalCard>
+
+      {/* 8.5. SINGLE DELETE CONFIRMATION MODAL */}
+      <DefaultFloatingModalCard
+        isOpen={isSingleDeleteModalOpen}
+        onClose={() => {
+          setIsSingleDeleteModalOpen(false);
+          setBookToDelete(null);
+          setSingleDeleteError('');
+        }}
+        title="Confirm De-accession"
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-small text-text-secondary">
+            Are you sure you want to permanently de-accession and delete{' '}
+            <span className="font-bold text-text-primary">"{bookToDelete?.title}"</span> (ISBN: {bookToDelete?.isbn || 'N/A'})?
+            This will remove all associated copies and barcode ledger records.
+          </p>
+
+          {singleDeleteError && (
+            <div className="p-3 bg-error-container/20 border border-error/30 rounded-lg text-status-danger text-caption font-semibold">
+              {singleDeleteError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSingleDeleteModalOpen(false);
+                setBookToDelete(null);
+                setSingleDeleteError('');
+              }}
+              className="px-4 py-2 rounded-xl bg-surface-container text-text-secondary font-semibold hover:bg-surface-container-high transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSingleDelete}
+              className="px-5 py-2 rounded-xl bg-status-danger text-white font-bold hover:bg-status-danger/90 transition-colors cursor-pointer"
+            >
+              Confirm De-accession
             </button>
           </div>
         </div>

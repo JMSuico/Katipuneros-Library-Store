@@ -10,10 +10,15 @@ import {
   getAdminAlerts,
   getTopBentoMetrics,
   resolveAllSystemAlerts,
+  createCampusAnnouncement,
   AdminSystemAlert,
   TopBentoMetrics,
 } from '../../../../../Endpoints/Admin/notificationApi';
 import { getCashierDashboardKpis, CashierDashboardKpis } from '../../../../../Endpoints/Cashier/cashierApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const Notifications: FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
@@ -22,6 +27,22 @@ export const Notifications: FC = () => {
   const [bentoMetrics, setBentoMetrics] = useState<TopBentoMetrics | null>(null);
   const [kpis, setKpis] = useState<CashierDashboardKpis | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // View state (persisted)
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_notifications_view') || 'card';
+  });
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_notifications_view', mode);
+  };
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Filter state
   const [activeTab, setActiveTab] = useState<'all' | 'urgent' | 'hold' | 'returns' | 'system'>('all');
@@ -82,25 +103,43 @@ export const Notifications: FC = () => {
   };
 
   // Broadcast dispatch action
-  const handleBroadcastSubmit = (e: React.FormEvent) => {
+  const handleBroadcastSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastSubject.trim() || !broadcastMessage.trim()) {
       addToast('Please provide both a subject and message for the terminal broadcast.', 'warning');
       return;
     }
 
-    setIsBroadcasting(true);
-    setTimeout(() => {
+    try {
+      setIsBroadcasting(true);
+      const res = await createCampusAnnouncement({
+        title: broadcastSubject.trim(),
+        content: broadcastMessage.trim(),
+        audience: broadcastTarget === 'all' ? 'All Patrons' : broadcastTarget,
+        channels: ['Portal Banner', 'Mobile Push'],
+        priority: 'Urgent / Operating Hours Modification',
+        displayDuration: '24 Hours',
+        isDraft: false,
+      });
+
+      if (res) {
+        addToast(
+          `Terminal broadcast "${broadcastSubject}" dispatched and published to ${
+            broadcastTarget === 'all' ? 'all active patrons' : broadcastTarget
+          }.`,
+          'success'
+        );
+        setBroadcastSubject('');
+        setBroadcastMessage('');
+        loadData();
+      } else {
+        addToast('Failed to dispatch broadcast notice.', 'error');
+      }
+    } catch {
+      addToast('Error communicating with broadcast service.', 'error');
+    } finally {
       setIsBroadcasting(false);
-      addToast(
-        `Terminal broadcast "${broadcastSubject}" dispatched successfully to ${
-          broadcastTarget === 'all' ? 'all active patrons' : broadcastTarget
-        }.`,
-        'success'
-      );
-      setBroadcastSubject('');
-      setBroadcastMessage('');
-    }, 700);
+    }
   };
 
   // Tab counts
@@ -114,7 +153,7 @@ export const Notifications: FC = () => {
       if (a.type === 'delinquency' || a.category?.toLowerCase().includes('return') || a.category?.toLowerCase().includes('overdue')) {
         counts.returns++;
       }
-      if (a.type === 'hardware' || a.type === 'system' || a.category?.toLowerCase().includes('system')) {
+      if (a.type === 'system' || a.category?.toLowerCase().includes('system')) {
         counts.system++;
       }
     });
@@ -124,6 +163,17 @@ export const Notifications: FC = () => {
   // Filtered alerts
   const filteredAlerts = useMemo(() => {
     return alerts.filter((alert) => {
+      // Search filter
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
+        const matches =
+          alert.title?.toLowerCase().includes(q) ||
+          alert.description?.toLowerCase().includes(q) ||
+          alert.category?.toLowerCase().includes(q) ||
+          alert.tag?.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
       // Priority filter
       if (priorityFilter !== 'all' && alert.severity !== priorityFilter) return false;
 
@@ -143,14 +193,32 @@ export const Notifications: FC = () => {
       }
       if (
         activeTab === 'system' &&
-        !(alert.type === 'hardware' || alert.type === 'system' || alert.category?.toLowerCase().includes('system'))
+        !(alert.type === 'system' || alert.category?.toLowerCase().includes('system'))
       ) {
         return false;
       }
 
       return true;
     });
-  }, [alerts, activeTab, priorityFilter]);
+  }, [alerts, activeTab, priorityFilter, debouncedSearch]);
+
+  // Pagination hook
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems,
+    startIndex,
+    endIndex,
+    canNextPage,
+    canPrevPage,
+    goToPage,
+    nextPage,
+    prevPage,
+    setPageSize,
+    pageSizeOptions,
+  } = usePagination(filteredAlerts, { initialPageSize: 10, pageSizeOptions: [10, 25, 50, 100] });
 
   // Derived Bento Metrics
   const urgentAlertsCount = bentoMetrics?.urgentAlertsCount ?? alerts.filter((a) => a.severity === 'critical').length;
@@ -406,6 +474,26 @@ export const Notifications: FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
           {/* Left Feed Column */}
           <div className="lg:col-span-8 flex flex-col gap-space-md">
+            {/* SearchBar & View Mode Toggle */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-space-sm">
+              <div className="flex-1 max-w-md">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search alerts, monographs, or tags..."
+                />
+              </div>
+              <RadioGroup
+                name="cashier-notifications-view-toggle"
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+                options={[
+                  { value: 'card', label: 'Cards', icon: 'grid_view' },
+                  { value: 'table', label: 'Table', icon: 'table_rows' },
+                ]}
+              />
+            </div>
+
             {/* Filter Tabs */}
             <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 select-none">
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-container">
@@ -482,60 +570,54 @@ export const Notifications: FC = () => {
               </div>
             </div>
 
-            {/* Notification Items List */}
-            <div className="flex flex-col gap-space-sm">
-              {loading ? (
-                <div className="py-16 text-center text-text-secondary bg-surface-container-lowest rounded-2xl shadow-sm">
-                  <span className="material-symbols-outlined text-3xl animate-spin mb-2">sync</span>
-                  <p>Loading real-time terminal notifications...</p>
-                </div>
-              ) : filteredAlerts.length === 0 ? (
-                <div className="py-16 text-center text-text-secondary bg-surface-container-lowest rounded-2xl shadow-sm">
-                  <span className="material-symbols-outlined text-4xl text-status-available mb-2">
-                    notifications_off
-                  </span>
-                  <p className="font-semibold text-text-primary">No active notifications or alerts</p>
-                  <p className="font-caption text-caption mt-1">
-                    Your circulation desk feed is fully cleared and up to date.
-                  </p>
-                </div>
-              ) : (
-                filteredAlerts.map((alert) => {
-                  const isCritical = alert.severity === 'critical';
-                  const isWarning = alert.severity === 'warning';
+            {/* Draggable Table Container (Always mounted to preserve useTableDraggable listeners) */}
+            <div
+              ref={tableContainerRef}
+              className={`w-full overflow-x-auto rounded-2xl bg-surface-container-lowest shadow-sm border border-surface-container-high/40 select-none ${
+                viewMode === 'table' ? '' : 'hidden'
+              }`}
+            >
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-surface-container-high/60 bg-surface-container-low text-text-secondary font-caption text-caption uppercase tracking-wider">
+                    <th className="p-3.5 pl-4 font-semibold">Priority</th>
+                    <th className="p-3.5 font-semibold">Alert Title</th>
+                    <th className="p-3.5 font-semibold">Category</th>
+                    <th className="p-3.5 font-semibold">Description</th>
+                    <th className="p-3.5 font-semibold">Triggered</th>
+                    <th className="p-3.5 pr-4 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-container-high/30 font-small text-small text-text-primary">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-text-secondary">
+                        <span className="material-symbols-outlined text-3xl animate-spin mb-2">sync</span>
+                        <p>Loading real-time terminal notifications...</p>
+                      </td>
+                    </tr>
+                  ) : paginatedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-text-secondary">
+                        <span className="material-symbols-outlined text-4xl text-status-available mb-2">
+                          notifications_off
+                        </span>
+                        <p className="font-semibold text-text-primary">No active notifications or alerts</p>
+                        <p className="font-caption text-caption mt-1">
+                          Circulation desk feed is cleared and up to date.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedItems.map((alert) => {
+                      const isCritical = alert.severity === 'critical';
+                      const isWarning = alert.severity === 'warning';
 
-                  return (
-                    <article
-                      key={alert.id}
-                      className={`relative overflow-hidden rounded-2xl p-space-md sm:p-space-lg shadow-sm transition-all duration-200 hover:shadow-md flex flex-col sm:flex-row gap-space-md ${
-                        alert.isResolved ? 'bg-surface-container-lowest opacity-80' : 'bg-soft-blue'
-                      }`}
-                    >
-                      <div
-                        className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                          isCritical ? 'bg-status-danger' : isWarning ? 'bg-status-pending' : 'bg-primary'
-                        }`}
-                      ></div>
-                      <div className="flex-shrink-0">
-                        <div
-                          className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            isCritical
-                              ? 'bg-status-danger/15 text-status-danger'
-                              : isWarning
-                              ? 'bg-status-pending/20 text-status-pending'
-                              : 'bg-primary/10 text-primary'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-[26px]">
-                            {isCritical ? 'warning' : isWarning ? 'hourglass_top' : 'notifications'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-1">
-                          <div className="flex items-center gap-2 flex-wrap">
+                      return (
+                        <tr key={alert.id} className="hover:bg-surface-container-low/50 transition-colors">
+                          <td className="p-3.5 pl-4 whitespace-nowrap">
                             <span
-                              className={`px-2 py-0.5 rounded-full font-caption text-caption font-bold uppercase ${
+                              className={`px-2 py-0.5 rounded-full font-caption text-[11px] font-bold uppercase ${
                                 isCritical
                                   ? 'bg-status-danger text-on-error'
                                   : isWarning
@@ -545,45 +627,194 @@ export const Notifications: FC = () => {
                             >
                               {alert.tag || alert.severity}
                             </span>
-                            <h3 className="font-headline-4 text-headline-4 text-text-primary">{alert.title}</h3>
-                          </div>
-                          <div className="flex items-center gap-1 text-text-secondary font-caption text-caption whitespace-nowrap">
-                            <span className="material-symbols-outlined text-[14px]">schedule</span>
-                            <span>{alert.triggeredAgo || 'Recently'}</span>
-                          </div>
-                        </div>
-                        <p className="font-body text-body text-text-primary/90 mt-1 leading-relaxed">
-                          {alert.description}
-                        </p>
-                        <div className="flex flex-wrap items-center justify-between gap-space-sm mt-space-md pt-space-sm">
-                          <span className="font-caption text-caption text-text-secondary flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-[15px] text-primary">
-                              precision_manufacturing
-                            </span>
-                            <span>{alert.category || 'System Trigger'}</span>
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="h-9 px-3 rounded-lg bg-surface-container-lowest text-text-primary hover:bg-surface-container font-small text-small font-medium transition-colors cursor-pointer"
-                              onClick={() => handleDismissAlert(alert.id)}
-                            >
-                              Dismiss
-                            </button>
-                            <button
-                              className="h-9 px-4 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover font-small text-small font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-                              onClick={() => handleDismissAlert(alert.id)}
-                            >
-                              <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                              <span>Mark Handled</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })
-              )}
+                          </td>
+                          <td className="p-3.5 font-semibold text-text-primary whitespace-nowrap max-w-[220px] truncate">
+                            {alert.title}
+                          </td>
+                          <td className="p-3.5 text-text-secondary text-caption font-caption whitespace-nowrap">
+                            {alert.category || 'System Trigger'}
+                          </td>
+                          <td className="p-3.5 text-text-secondary max-w-[280px] truncate">
+                            {alert.description}
+                          </td>
+                          <td className="p-3.5 text-text-secondary font-caption text-caption whitespace-nowrap">
+                            {alert.triggeredAgo || 'Recently'}
+                          </td>
+                          <td className="p-3.5 pr-4 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                className="h-8 px-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary font-caption text-caption font-medium transition-colors cursor-pointer"
+                                onClick={() => handleDismissAlert(alert.id)}
+                              >
+                                Dismiss
+                              </button>
+                              <button
+                                type="button"
+                                className="h-8 px-3 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover font-caption text-caption font-bold shadow-sm transition-colors cursor-pointer"
+                                onClick={() => handleDismissAlert(alert.id)}
+                              >
+                                Handled
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Notification Cards List (Active when viewMode === 'card') */}
+            {viewMode === 'card' && (
+              <div className="flex flex-col gap-space-sm">
+                {loading ? (
+                  <div className="py-16 text-center text-text-secondary bg-surface-container-lowest rounded-2xl shadow-sm">
+                    <span className="material-symbols-outlined text-3xl animate-spin mb-2">sync</span>
+                    <p>Loading real-time terminal notifications...</p>
+                  </div>
+                ) : paginatedItems.length === 0 ? (
+                  <div className="py-16 text-center text-text-secondary bg-surface-container-lowest rounded-2xl shadow-sm">
+                    <span className="material-symbols-outlined text-4xl text-status-available mb-2">
+                      notifications_off
+                    </span>
+                    <p className="font-semibold text-text-primary">No active notifications or alerts</p>
+                    <p className="font-caption text-caption mt-1">
+                      Your circulation desk feed is fully cleared and up to date.
+                    </p>
+                  </div>
+                ) : (
+                  paginatedItems.map((alert) => {
+                    const isCritical = alert.severity === 'critical';
+                    const isWarning = alert.severity === 'warning';
+
+                    return (
+                      <article
+                        key={alert.id}
+                        className={`relative overflow-hidden rounded-2xl p-space-md sm:p-space-lg shadow-sm transition-all duration-200 hover:shadow-md flex flex-col sm:flex-row gap-space-md ${
+                          alert.isResolved ? 'bg-surface-container-lowest opacity-80' : 'bg-soft-blue'
+                        }`}
+                      >
+                        <div
+                          className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                            isCritical ? 'bg-status-danger' : isWarning ? 'bg-status-pending' : 'bg-primary'
+                          }`}
+                        ></div>
+                        <div className="flex-shrink-0">
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                              isCritical
+                                ? 'bg-status-danger/15 text-status-danger'
+                                : isWarning
+                                ? 'bg-status-pending/20 text-status-pending'
+                                : 'bg-primary/10 text-primary'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[26px]">
+                              {isCritical ? 'warning' : isWarning ? 'hourglass_top' : 'notifications'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-full font-caption text-caption font-bold uppercase ${
+                                  isCritical
+                                    ? 'bg-status-danger text-on-error'
+                                    : isWarning
+                                    ? 'bg-status-pending/20 text-text-primary'
+                                    : 'bg-primary text-on-primary'
+                                }`}
+                              >
+                                {alert.tag || alert.severity}
+                              </span>
+                              <h3 className="font-headline-4 text-headline-4 text-text-primary">{alert.title}</h3>
+                            </div>
+                            <div className="flex items-center gap-1 text-text-secondary font-caption text-caption whitespace-nowrap">
+                              <span className="material-symbols-outlined text-[14px]">schedule</span>
+                              <span>{alert.triggeredAgo || 'Recently'}</span>
+                            </div>
+                          </div>
+                          <p className="font-body text-body text-text-primary/90 mt-1 leading-relaxed">
+                            {alert.description}
+                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-space-sm mt-space-md pt-space-sm">
+                            <span className="font-caption text-caption text-text-secondary flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[15px] text-primary">
+                                precision_manufacturing
+                              </span>
+                              <span>{alert.category || 'System Trigger'}</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="h-9 px-3 rounded-lg bg-surface-container-lowest text-text-primary hover:bg-surface-container font-small text-small font-medium transition-colors cursor-pointer"
+                                onClick={() => handleDismissAlert(alert.id)}
+                              >
+                                Dismiss
+                              </button>
+                              <button
+                                className="h-9 px-4 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover font-small text-small font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                                onClick={() => handleDismissAlert(alert.id)}
+                              >
+                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                <span>Mark Handled</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalItems > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-space-sm pt-space-sm">
+                <div className="font-caption text-caption text-text-secondary">
+                  Showing {startIndex + 1}–{endIndex} of {totalItems} alerts
+                </div>
+                <div className="flex items-center gap-space-sm">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={!canPrevPage}
+                      onClick={prevPage}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                      aria-label="Previous page"
+                    >
+                      <span className="material-symbols-outlined text-lg">chevron_left</span>
+                    </button>
+                    <span className="font-caption text-caption px-2 py-1 text-text-secondary">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!canNextPage}
+                      onClick={nextPage}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                      aria-label="Next page"
+                    >
+                      <span className="material-symbols-outlined text-lg">chevron_right</span>
+                    </button>
+                  </div>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="h-8 px-2 rounded-lg bg-surface-container text-text-secondary font-caption text-caption outline-none cursor-pointer"
+                  >
+                    {pageSizeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt} / page
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Sidebar: Terminal Notice Dispatch */}

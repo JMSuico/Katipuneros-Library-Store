@@ -58,6 +58,7 @@ public class ReservationsController : ControllerBase
             };
 
     [HttpGet("my-holds")]
+    [HttpGet("my-reservations")]
     [Authorize(Roles = "Customer")]
     public async Task<IActionResult> GetMyReservations() =>
         !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)

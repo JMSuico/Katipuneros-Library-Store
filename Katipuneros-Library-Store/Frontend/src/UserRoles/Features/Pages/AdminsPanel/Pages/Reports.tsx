@@ -2184,7 +2184,7 @@ const Reports: FC = () => {
         <div className="space-y-3 py-2 text-text-primary text-small">
           <p>Select library modules to compile into a certified custom template:</p>
           <div className="space-y-2">
-            {['Circulation Loan History', 'Physical Stacks RFID Audit', 'Overdue Delinquencies & Fines', 'User Demographic Profiles'].map((mod) => (
+            {['Circulation Loan History', 'Physical Stacks Barcode Census', 'Overdue Delinquencies & Fines', 'User Demographic Profiles'].map((mod) => (
               <label key={mod} className="flex items-center gap-2 cursor-pointer font-medium text-small">
                 <input type="checkbox" defaultChecked className="accent-primary" />
                 <span>{mod}</span>
@@ -2218,7 +2218,7 @@ const Reports: FC = () => {
               standard: 'CHEd Standard A-1',
               timestamp_utc: new Date().toISOString(),
               signature: 'ed25519-katipuneros-root-ca',
-              partitions: ['circ_loans', 'fines_ledger', 'rfid_stacks'],
+              partitions: ['circ_loans', 'fines_ledger', 'barcode_stacks'],
             },
             null,
             2

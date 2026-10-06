@@ -6,6 +6,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../Endpoints/authApi';
+import { useNotification } from '../Hooks/useNotification';
+import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
 
 const LOGO_URL = 'https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4';
 
@@ -30,21 +32,69 @@ const CustomerHeader: React.FC = () => {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+  } = useNotification('Customer');
+
   useEffect(() => {
-    fetchCurrentProfile().then((u) => {
-      if (u) setCurrentUser(u);
-    });
+    const syncUser = () => {
+      const stored = getStoredUser();
+      if (stored) setCurrentUser(stored);
+      fetchCurrentProfile().then((u) => {
+        if (u) setCurrentUser(u);
+      });
+    };
+
+    syncUser();
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    const handleAuthEvent = () => syncUser();
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('profile-updated', handleAuthEvent);
+    window.addEventListener('katipuneros-auth-changed', handleAuthEvent);
+    window.addEventListener('storage', handleAuthEvent);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('profile-updated', handleAuthEvent);
+      window.removeEventListener('katipuneros-auth-changed', handleAuthEvent);
+      window.removeEventListener('storage', handleAuthEvent);
+    };
   }, []);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) {
+      navigate(`/customer/catalog?q=${encodeURIComponent(q)}`);
+    } else {
+      navigate('/customer/catalog');
+    }
+  };
 
   const handleLogout = () => {
     setIsDropdownOpen(false);
@@ -90,17 +140,33 @@ const CustomerHeader: React.FC = () => {
 
         {/* Search Bar */}
         <div className="hidden md:flex items-center flex-1 max-w-xs lg:max-w-sm">
-          <div className="w-full flex items-center bg-surface-container-lowest/80 rounded-full px-space-md py-space-xs shadow-[0_1px_8px_rgba(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-primary">
-            <span className="material-symbols-outlined text-text-secondary mr-space-xs text-xl shrink-0">search</span>
+          <form
+            onSubmit={handleSearchSubmit}
+            className="w-full flex items-center bg-surface-container-lowest/80 rounded-full px-space-md py-space-xs shadow-[0_1px_8px_rgba(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-primary"
+          >
+            <button
+              type="submit"
+              className="material-symbols-outlined text-text-secondary mr-space-xs text-xl shrink-0 cursor-pointer hover:text-primary transition-colors bg-transparent border-0 p-0"
+              title="Search Catalog"
+              aria-label="Submit Search"
+            >
+              search
+            </button>
             <input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none"
               placeholder="Search books, authors, ISBN... (Ctrl+K)"
               type="text"
             />
-            <span className="hidden lg:inline-block font-caption text-caption bg-surface-container-high text-text-secondary px-space-xs py-0.5 rounded ml-space-xs shrink-0">
+            <span
+              onClick={() => searchInputRef.current?.focus()}
+              className="hidden lg:inline-block font-caption text-caption bg-surface-container-high text-text-secondary px-space-xs py-0.5 rounded ml-space-xs shrink-0 cursor-pointer"
+            >
               ⌘K
             </span>
-          </div>
+          </form>
         </div>
 
         {/* Right Actions */}
@@ -111,15 +177,35 @@ const CustomerHeader: React.FC = () => {
             <span>Active Holds</span>
           </div>
 
-          {/* Notification Bell */}
-          <button
-            className="relative p-space-xs rounded-full hover:bg-surface-container-high hover:text-on-surface text-on-surface-variant transition-colors flex items-center justify-center cursor-pointer"
-            type="button"
-            aria-label="View notifications"
-          >
-            <span className="material-symbols-outlined text-text-primary">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-action-green rounded-full shadow-sm" />
-          </button>
+          {/* Notification Bell Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsNotifOpen((prev) => !prev)}
+              className="relative p-space-xs rounded-full hover:bg-surface-container-high hover:text-on-surface text-on-surface-variant transition-colors flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+              type="button"
+              aria-label="View notifications"
+              aria-expanded={isNotifOpen}
+            >
+              <span className="material-symbols-outlined text-text-primary">notifications</span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            <NotificationDropdownCard
+              isOpen={isNotifOpen}
+              onClose={() => setIsNotifOpen(false)}
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onClearAll={clearAll}
+              panelLabel="Patron Notifications"
+              viewAllRoute="/customer/reservations"
+            />
+          </div>
 
           {/* Profile & Avatar Dropdown */}
           <div className="relative" ref={dropdownRef}>

@@ -2,9 +2,10 @@
 // HeroSection.tsx -- Public landing page hero section with search, live stats, spotlight card, and 3D canvas.
 // Extracted and converted from LandingPage/code.html lines 20-385.
 // DO NOT put business logic or direct API calls here.
-import { FC, useState } from 'react';
+import { FC, useState, useEffect } from 'react';
 import BookHero3D from './BookHero3D';
 import { BookDetailData } from './BookDetailModal';
+import { getCatalogMetrics, getCategories } from '../../../../../Endpoints/booksApi';
 
 interface HeroSectionProps {
   onOpenReserve: (book: BookDetailData) => void;
@@ -23,6 +24,25 @@ const spotlightBook: BookDetailData = {
 
 export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [metrics, setMetrics] = useState<{ totalTitles: number } | null>(null);
+  const [popularTags, setPopularTags] = useState<string[]>([
+    'Filipiniana',
+    'Computer Science',
+    'Literature',
+    'Natural Sciences',
+    'Periodicals',
+  ]);
+
+  useEffect(() => {
+    Promise.all([getCatalogMetrics(), getCategories()])
+      .then(([m, cats]) => {
+        if (m) setMetrics(m);
+        if (cats && cats.length > 0) {
+          setPopularTags(cats.slice(0, 5).map((c) => c.name));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +52,7 @@ export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) =
   };
 
   return (
-    <section className="relative w-full pt-28 pb-16 md:pt-36 md:pb-24 px-gutter overflow-hidden bg-gradient-to-b from-surface-container-low/80 via-background to-background">
+    <section className="relative w-full pt-28 pb-16 md:pt-36 md:pb-24 px-gutter overflow-hidden bg-gradient-to-b from-surface-container-low/80 via-background to-background" id="home">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Headline, Search, Quick Stats */}
@@ -82,7 +102,7 @@ export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) =
             {/* Quick Filter Tag Buttons */}
             <div className="flex flex-wrap items-center gap-2 mb-space-xl">
               <span className="font-caption text-caption font-semibold text-text-secondary mr-1">Popular:</span>
-              {['Filipiniana', 'Computer Science', 'Literature', 'Natural Sciences', 'Periodicals'].map((tag) => (
+              {popularTags.map((tag) => (
                 <button
                   key={tag}
                   type="button"
@@ -102,7 +122,9 @@ export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) =
             {/* Operational Metrics Bar */}
             <div className="grid grid-cols-3 gap-6 pt-space-md border-t border-outline-variant/30 w-full max-w-xl">
               <div>
-                <div className="font-headline-3 text-headline-3 text-text-primary font-bold">18,000+</div>
+                <div className="font-headline-3 text-headline-3 text-text-primary font-bold">
+                  {(metrics?.totalTitles ? metrics.totalTitles.toLocaleString() : '18,000')}+
+                </div>
                 <div className="font-caption text-caption text-text-secondary">Cataloged Books</div>
               </div>
               <div>

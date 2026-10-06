@@ -13,10 +13,13 @@ export const ContactForm: FC = () => {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSuccessNotice(null);
+    setErrorMessage(null);
 
     try {
       const res = await submitContactMessage({ name, email, subject, message });
@@ -25,7 +28,11 @@ export const ContactForm: FC = () => {
         setName('');
         setEmail('');
         setMessage('');
+      } else {
+        setErrorMessage(res.message || 'Failed to submit inquiry. Please try again.');
       }
+    } catch {
+      setErrorMessage('Could not connect to the inquiry desk. Please verify your connection.');
     } finally {
       setIsSubmitting(false);
     }
@@ -184,6 +191,15 @@ export const ContactForm: FC = () => {
                       check_circle
                     </span>
                     <span>{successNotice}</span>
+                  </div>
+                )}
+
+                {errorMessage && (
+                  <div className="p-3 rounded-xl bg-status-danger/20 text-status-danger font-small text-small flex items-center gap-2">
+                    <span className="material-symbols-outlined text-status-danger text-[20px]">
+                      error
+                    </span>
+                    <span>{errorMessage}</span>
                   </div>
                 )}
 

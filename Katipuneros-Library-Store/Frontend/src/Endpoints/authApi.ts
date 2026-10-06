@@ -222,20 +222,64 @@ export const registerUser = async (
   };
 };
 
+export interface UpdateProfilePayload {
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  fullName: string;
+  employmentStatus?: string;
+  currentAddress?: string;
+  permanentAddress?: string;
+  phoneNumber?: string;
+  department?: string;
+}
+
+export const updateUserProfile = async (
+  payload: UpdateProfilePayload
+): Promise<{ success: boolean; message: string }> => {
+  const res = await apiRequest<object>('/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  if (res.success) {
+    updateStoredUser({
+      fullName: payload.fullName,
+      firstName: payload.firstName,
+      middleName: payload.middleName,
+      lastName: payload.lastName,
+      phoneNumber: payload.phoneNumber,
+      department: payload.department,
+      currentAddress: payload.currentAddress,
+      permanentAddress: payload.permanentAddress,
+    });
+    return {
+      success: true,
+      message: res.message || 'Profile updated successfully.',
+    };
+  }
+
+  return {
+    success: false,
+    message: res.errors?.[0] || res.message || 'Failed to update profile.',
+  };
+};
+
 export const uploadProfilePicture = async (
   pictureData: string
 ): Promise<{ success: boolean; message: string; profilePictureUrl?: string }> => {
-  const res = await apiRequest<{ profilePictureUrl: string }>('/auth/profile-picture', {
+  const res = await apiRequest<{ profilePictureUrl?: string; ProfilePictureUrl?: string }>('/auth/profile-picture', {
     method: 'POST',
     body: JSON.stringify({ pictureData }),
   });
 
-  if (res.success && res.data?.profilePictureUrl) {
-    updateStoredUser({ profilePictureUrl: res.data.profilePictureUrl });
+  const url = res.data?.profilePictureUrl || res.data?.ProfilePictureUrl;
+  if (res.success && url) {
+    updateStoredUser({ profilePictureUrl: url });
     return {
       success: true,
       message: res.message || 'Profile picture updated successfully.',
-      profilePictureUrl: res.data.profilePictureUrl,
+      profilePictureUrl: url,
     };
   }
 
@@ -254,6 +298,7 @@ export const fetchCurrentProfile = async (): Promise<AuthUser | null> => {
   return getStoredUser();
 };
 
+
 export const createCashierByAdmin = async (
   req: CreateCashierRequest
 ): Promise<{ success: boolean; message: string }> => {
@@ -267,3 +312,19 @@ export const createCashierByAdmin = async (
     message: res.message || (res.success ? 'Cashier account created successfully.' : 'Failed to create cashier.'),
   };
 };
+
+export const changePasswordApi = async (
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ success: boolean; message: string }> => {
+  const res = await apiRequest<object>('/auth/change-password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+  });
+  return {
+    success: res.success,
+    message: res.message || (res.success ? 'Password rotated successfully.' : 'Failed to rotate password.'),
+  };
+};
+

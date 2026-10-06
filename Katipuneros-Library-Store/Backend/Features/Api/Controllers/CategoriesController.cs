@@ -57,4 +57,13 @@ public class CategoriesController : ControllerBase
             (true, _) => Ok(ApiResponse<object>.Ok(new { id }, "Category removed.")),
             (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to delete category."))
         };
+
+    [HttpPost("bulk-delete")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> BulkDeleteCategories([FromBody] BulkDeleteCategoriesRequest request) =>
+        await _categoryService.BulkDeleteCategoriesAsync(request.CategoryIds) switch
+        {
+            (var count, null) when count > 0 => Ok(ApiResponse<object>.Ok(new { deletedCount = count }, $"{count} categories removed.")),
+            (_, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to bulk delete categories."))
+        };
 }

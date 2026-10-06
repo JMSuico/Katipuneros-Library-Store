@@ -108,6 +108,8 @@ export const getCatalogBooks = async (categoryId?: string, query?: string): Prom
   return res.success && Array.isArray(res.data) ? res.data : [];
 };
 
+export const getBooks = getCatalogBooks;
+
 export const getBookDetails = async (id: string): Promise<BackendBook | null> =>
   (await apiRequest<BackendBook>(`/books/${id}`)).data ?? null;
 

@@ -3,7 +3,7 @@
 // Strictly isolates Admin login (port 5174 only) and removes demo credentials.
 // Expresses all sync and async routines via clean lambda expressions.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser, registerUser } from '../../Endpoints/authApi';
 
@@ -20,6 +20,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setErrorMessage(null);
+      setSignUpPhase(1);
+    }
+  }, [isOpen, initialMode]);
 
   // Sign In States
   const [identifier, setIdentifier] = useState('');
@@ -111,6 +119,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!email.trim() || !username.trim() || !signUpPassword || !confirmPassword) {
       setErrorMessage('All credential fields are required.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setErrorMessage('Username must be at least 3 characters in length.');
       return;
     }
 

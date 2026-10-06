@@ -8,6 +8,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../Endpoints/authApi';
 import { useDebounce } from '../Hooks/useDebounce';
+import { useNotification } from '../Hooks/useNotification';
+import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
 
 export interface CashierTopBarProps {
   sidebarOpen?: boolean;
@@ -28,8 +30,17 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+  } = useNotification('Cashier');
 
   const [searchVal, setSearchVal] = useState('');
   const debouncedSearch = useDebounce(searchVal, 350);
@@ -163,14 +174,35 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
           <span className="w-2 h-2 rounded-full bg-primary"></span>
           <span>Online</span>
         </div>
-        <button
-          onClick={() => navigate('/cashier/notifications')}
-          className="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors cursor-pointer"
-          type="button"
-          aria-label="View cashier notifications"
-        >
-          <span className="material-symbols-outlined text-[22px]">notifications</span>
-        </button>
+        {/* Notification Bell Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setIsNotifOpen((prev) => !prev)}
+            className="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+            type="button"
+            aria-label="View cashier notifications"
+            aria-expanded={isNotifOpen}
+          >
+            <span className="material-symbols-outlined text-[22px]">notifications</span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          <NotificationDropdownCard
+            isOpen={isNotifOpen}
+            onClose={() => setIsNotifOpen(false)}
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onMarkAsRead={markAsRead}
+            onMarkAllAsRead={markAllAsRead}
+            onClearAll={clearAll}
+            panelLabel="Circulation Desk"
+            viewAllRoute="/cashier/notifications"
+          />
+        </div>
 
         {/* Cashier Avatar Dropdown */}
         <div className="relative" ref={dropdownRef}>

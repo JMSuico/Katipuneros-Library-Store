@@ -1134,7 +1134,7 @@ const RolesPermissions: FC = () => {
                     />
                     <div className="flex flex-col">
                       <span className="font-small text-small font-semibold text-text-primary">
-                        Cash Drawer Hardware Kickout
+                        Cash Drawer Register Action
                       </span>
                       <span className="font-caption text-caption text-text-secondary">
                         Manual release with automatic audit trace log

@@ -431,7 +431,8 @@ const Inventory: FC = () => {
       const newItems: PhysicalInventoryItem[] = rawCodes.map((code, idx) => ({
         id: `inv-new-${Date.now()}-${idx}`,
         barcode: code.startsWith('#') ? code : `#${code}`,
-        rfidTag: `E200-${Math.floor(100 + Math.random() * 900)}A-${Math.floor(10 + Math.random() * 90)}`,
+        accessionBarcode: `KP-ACC-${Math.floor(100000 + Math.random() * 900000)}`,
+        rfidTag: `KP-ACC-${Math.floor(100000 + Math.random() * 900000)}`,
         title: ingestTitle,
         edition: 'Accession Batch 2026',
         deweyCode: ingestDewey,
@@ -520,7 +521,7 @@ const Inventory: FC = () => {
     );
 
     // CSV format generation
-    const headers = ['Barcode', 'RFID_UID', 'Title', 'Dewey_Call_No', 'Stacks_Bay', 'Condition', 'Status', 'Custody', 'Acquired'];
+    const headers = ['Barcode', 'Accession_No', 'Title', 'Dewey_Call_No', 'Stacks_Bay', 'Condition', 'Status', 'Custody', 'Acquired'];
     const rows = exportItems.map((it) => [
       `"${it.barcode}"`,
       `"${it.rfidTag}"`,
@@ -808,7 +809,7 @@ const Inventory: FC = () => {
               value={searchQuery}
               onChange={(val) => setSearchQuery(val)}
               onClear={() => setSearchQuery('')}
-              placeholder="Search barcode, RFID tag, title, bay..."
+              placeholder="Search barcode, call no, title, bay..."
             />
           </div>
 
@@ -957,7 +958,7 @@ const Inventory: FC = () => {
                       aria-label="Select all items on current page"
                     />
                   </th>
-                  <th className="py-3 px-space-md">Barcode &amp; RFID</th>
+                  <th className="py-3 px-space-md">Barcode &amp; Call No</th>
                   <th className="py-3 px-space-md">Title &amp; Edition</th>
                   <th className="py-3 px-space-md">Dewey Call No</th>
                   <th className="py-3 px-space-md">Stacks Coordinate</th>
@@ -1001,11 +1002,11 @@ const Inventory: FC = () => {
                           />
                         </td>
 
-                        {/* Barcode & RFID */}
+                        {/* Barcode & Call No */}
                         <td className="py-3.5 px-space-md align-top">
                           <div className="flex flex-col">
                             <span className="font-semibold text-text-primary tracking-tight font-mono">{item.barcode}</span>
-                            <span className="font-caption text-[11px] text-text-secondary uppercase font-mono">{item.rfidTag}</span>
+                            <span className="font-caption text-[11px] text-text-secondary uppercase font-mono">{item.accessionBarcode || item.barcode}</span>
                           </div>
                         </td>
 
@@ -1236,7 +1237,7 @@ const Inventory: FC = () => {
                       </span>
                       {item.status}
                     </span>
-                    <span className="text-text-secondary font-mono text-[11px]">{item.rfidTag}</span>
+                    <span className="text-text-secondary font-mono text-[11px]">{item.accessionBarcode || item.barcode}</span>
                   </div>
                 </div>
 
@@ -1473,7 +1474,7 @@ const Inventory: FC = () => {
           isOpen={!!viewDetailsItem}
           onClose={() => setViewDetailsItem(null)}
           title="Physical Copy Dossier"
-          subtitle={`Accession Serial ${viewDetailsItem.barcode} • RFID ${viewDetailsItem.rfidTag}`}
+          subtitle={`Accession Serial ${viewDetailsItem.barcode} • Dewey ${viewDetailsItem.deweyCode}`}
           size="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -1799,7 +1800,7 @@ const Inventory: FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between border-t pt-1 font-mono text-[10px] text-gray-500">
-                    <span>RFID: {it.rfidTag}</span>
+                    <span>Call: {it.deweyCode}</span>
                     <span>{it.wing}</span>
                   </div>
                 </div>

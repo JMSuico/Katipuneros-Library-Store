@@ -8,7 +8,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../Endpoints/authApi';
 import { useDebounce } from '../Hooks/useDebounce';
+import { useNotification } from '../Hooks/useNotification';
 import { SearchBar } from '../Shared/SearchBar';
+import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
 
 const DEFAULT_ADMIN_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ';
 
@@ -25,7 +27,16 @@ const AdminTopBar: React.FC<AdminTopBarProps> = ({
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
   const [avatarError, setAvatarError] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+  } = useNotification('Admin');
 
   // Standby header search input with debouncing
   const [headerSearch, setHeaderSearch] = useState('');
@@ -148,16 +159,35 @@ const AdminTopBar: React.FC<AdminTopBarProps> = ({
             shortcutKey="⌘K"
           />
         </div>
-        <button
-          className="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors cursor-pointer"
-          type="button"
-          aria-label="View notifications"
-        >
-          <span className="material-symbols-outlined text-[22px]">notifications</span>
-          <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center">
-            3
-          </span>
-        </button>
+        {/* Notification Bell Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setIsNotifOpen((prev) => !prev)}
+            className="relative p-2 text-text-secondary hover:bg-surface-container hover:text-on-surface rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+            type="button"
+            aria-label="View notifications"
+            aria-expanded={isNotifOpen}
+          >
+            <span className="material-symbols-outlined text-[22px]">notifications</span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-primary text-on-primary font-caption text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          <NotificationDropdownCard
+            isOpen={isNotifOpen}
+            onClose={() => setIsNotifOpen(false)}
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onMarkAsRead={markAsRead}
+            onMarkAllAsRead={markAllAsRead}
+            onClearAll={clearAll}
+            panelLabel="System Oversight"
+            viewAllRoute="/admin/notifications"
+          />
+        </div>
 
         {/* Admin Avatar Dropdown */}
         <div className="relative" ref={dropdownRef}>

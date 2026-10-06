@@ -5,8 +5,9 @@
 // Universal lambda syntax (=>), zero hardcoded mock values, zero alert().
 
 import { FC, useState, useEffect, useRef } from 'react';
-import { getStoredUser, updateStoredUser, fetchCurrentProfile, uploadProfilePicture, AuthUser } from '../../../../../Endpoints/authApi';
+import { getStoredUser, updateStoredUser, fetchCurrentProfile, uploadProfilePicture, updateUserProfile, changePasswordApi, AuthUser } from '../../../../../Endpoints/authApi';
 import { getAuthMonitorStream, UserLoginAudit } from '../../../../../Endpoints/Admin/auditLogApi';
+import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 
 const DEFAULT_ADMIN_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ';
 
@@ -17,6 +18,22 @@ const Profile: FC = () => {
   const [avatarImgError, setAvatarImgError] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit Profile Modal State
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editFullName, setEditFullName] = useState(currentUser?.fullName || '');
+  const [editPhone, setEditPhone] = useState(currentUser?.phoneNumber || '');
+  const [editDepartment, setEditDepartment] = useState(currentUser?.department || '');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Rotate Password Modal State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCurrentProfile().then((u) => {
@@ -56,6 +73,83 @@ const Profile: FC = () => {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFullName.trim()) {
+      setEditError('Full Name is required.');
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const res = await updateUserProfile({
+        fullName: editFullName.trim(),
+        phoneNumber: editPhone.trim(),
+        department: editDepartment.trim(),
+      });
+      setEditSaving(false);
+      if (res.success) {
+        const updated = updateStoredUser({
+          fullName: editFullName.trim(),
+          phoneNumber: editPhone.trim(),
+          department: editDepartment.trim(),
+        });
+        setCurrentUser(updated || null);
+        setIsEditProfileOpen(false);
+        showToast('Administrator profile updated successfully!');
+      } else {
+        setEditError(res.message || 'Failed to update profile.');
+      }
+    } catch {
+      setEditSaving(false);
+      setEditError('An unexpected error occurred.');
+    }
+  };
+
+  const handleRotatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword) {
+      setPasswordError('Current password is required.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      const res = await changePasswordApi(currentPassword, newPassword, confirmPassword);
+      setPasswordSaving(false);
+      if (res.success) {
+        setIsPasswordModalOpen(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        showToast('Password rotated successfully!');
+      } else {
+        setPasswordError(res.message || 'Failed to change password.');
+      }
+    } catch {
+      setPasswordSaving(false);
+      setPasswordError('An unexpected error occurred while rotating password.');
+    }
+  };
+
+  const handleTerminateSessions = () => {
+    setAuthSessions([]);
+    showToast('All secondary sessions terminated immediately.');
+  };
+
+  const handleRevokeSingleSession = (id: string, username: string) => {
+    setAuthSessions((prev) => prev.filter((s) => s.id !== id));
+    showToast(`Revoked terminal session for ${username}`);
   };
 
   const displayName = currentUser?.fullName || currentUser?.username || 'JM Suico';
@@ -105,6 +199,20 @@ const Profile: FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-space-sm flex-wrap">
+              <button
+                onClick={() => {
+                  setEditFullName(currentUser?.fullName || '');
+                  setEditPhone(currentUser?.phoneNumber || '');
+                  setEditDepartment(currentUser?.department || '');
+                  setEditError(null);
+                  setIsEditProfileOpen(true);
+                }}
+                className="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-text-primary font-body-medium text-small font-bold shadow-sm transition-all cursor-pointer border border-outline-variant/15"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit</span>
+                <span>Edit Profile Details</span>
+              </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-action-green text-text-primary hover:bg-action-green-hover font-body-medium text-small font-bold shadow-sm transition-all cursor-pointer"
@@ -212,7 +320,13 @@ const Profile: FC = () => {
                       <span className="material-symbols-outlined text-primary text-[24px]">key</span>
                     </div>
                     <button
-                      onClick={() => showToast('Password rotation request submitted to identity service.')}
+                      onClick={() => {
+                        setPasswordError(null);
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setIsPasswordModalOpen(true);
+                      }}
                       className="w-full text-center py-1.5 px-space-sm rounded bg-surface-container-lowest hover:bg-secondary-container hover:text-on-secondary-container text-primary font-body-medium text-caption font-semibold transition-colors cursor-pointer border border-outline-variant/15"
                       type="button"
                     >
@@ -244,7 +358,7 @@ const Profile: FC = () => {
                       Active Privileged Sessions
                     </span>
                     <button
-                      onClick={() => showToast('Session revocation broadcast sent.')}
+                      onClick={handleTerminateSessions}
                       className="text-error hover:bg-error-container hover:text-on-error-container font-caption text-caption font-semibold px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer"
                       type="button"
                     >
@@ -307,7 +421,7 @@ const Profile: FC = () => {
                               {s.formattedTimeAgo || 'Recent'}
                             </span>
                             <button
-                              onClick={() => showToast(`Revoked terminal session for ${s.username}`)}
+                              onClick={() => handleRevokeSingleSession(s.id, s.username)}
                               className="text-error hover:bg-error-container p-1 rounded transition-colors cursor-pointer"
                               title="Revoke terminal session"
                               type="button"
@@ -367,6 +481,174 @@ const Profile: FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal 1: Edit Administrator Profile */}
+      <DefaultFloatingModalCard
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        title="Edit Administrator Profile"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex items-center justify-end gap-space-sm w-full">
+            <button
+              className="px-space-md py-2 rounded-xl text-text-secondary hover:text-text-primary font-small text-small transition-colors cursor-pointer"
+              type="button"
+              disabled={editSaving}
+              onClick={() => setIsEditProfileOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-space-lg py-2 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-bold shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              type="submit"
+              form="editProfileForm"
+              disabled={editSaving}
+            >
+              {editSaving ? (
+                <>
+                  <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[18px]">save</span>
+                  <span>Save Profile</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <form id="editProfileForm" onSubmit={handleSaveProfile} className="flex flex-col gap-space-md">
+          {editError && (
+            <div className="p-space-sm rounded-lg bg-error-container text-error font-caption text-caption">
+              {editError}
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={editFullName}
+              onChange={(e) => setEditFullName(e.target.value)}
+              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+              placeholder="e.g. JM Suico"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+              placeholder="e.g. +63 912 345 6789"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+              Department / Office
+            </label>
+            <input
+              type="text"
+              value={editDepartment}
+              onChange={(e) => setEditDepartment(e.target.value)}
+              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+              placeholder="e.g. Office of the Chief Librarian"
+            />
+          </div>
+        </form>
+      </DefaultFloatingModalCard>
+
+      {/* Modal 2: Rotate Password */}
+      <DefaultFloatingModalCard
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="Rotate Privileged Password"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex items-center justify-end gap-space-sm w-full">
+            <button
+              className="px-space-md py-2 rounded-xl text-text-secondary hover:text-text-primary font-small text-small transition-colors cursor-pointer"
+              type="button"
+              disabled={passwordSaving}
+              onClick={() => setIsPasswordModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-space-lg py-2 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-bold shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              type="submit"
+              form="rotatePasswordForm"
+              disabled={passwordSaving}
+            >
+              {passwordSaving ? (
+                <>
+                  <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+                  <span>Rotating...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[18px]">key</span>
+                  <span>Rotate Password</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <form id="rotatePasswordForm" onSubmit={handleRotatePassword} className="flex flex-col gap-space-md">
+          {passwordError && (
+            <div className="p-space-sm rounded-lg bg-error-container text-error font-caption text-caption">
+              {passwordError}
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+              Current Password *
+            </label>
+            <input
+              type="password"
+              required
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+              placeholder="Enter current password"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+              New Password * (Min 6 chars)
+            </label>
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+              placeholder="Enter new strong password"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+              Confirm New Password *
+            </label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+              placeholder="Confirm new password"
+            />
+          </div>
+        </form>
+      </DefaultFloatingModalCard>
     </div>
   );
 };

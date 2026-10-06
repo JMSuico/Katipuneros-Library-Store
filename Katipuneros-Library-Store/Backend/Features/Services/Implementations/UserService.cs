@@ -349,4 +349,19 @@ public class UserService : IUserService
         await _userRepository.SaveChangesAsync();
         return (user, null);
     }
+
+    public async Task<(bool Success, string? Error)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword) =>
+        await _userRepository.GetByIdAsync(userId) is not { } user
+            ? (false, "User account not found.")
+            : !PasswordHelper.VerifyPassword(currentPassword, user.PasswordHash)
+                ? (false, "Current password is incorrect.")
+                : await ExecutePasswordUpdateAsync(user, newPassword);
+
+    private async Task<(bool Success, string? Error)> ExecutePasswordUpdateAsync(User user, string newPassword)
+    {
+        user.PasswordHash = PasswordHelper.HashPassword(newPassword);
+        await _userRepository.UpdateAsync(user);
+        var saved = await _userRepository.SaveChangesAsync();
+        return (saved, saved ? null : "Failed to persist new password.");
+    }
 }

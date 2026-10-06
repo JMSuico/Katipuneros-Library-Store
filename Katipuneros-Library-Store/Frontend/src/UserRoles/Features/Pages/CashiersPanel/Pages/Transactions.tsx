@@ -15,6 +15,9 @@ import {
   CashierDashboardKpis,
   CashierShiftSummary,
 } from '../../../../../Endpoints/Cashier/cashierApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const Transactions: FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
@@ -25,13 +28,28 @@ export const Transactions: FC = () => {
   const [shiftSummary, setShiftSummary] = useState<CashierShiftSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // View mode & draggable table
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_transactions_view') || 'table';
+  });
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_transactions_view', mode);
+  };
+
   // Filters & State
   const [activeTab, setActiveTab] = useState<'all' | 'checkout' | 'return' | 'fine' | 'waiver'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'amount-desc' | 'patron-asc'>('newest');
   const [selectedTx, setSelectedTx] = useState<CashierTransactionItem | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState<number>(10);
+  const pageSizeOptions = [10, 25, 50, 100];
 
   const loadData = useCallback(async () => {
     try {
@@ -40,7 +58,7 @@ export const Transactions: FC = () => {
         getCashierTransactions({
           page,
           pageSize,
-          search: searchQuery.trim() || undefined,
+          search: debouncedSearch.trim() || undefined,
           type: activeTab === 'all' ? undefined : activeTab,
         }),
         getCashierDashboardKpis(),
@@ -63,7 +81,7 @@ export const Transactions: FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [addToast, page, searchQuery, activeTab, selectedTx]);
+  }, [addToast, page, pageSize, debouncedSearch, activeTab, selectedTx]);
 
   useEffect(() => {
     loadData();
@@ -141,6 +159,17 @@ export const Transactions: FC = () => {
   const qrAmount = grossCollections * 0.35;
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Sorted Transactions List
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      if (sortBy === 'oldest') return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+      if (sortBy === 'amount-desc') return (b.amount || 0) - (a.amount || 0);
+      if (sortBy === 'patron-asc') return (a.patronName || '').localeCompare(b.patronName || '');
+      return 0;
+    });
+  }, [transactions, sortBy]);
 
   // Initials helper
   const getInitials = (name?: string) => {
@@ -404,17 +433,38 @@ export const Transactions: FC = () => {
         {/* Search, Filter Pills & Ledger Controls */}
         <div className="flex flex-col gap-3 mb-space-md bg-surface-container-lowest p-space-md rounded-2xl shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="relative flex-1">
-              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[20px]">
-                search
-              </span>
-              <input
-                className="w-full h-11 pl-11 pr-4 rounded-xl bg-surface-container-low font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary shadow-none transition-all"
-                placeholder="Search by Transaction ID (#TX-..), Student ID (#KP-..), title, or patron name..."
-                type="text"
+            <div className="flex-1 max-w-xl">
+              <SearchBar
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={setSearchQuery}
+                onClear={() => setSearchQuery('')}
+                placeholder="Search by Transaction ID (#TX-..), Student ID (#KP-..), title, or patron name..."
               />
+            </div>
+
+            <div className="flex items-center flex-wrap gap-2">
+              <RadioGroup
+                name="cashierTransactionsView"
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+                options={[
+                  { value: 'table', label: 'Table' },
+                  { value: 'card', label: 'Cards' },
+                ]}
+                variant="simple"
+              />
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                aria-label="Sort transactions"
+                className="px-3 py-2 bg-surface-container-low rounded-xl text-caption font-caption font-bold text-text-primary outline-none cursor-pointer border border-outline/10"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="amount-desc">Highest Amount</option>
+                <option value="patron-asc">Patron: A to Z</option>
+              </select>
             </div>
           </div>
 
@@ -492,7 +542,10 @@ export const Transactions: FC = () => {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div
+              ref={tableContainerRef}
+              className={viewMode === 'table' ? 'overflow-x-auto' : 'hidden'}
+            >
               <table className="w-full text-left font-small text-small">
                 <thead>
                   <tr className="bg-surface-container text-text-secondary font-caption text-caption uppercase tracking-wider select-none">
@@ -527,7 +580,7 @@ export const Transactions: FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((tx) => {
+                    sortedTransactions.map((tx) => {
                       const isSelected = selectedTx?.id === tx.id;
                       const dateObj = new Date(tx.timestamp);
                       const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -625,31 +678,105 @@ export const Transactions: FC = () => {
               </table>
             </div>
 
+            {/* Cards Grid View */}
+            {viewMode === 'card' && (
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {sortedTransactions.map((tx) => {
+                  const isSelected = selectedTx?.id === tx.id;
+                  const dateObj = new Date(tx.timestamp);
+
+                  return (
+                    <div
+                      key={tx.id}
+                      onClick={() => setSelectedTx(tx)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs ${
+                        isSelected
+                          ? 'bg-soft-blue/40 border-primary shadow-sm'
+                          : 'bg-surface-container-low border-outline/10 hover:border-primary/20'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="font-mono text-caption font-bold text-primary">
+                            {tx.transactionReference}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-surface-container font-caption text-caption font-medium text-text-secondary">
+                            {tx.transactionType}
+                          </span>
+                        </div>
+
+                        <h4 className="font-body-medium text-body-medium font-bold text-text-primary line-clamp-1">
+                          {tx.bookTitle || 'Circulation Record'}
+                        </h4>
+                        <p className="font-caption text-caption text-text-secondary mt-0.5">
+                          Patron: <strong className="text-text-primary">{tx.patronName}</strong> ({tx.libraryCardNumber || 'N/A'})
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-surface-container flex items-center justify-between">
+                        <div>
+                          <span className="font-caption text-caption text-text-secondary block">Amount:</span>
+                          <span className="font-headline-4 text-headline-4 font-bold text-text-primary font-mono">
+                            ₱{(tx.amount || 0).toFixed(2)}
+                          </span>
+                        </div>
+
+                        <span className="font-caption text-caption text-text-secondary">
+                          {dateObj.toLocaleDateString()} {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Table Footer / Pagination controls */}
-            <div className="p-space-md bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 font-caption text-caption text-text-secondary">
+            <div className="p-space-md bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 font-caption text-caption text-text-secondary border-t border-surface-container-high/40">
               <div className="flex items-center gap-2">
                 <span>
-                  {shiftSummary?.stationName || 'Terminal Bay 01'} • Active Cashier:{' '}
-                  <strong>{shiftSummary?.activeCashierName || 'Circulation Desk'}</strong>
+                  Showing <span className="font-bold text-text-primary">{totalCount === 0 ? 0 : (page - 1) * pageSize + 1}</span> to{' '}
+                  <span className="font-bold text-text-primary">{Math.min(page * pageSize, totalCount)}</span> of{' '}
+                  <span className="font-bold text-text-primary">{totalCount}</span> operations
                 </span>
                 <span>•</span>
-                <span>Hardware Printer: Ready</span>
+                <div className="flex items-center gap-1">
+                  <span>Rows:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    aria-label="Transactions per page"
+                    className="bg-surface-container-lowest border border-outline/10 text-text-primary font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                  >
+                    {pageSizeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
               <div className="flex items-center gap-1">
                 <button
                   className="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-text-secondary hover:bg-surface-container disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   disabled={page <= 1}
                   onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  title="Previous page"
                 >
                   <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                 </button>
                 <span className="px-3 py-1 font-semibold text-text-primary">
-                  Page {page} of {totalPages}
+                  Page {page} of {Math.max(1, totalPages)}
                 </span>
                 <button
                   className="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-text-secondary hover:bg-surface-container disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   disabled={page >= totalPages}
                   onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  title="Next page"
                 >
                   <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                 </button>

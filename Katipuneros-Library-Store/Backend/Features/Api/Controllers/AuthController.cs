@@ -135,4 +135,19 @@ public class AuthController : ControllerBase
                     (true, var url, _) => Ok(ApiResponse<object>.Ok(new { ProfilePictureUrl = url }, "Profile picture updated successfully.")),
                     (false, _, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update profile picture."))
                 };
+
+    [HttpPut("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request) =>
+        !ModelState.IsValid
+            ? BadRequest(ApiResponse<object>.Fail("Invalid password rotation payload."))
+            : request.NewPassword != request.ConfirmPassword
+                ? BadRequest(ApiResponse<object>.Fail("New password and confirmation do not match."))
+                : !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)
+                    ? Unauthorized(ApiResponse<object>.Fail("Invalid user identity token."))
+                    : await _userService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword) switch
+                    {
+                        (true, _) => Ok(ApiResponse<object>.Ok(new { }, "Password changed successfully.")),
+                        (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to change password."))
+                    };
 }

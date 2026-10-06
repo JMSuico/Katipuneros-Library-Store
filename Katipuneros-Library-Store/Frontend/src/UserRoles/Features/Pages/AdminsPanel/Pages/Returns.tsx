@@ -1529,7 +1529,7 @@ const Returns: FC = () => {
         isOpen={isBulkIntakeModalOpen}
         onClose={() => setIsBulkIntakeModalOpen(false)}
         title="Batch Barcode Return Intake"
-        subtitle="Scan or paste multiple RFID/accession barcodes for automated check-in clearance."
+        subtitle="Scan or paste multiple accession barcodes for automated check-in clearance."
         maxWidth="max-w-md"
         footer={
           <div className="flex items-center justify-end gap-2 w-full">

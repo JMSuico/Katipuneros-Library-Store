@@ -10,6 +10,10 @@ import { useToasts } from '../../../../../Hooks/useToasts';
 import { processBookReturn } from '../../../../../Endpoints/Cashier/transactionApi';
 import { getAdminBorrowings, BackendBorrowing } from '../../../../../Endpoints/Admin/borrowingsApi';
 import { getCashierDashboardKpis, CashierDashboardKpis } from '../../../../../Endpoints/Cashier/cashierApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const ReturnsFines: FC = () => {
   const location = useLocation();
@@ -18,9 +22,28 @@ export const ReturnsFines: FC = () => {
   const [activeLoans, setActiveLoans] = useState<BackendBorrowing[]>([]);
   const [kpis, setKpis] = useState<CashierDashboardKpis | null>(null);
   const [scannerInput, setScannerInput] = useState<string>('');
+  const debouncedScannerInput = useDebounce(scannerInput, 300);
   const [selectedLoan, setSelectedLoan] = useState<BackendBorrowing | null>(null);
-  const [isSmartDropBox, setIsSmartDropBox] = useState<boolean>(false);
+  const [isAfterHoursCounterSlot, setIsAfterHoursCounterSlot] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+  // Active Loans List Filters & Controls
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'due_today' | 'overdue'>('all');
+  const [sortBy, setSortBy] = useState<'due-asc' | 'overdue-first' | 'patron-az' | 'title-az'>('due-asc');
+
+  // View Mode: Table vs Card (persisted)
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_returns_view') || 'table';
+  });
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_returns_view', mode);
+  };
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
 
   // Condition Inspection
   const [condition, setCondition] = useState<'good' | 'wear' | 'damage' | 'lost'>('good');
@@ -83,9 +106,17 @@ export const ReturnsFines: FC = () => {
     if (matched) {
       setSelectedLoan(matched);
       addToast(`Loan record loaded for "${matched.bookTitle}".`, 'success');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       addToast(`No active borrowing record found matching "${scannerInput}".`, 'warning');
     }
+  };
+
+  const handleSelectLoanForReturn = (loan: BackendBorrowing) => {
+    setSelectedLoan(loan);
+    setScannerInput(loan.bookBarcode);
+    addToast(`Selected "${loan.bookTitle}" for condition audit & check-in.`, 'info');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Condition surcharge
@@ -108,9 +139,9 @@ export const ReturnsFines: FC = () => {
   }, [selectedLoan]);
 
   const baseOverdueFine = useMemo(() => {
-    if (isSmartDropBox && daysOverdue <= 1) return 0.0; // Smart drop-box 24h grace waiver
+    if (isAfterHoursCounterSlot && daysOverdue <= 1) return 0.0; // Counter drop slot 24h courtesy grace waiver
     return daysOverdue * 15.0;
-  }, [daysOverdue, isSmartDropBox]);
+  }, [daysOverdue, isAfterHoursCounterSlot]);
 
   const totalFineDue = baseOverdueFine + conditionSurcharge;
 
@@ -172,6 +203,58 @@ export const ReturnsFines: FC = () => {
     addToast('Desk counter cleared. Ready for next intake.', 'info');
   };
 
+  // Filtered and Sorted Active Loans List
+  const filteredLoans = useMemo(() => {
+    const q = debouncedSearchQuery.trim().toLowerCase();
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+
+    return activeLoans
+      .filter((l) => {
+        const matchesSearch =
+          !q ||
+          l.bookTitle?.toLowerCase().includes(q) ||
+          l.patronName?.toLowerCase().includes(q) ||
+          l.patronLibraryId?.toLowerCase().includes(q) ||
+          l.bookBarcode?.toLowerCase().includes(q) ||
+          l.loanCode?.toLowerCase().includes(q);
+
+        const dueTime = new Date(l.dueDate).getTime();
+        const isOverdue = dueTime < now;
+        const isDueToday = Math.abs(dueTime - now) <= oneDayMs;
+
+        if (statusFilter === 'overdue') return matchesSearch && isOverdue;
+        if (statusFilter === 'due_today') return matchesSearch && isDueToday;
+        return matchesSearch;
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.dueDate).getTime();
+        const timeB = new Date(b.dueDate).getTime();
+        if (sortBy === 'due-asc') return timeA - timeB;
+        if (sortBy === 'overdue-first') return timeA - timeB; // oldest due date first
+        if (sortBy === 'patron-az') return (a.patronName || '').localeCompare(b.patronName || '');
+        if (sortBy === 'title-az') return (a.bookTitle || '').localeCompare(b.bookTitle || '');
+        return 0;
+      });
+  }, [activeLoans, debouncedSearchQuery, statusFilter, sortBy]);
+
+  // Pagination for Active Loans
+  const {
+    paginatedItems: paginatedLoans,
+    currentPage,
+    totalPages,
+    pageSize,
+    pageSizeOptions,
+    setPageSize,
+    nextPage,
+    prevPage,
+    canNextPage,
+    canPrevPage,
+  } = usePagination(filteredLoans, {
+    initialPageSize: 10,
+    pageSizeOptions: [10, 25, 50, 100],
+  });
+
   return (
     <div className="w-full">
       <div className="flex flex-col w-full pb-16 space-y-6">
@@ -232,25 +315,22 @@ export const ReturnsFines: FC = () => {
 
         {/* Barcode Intake Scanner Bar */}
         <section className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <form onSubmit={handleScanSubmit} className="flex-1 relative flex items-center">
-            <div className="absolute left-4 flex items-center gap-1.5 text-primary">
-              <span className="material-symbols-outlined text-2xl animate-pulse">barcode_scanner</span>
+          <form onSubmit={handleScanSubmit} className="flex-1 relative flex items-center gap-2">
+            <div className="flex-1">
+              <SearchBar
+                placeholder="Scan Book Barcode, Loan Ref, or Patron Library ID..."
+                value={scannerInput}
+                onChange={(v) => setScannerInput(v)}
+                shortcutKey=""
+              />
             </div>
-            <input
-              value={scannerInput}
-              onChange={(e) => setScannerInput(e.target.value)}
-              className="w-full pl-14 pr-28 py-3.5 bg-surface-container-low focus:bg-surface-container-lowest text-text-primary font-body-medium text-body-medium rounded-xl outline-none transition-colors"
-              placeholder="Scan Book Barcode, Loan Ref, or Patron Library ID..."
-              type="text"
-            />
-            <div className="absolute right-3 flex items-center gap-2">
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 bg-primary text-on-primary font-caption text-caption font-bold rounded-lg hover:bg-primary-container transition-colors cursor-pointer"
-              >
-                Scan
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="px-4 py-2.5 bg-primary text-on-primary font-caption text-caption font-bold rounded-xl hover:bg-primary-container transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+            >
+              <span className="material-symbols-outlined text-base">barcode_scanner</span>
+              <span>Intake Scan</span>
+            </button>
           </form>
 
           {/* Drop-Box Toggle */}
@@ -259,15 +339,15 @@ export const ReturnsFines: FC = () => {
               <span className="material-symbols-outlined text-primary text-xl">move_to_inbox</span>
               <div className="flex flex-col">
                 <span className="font-small text-small font-bold text-text-primary leading-tight">
-                  Smart Drop-Box Mode
+                  Counter Drop Slot Mode
                 </span>
-                <span className="font-caption text-caption text-text-secondary">Auto-clear late fines under 24 hrs</span>
+                <span className="font-caption text-caption text-text-secondary">Auto-clear late fines under 24 hrs courtesy grace</span>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
-                checked={isSmartDropBox}
-                onChange={(e) => setIsSmartDropBox(e.target.checked)}
+                checked={isAfterHoursCounterSlot}
+                onChange={(e) => setIsAfterHoursCounterSlot(e.target.checked)}
                 className="sr-only peer"
                 type="checkbox"
               />
@@ -282,7 +362,7 @@ export const ReturnsFines: FC = () => {
           <div className="xl:col-span-7 flex flex-col space-y-6">
             {/* User & Asset Card */}
             {selectedLoan ? (
-              <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4">
+              <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4 border border-outline/10">
                 <div className="flex items-center justify-between pb-2 border-b border-surface-container">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-2xl">verified_user</span>
@@ -370,7 +450,7 @@ export const ReturnsFines: FC = () => {
                         <span className="font-bold text-text-primary">Checkout Desk:</span> Terminal 01
                       </div>
                       <div>
-                        <span className="font-bold text-text-primary">RFID Status:</span> Armed
+                        <span className="font-bold text-text-primary">Stacks Status:</span> Cataloged
                       </div>
                     </div>
                   </div>
@@ -403,7 +483,7 @@ export const ReturnsFines: FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-surface-container-lowest rounded-xl shadow-md p-12 flex flex-col items-center justify-center text-center">
+              <div className="bg-surface-container-lowest rounded-xl shadow-md p-12 flex flex-col items-center justify-center text-center border border-outline/10">
                 <span className="material-symbols-outlined text-5xl text-text-secondary/40 mb-3">
                   keyboard_return
                 </span>
@@ -411,13 +491,13 @@ export const ReturnsFines: FC = () => {
                   No Active Borrowing Selected
                 </p>
                 <p className="font-caption text-caption text-text-secondary max-w-sm mt-1">
-                  Scan book barcode or patron ID into the input above to begin check-in and condition audit.
+                  Scan book barcode above or choose an active loan from the circulating queue below to begin condition audit.
                 </p>
               </div>
             )}
 
             {/* Physical Condition Inspection Selector */}
-            <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4">
+            <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4 border border-outline/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary text-2xl">fact_check</span>
@@ -532,7 +612,7 @@ export const ReturnsFines: FC = () => {
 
           {/* Right Column: Automated Dynamic Fine Engine & Payment Settlement */}
           <div className="xl:col-span-5 flex flex-col space-y-6">
-            <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4">
+            <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4 border border-outline/10">
               <div className="flex items-center justify-between pb-2 border-b border-surface-container">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-2xl">calculate</span>
@@ -573,9 +653,9 @@ export const ReturnsFines: FC = () => {
                   </span>
                 </div>
 
-                {isSmartDropBox && daysOverdue <= 1 && (
+                {isAfterHoursCounterSlot && daysOverdue <= 1 && (
                   <div className="flex items-center justify-between py-1 px-3 text-caption font-caption text-action-green">
-                    <span>Smart Drop-Box Grace:</span>
+                    <span>Counter Drop Slot Grace:</span>
                     <span className="font-bold">Waiver Applied</span>
                   </div>
                 )}
@@ -599,7 +679,7 @@ export const ReturnsFines: FC = () => {
                   <span className="material-symbols-outlined text-2xl">
                     {isProcessing ? 'autorenew' : 'assignment_turned_in'}
                   </span>
-                  <span>{isProcessing ? 'Processing Return...' : 'Finalize Return & Re-arm RFID'}</span>
+                  <span>{isProcessing ? 'Processing Return...' : 'Finalize Return & Restock Stacks'}</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -625,6 +705,330 @@ export const ReturnsFines: FC = () => {
             </div>
           </div>
         </div>
+
+        {/* STANDARDIZED CIRCULATING LOANS QUEUE SECTION */}
+        <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-md border border-outline/10 flex flex-col space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-headline-3 text-headline-3 text-text-primary font-bold">
+                Circulating Loans Roster
+              </h2>
+              <p className="font-caption text-caption text-text-secondary">
+                Select any active borrowing in circulation to inspect condition or process return
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <RadioGroup
+                name="returnsViewMode"
+                options={[
+                  { value: 'table', label: 'Table' },
+                  { value: 'card', label: 'Cards' },
+                ]}
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+              />
+
+              {/* Sort Selector */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="h-9 px-3 rounded-xl bg-surface-container text-text-primary font-caption text-caption font-semibold outline-none cursor-pointer border border-outline/10"
+              >
+                <option value="due-asc">Sort: Due Date (Soonest)</option>
+                <option value="overdue-first">Sort: Most Overdue</option>
+                <option value="patron-az">Sort: Patron Name (A-Z)</option>
+                <option value="title-az">Sort: Book Title (A-Z)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Filter Chips & Search Bar */}
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="flex-1 w-full">
+              <SearchBar
+                placeholder="Search active loans by title, patron name, barcode, or loan code..."
+                value={searchQuery}
+                onChange={(v) => setSearchQuery(v)}
+                shortcutKey=""
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-lg font-caption text-caption font-bold transition-colors cursor-pointer ${
+                  statusFilter === 'all'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                All Active ({activeLoans.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('due_today')}
+                className={`px-3 py-1.5 rounded-lg font-caption text-caption font-bold transition-colors cursor-pointer ${
+                  statusFilter === 'due_today'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Due Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('overdue')}
+                className={`px-3 py-1.5 rounded-lg font-caption text-caption font-bold transition-colors cursor-pointer ${
+                  statusFilter === 'overdue'
+                    ? 'bg-status-danger text-on-primary'
+                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Overdue
+              </button>
+            </div>
+          </div>
+
+          {/* Active Loans Queue Display */}
+          {activeLoans.length === 0 ? (
+            <div className="p-12 bg-surface-container-low/40 rounded-xl flex flex-col items-center justify-center text-center">
+              <span className="material-symbols-outlined text-5xl text-text-secondary/40 mb-2">
+                assignment_turned_in
+              </span>
+              <h3 className="font-body-large text-body-large text-text-primary font-bold">
+                Zero Active Loans in Circulation
+              </h3>
+              <p className="font-caption text-caption text-text-secondary max-w-md mt-1">
+                All books are accounted for in the library stacks. New borrow checkouts will populate here.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Table View (retained in DOM for useTableDraggable) */}
+              <div
+                ref={tableContainerRef}
+                className={viewMode === 'table' ? 'overflow-x-auto rounded-xl border border-outline/10 bg-surface-container-lowest' : 'hidden'}
+              >
+                <table className="w-full text-left border-collapse min-w-[750px]">
+                  <thead>
+                    <tr className="border-b border-surface-container bg-surface-container-low/60 text-caption font-caption text-text-secondary font-bold uppercase tracking-wider">
+                      <th className="py-3 px-4">Book Asset</th>
+                      <th className="py-3 px-4">Patron</th>
+                      <th className="py-3 px-4">Loan Code</th>
+                      <th className="py-3 px-4">Borrowed</th>
+                      <th className="py-3 px-4">Due Date</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-container font-small text-small text-text-secondary">
+                    {paginatedLoans.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-text-secondary font-caption">
+                          No active loans match the specified search or filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedLoans.map((loan) => {
+                        const isOverdue = new Date(loan.dueDate).getTime() < Date.now();
+                        const isSelected = selectedLoan?.id === loan.id;
+                        return (
+                          <tr
+                            key={loan.id}
+                            className={`hover:bg-surface-container-low/50 transition-colors ${
+                              isSelected ? 'bg-soft-blue/20' : ''
+                            }`}
+                          >
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-12 rounded overflow-hidden bg-surface-container-high flex-shrink-0 shadow-sm">
+                                  {loan.bookCoverImage ? (
+                                    <img
+                                      src={loan.bookCoverImage}
+                                      alt={loan.bookTitle}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLElement).style.display = 'none';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-soft-blue text-primary">
+                                      <span className="material-symbols-outlined text-sm">book</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="font-body-medium text-body-medium font-bold text-text-primary block line-clamp-1">
+                                    {loan.bookTitle}
+                                  </span>
+                                  <span className="font-caption text-caption text-text-secondary font-mono">
+                                    {loan.bookBarcode}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <span className="font-bold text-text-primary block">{loan.patronName}</span>
+                                <span className="font-caption text-caption text-text-secondary font-mono">
+                                  {loan.patronLibraryId}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 font-mono font-bold text-primary">{loan.loanCode}</td>
+                            <td className="py-3 px-4">{new Date(loan.borrowDate).toLocaleDateString()}</td>
+                            <td className="py-3 px-4">
+                              <span className={isOverdue ? 'text-status-danger font-bold' : 'text-text-primary'}>
+                                {new Date(loan.dueDate).toLocaleDateString()}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                  isOverdue
+                                    ? 'bg-status-danger/20 text-status-danger'
+                                    : 'bg-action-green/20 text-action-green'
+                                }`}
+                              >
+                                {isOverdue ? 'Overdue' : 'Active'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => handleSelectLoanForReturn(loan)}
+                                type="button"
+                                className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold transition-colors cursor-pointer shadow-sm"
+                              >
+                                {isSelected ? 'Auditing' : 'Check-In'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Cards View */}
+              <div className={viewMode === 'card' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'hidden'}>
+                {paginatedLoans.map((loan) => {
+                  const isOverdue = new Date(loan.dueDate).getTime() < Date.now();
+                  const isSelected = selectedLoan?.id === loan.id;
+                  return (
+                    <div
+                      key={loan.id}
+                      className={`p-4 rounded-xl border bg-surface-container-low shadow-sm flex flex-col justify-between space-y-3 transition-colors ${
+                        isSelected ? 'border-primary ring-1 ring-primary' : 'border-outline/10'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-14 h-20 rounded overflow-hidden bg-surface-container-high flex-shrink-0 shadow-sm">
+                          {loan.bookCoverImage ? (
+                            <img
+                              src={loan.bookCoverImage}
+                              alt={loan.bookTitle}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-soft-blue text-primary">
+                              <span className="material-symbols-outlined text-lg">book</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-body-medium text-body-medium font-bold text-text-primary line-clamp-1">
+                            {loan.bookTitle}
+                          </h4>
+                          <p className="font-caption text-caption text-text-secondary mt-0.5">
+                            Borrower: <strong className="text-text-primary">{loan.patronName}</strong>
+                          </p>
+                          <p className="font-caption text-caption text-text-secondary font-mono">
+                            {loan.bookBarcode} • {loan.loanCode}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                isOverdue
+                                  ? 'bg-status-danger/20 text-status-danger'
+                                  : 'bg-action-green/20 text-action-green'
+                              }`}
+                            >
+                              {isOverdue ? 'Overdue' : 'Active'}
+                            </span>
+                            <span className="font-caption text-caption text-text-secondary text-[11px]">
+                              Due: {new Date(loan.dueDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-surface-container flex items-center justify-between">
+                        <span className="font-caption text-caption text-text-secondary">
+                          Loan: #{loan.loanCode}
+                        </span>
+                        <button
+                          onClick={() => handleSelectLoanForReturn(loan)}
+                          type="button"
+                          className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold transition-colors cursor-pointer shadow-sm"
+                        >
+                          {isSelected ? 'Auditing' : 'Select for Return'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Footer */}
+              {filteredLoans.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-surface-container">
+                  <span className="font-caption text-caption text-text-secondary">
+                    Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                    {Math.min(currentPage * pageSize, filteredLoans.length)} of {filteredLoans.length} active loans
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!canPrevPage}
+                      onClick={prevPage}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_left</span>
+                    </button>
+                    <span className="font-caption text-caption px-2 text-text-secondary">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!canNextPage}
+                      onClick={nextPage}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-primary disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_right</span>
+                    </button>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="h-8 px-2 rounded-lg bg-surface-container text-text-secondary font-caption text-caption outline-none cursor-pointer"
+                    >
+                      {pageSizeOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt} / page
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
       </div>
 
       {/* Floating Notifications Toast Container */}

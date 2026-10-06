@@ -244,6 +244,7 @@ FRONTEND/
 
     Shared/                        # GLOBAL CALLING IMPORT -- Universal UI primitives (NO logic, NO API calls)
       Button.tsx                   # Universal atomic button primitive (7 variants, 4 sizes, icons, loading)
+      Checkbox.tsx                 # Universal atomic checkbox primitive (checked, unchecked, indeterminate state '-')
       RadioButton.tsx              # Universal atomic radio button and RadioGroup primitive
       Dropdown.tsx                 # Generic dropdown component and floating menu panel layout
       SearchBar.tsx                # Universal glassmorphic search bar with ⌘K shortcut, clear icon, debounced typing
@@ -258,7 +259,8 @@ FRONTEND/
         PieGraphChart.tsx          # Multi-segment donut & pie graph visualizer, KPI metric center, interactive hover, N=0 baseline
         HeatmapChart.tsx           # 2D intensity matrix, adaptive color scale, cell hover tooltips, N=0 baseline
         index.ts                   # Barrel export for all chart primitives and data interfaces
-      Components/                  # Shared components alias mirror (Button.tsx, Dropdown.tsx, RadioButton.tsx)
+      Components/                  # Shared components alias mirror (Button.tsx, Dropdown.tsx, RadioButton.tsx, NotificationDropdownCard.tsx)
+        NotificationDropdownCard.tsx # Floating notification bell card with descending items, role filter & read state
       index.ts                     # Barrel export for all primitives, charts, and debouncing hook
 
     LayoutStyles/                  # GLOBAL CALLING IMPORT -- Master styling system & design tokens
@@ -282,6 +284,8 @@ FRONTEND/
       useAutoRefresh.ts            # Periodic data refresh and polling interval hook
       usePagesGlobalRefresh.ts     # Global recovery hook: auto-refreshes page on network online, health recovery, tab focus
       useRefreshTelemetry.ts       # Telemetry auto-refresh hook: operational feed countdown & interval telemetry sync
+      useSelection.ts              # Generic selection state hook (Set<string>, toggle, select-all, indeterminate, counts)
+      useNotification.ts           # Role-aware notification hook (Admin/Cashier/Customer, descending order, unread count)
       useNotifications.ts          # Notification state and read/unread badge tracking hook
 
     Libs/Assets/                   # GLOBAL CALLING IMPORT -- Static constants and link catalogs (no UI, no logic)

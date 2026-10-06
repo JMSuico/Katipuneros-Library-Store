@@ -4,6 +4,7 @@
 // DO NOT put business logic or direct API calls here.
 import { FC, useState } from 'react';
 import HeroSection from './Components/HeroSection';
+import AboutSection from '../About/Components/AboutSection';
 import ServicesSection from '../Services/Components/ServicesSection';
 import Product from '../Products/Product';
 import LibraryMapSection from './Components/LibraryMapSection';
@@ -25,6 +26,9 @@ const Home: FC = () => {
         onOpenReserve={(book) => setSelectedReserveBook(book)}
         onSearch={(q) => setSearchQuery(q)}
       />
+
+      {/* Institutional Heritage & About Section */}
+      <AboutSection />
 
       {/* Services Section */}
       <ServicesSection />

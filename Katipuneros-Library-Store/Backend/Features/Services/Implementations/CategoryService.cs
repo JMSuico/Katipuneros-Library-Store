@@ -4,6 +4,7 @@
 // DO NOT access AppDbContext directly -- use ICategoryRepository only.
 // DO NOT access HttpContext -- HTTP concerns stay in controllers.
 
+using Microsoft.EntityFrameworkCore;
 using Backend.Features.Data.Models;
 using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
@@ -87,8 +88,51 @@ public class CategoryService : ICategoryService
 
     private async Task<(bool Success, string? Error)> PerformCategoryDeleteAsync(Category category)
     {
-        await _categoryRepository.DeleteAsync(category);
-        var saved = await _categoryRepository.SaveChangesAsync();
-        return (saved, saved ? null : "Failed to delete category.");
+        try
+        {
+            await _categoryRepository.DeleteAsync(category);
+            var saved = await _categoryRepository.SaveChangesAsync();
+            return (saved, saved ? null : "Failed to delete category.");
+        }
+        catch (DbUpdateException)
+        {
+            return (false, "Cannot remove classification category: books are actively assigned to it.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error removing classification category: {ex.Message}");
+        }
+    }
+
+    public async Task<(int DeletedCount, string? Error)> BulkDeleteCategoriesAsync(List<Guid> categoryIds)
+    {
+        if (categoryIds == null || categoryIds.Count == 0) return (0, "No category IDs provided for deletion.");
+        var toDelete = new List<Category>();
+        foreach (var id in categoryIds)
+        {
+            if (await _categoryRepository.GetByIdAsync(id) is { } category)
+            {
+                if (category.Books.Any())
+                {
+                    return (0, $"Cannot remove category \"{category.Name}\": catalog titles are actively assigned to it.");
+                }
+                toDelete.Add(category);
+            }
+        }
+        if (toDelete.Count == 0) return (0, "No eligible categories found to remove.");
+        try
+        {
+            await _categoryRepository.DeleteRangeAsync(toDelete);
+            await _categoryRepository.SaveChangesAsync();
+            return (toDelete.Count, null);
+        }
+        catch (DbUpdateException)
+        {
+            return (0, "Cannot remove one or more selected categories: catalog titles are actively assigned to them.");
+        }
+        catch (Exception ex)
+        {
+            return (0, $"Error during bulk category removal: {ex.Message}");
+        }
     }
 }

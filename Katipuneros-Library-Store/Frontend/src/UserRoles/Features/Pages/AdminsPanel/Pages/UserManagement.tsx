@@ -20,6 +20,7 @@ import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { useFluidResposiveness } from '../../../../../Hooks/useFluidResposiveness';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import { useToasts } from '../../../../../Hooks/useToasts';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 import { SearchBar } from '../../../../../Shared/SearchBar';
 import { Button } from '../../../../../Shared/Button';
@@ -54,7 +55,6 @@ export interface UserItem {
   fines: string;
   avatarUrl?: string;
   initials?: string;
-  rfid?: string;
 }
 
 // Empty initial seed users adhering to zero-data mandate
@@ -77,7 +77,7 @@ const INITIAL_SEED_PATRONS: UserItem[] = [];
     holds: '1',
     fines: '₱0.00 clear',
     avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC1xp1xbV7PvMd-4u431pvisRoSQqgcNI_2LD4BKKJenSt3S4TXi_FtWeXBwImNk8xPjpNVRmqRAfRabD7iGGxCTBCtPqa7xLzIUJVJXYPG1JmF12Y5DuJlIZhxwF2puWsjNT8n_qQ81NJRcEkRl3ISx2hjUxCITTySKn3x8Iou6qaOkI558bS3vaCxqLuaEz6Ux4_SthnbFQjZTVSKD7P2BJbh5wIb6n7BQqr3Dbu3bbo7kKpOi-BH',
-    rfid: 'RF-9821-KP77',
+    cardBarcode: 'KP-LIB-9821-KP77',
   },
   {
     id: 'KP-10294',
@@ -96,7 +96,7 @@ const INITIAL_SEED_PATRONS: UserItem[] = [];
     holds: '0',
     fines: '₱0.00 clear',
     avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_xpduNAxwlpU8pLZZZuZhiovo2-d0eTyS95uGUYpQmIBRsbyjh5zPSBH6Yx6Do5yRCKlg7-TpRTRyl1ZAqZM2Wio-93suN9hfr0mqZ8TOmpko45DkyfuY1BDpNAjXbhveefsSalRw3JLkubCp8EWLKuR0wliNHSH06sI8q1HhsGLlWc9hnGmUucLOa7dpJpp-Knnq5H7zSmJJOqQZN1ck9HSAwwCkN4E7t1Kuy5aCHbfFRMVHkma3',
-    rfid: 'RF-1029-KP10',
+    cardBarcode: 'KP-LIB-1029-KP10',
   },
   {
     id: 'KP-88219',
@@ -115,7 +115,7 @@ const INITIAL_SEED_PATRONS: UserItem[] = [];
     holds: '0',
     fines: '₱340.00 Overdue',
     initials: 'MV',
-    rfid: 'RF-8821-KP88',
+    cardBarcode: 'KP-LIB-8821-KP88',
   },
   {
     id: 'KP-00442',
@@ -134,7 +134,7 @@ const INITIAL_SEED_PATRONS: UserItem[] = [];
     holds: '0',
     fines: 'Terminal POS #3',
     avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA4SoVGR6Rt9c6IcnqTWYXTSZv_B9ER2BakTvgQ1CdMlgB16IVHVvJBjdwtyJgZYeQ8AavcijWwu0VR6B08e7HFeyQnnBXaNuVkTQRQuaPAEwegLOMgrLYQHiiljnIh47KQ01pBGK3nZKjDrHu3WBFt7YrpBWqWIffoVl4wqtoFTC53bf3IN39LdrB7aIGWSnJXSV3_pzdDeu9anNHlbPgUjXpDdG4588Yx-sIpD-sTwF_zLTQNpoAv',
-    rfid: 'RF-0044-STAF',
+    cardBarcode: 'KP-LIB-0044-STAF',
   },
   {
     id: 'KP-77983',
@@ -153,7 +153,7 @@ const INITIAL_SEED_PATRONS: UserItem[] = [];
     holds: '0',
     fines: 'Awaiting ID badge scan',
     initials: 'AG',
-    rfid: 'RF-PENDING',
+    cardBarcode: 'KP-LIB-PENDING',
   },
   {
     id: 'KP-00018',
@@ -172,7 +172,7 @@ const INITIAL_SEED_PATRONS: UserItem[] = [];
     holds: '0',
     fines: '2FA Secured',
     initials: 'GR',
-    rfid: 'RF-ROOT-ADM1',
+    cardBarcode: 'KP-LIB-ROOT-ADM1',
   },
 ];
 */
@@ -218,7 +218,6 @@ const UserManagement: FC = () => {
             .join('')
             .slice(0, 2)
             .toUpperCase(),
-          rfid: `RF-${r.id.slice(0, 4).toUpperCase()}`,
         }));
         setPatrons(mapped);
       } else {
@@ -276,14 +275,17 @@ const UserManagement: FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // 5. Modal dialog states (using DefaultFloatingModalCard)
+  const { addToast } = useToasts();
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState<boolean>(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState<boolean>(false);
+  const [suspendError, setSuspendError] = useState<string>('');
   const [isSingleDeleteModalOpen, setIsSingleDeleteModalOpen] = useState<boolean>(false);
   const [userToDelete, setUserToDelete] = useState<UserItem | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string>('');
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState<boolean>(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string>('');
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [activePatron, setActivePatron] = useState<UserItem | null>(null);
 
@@ -657,7 +659,7 @@ const UserManagement: FC = () => {
   const handleConfirmSuspend = async () => {
     if (!activePatron) return;
     if (activePatron.isProtected && activePatron.isActive) {
-      alert('Protected CLI root accounts cannot be suspended via the Web UI.');
+      setSuspendError('Protected CLI root accounts cannot be suspended via the Web UI.');
       return;
     }
     const nextActive = !activePatron.isActive;
@@ -665,7 +667,7 @@ const UserManagement: FC = () => {
     try {
       const res = await toggleUserStatus(activePatron.id, nextActive);
       if (!res || !res.success) {
-        alert(res?.message || res?.errors?.[0] || 'Failed to update user status.');
+        setSuspendError(res?.message || res?.errors?.[0] || 'Failed to update user status.');
         return;
       }
       setPatrons((prev) =>
@@ -679,11 +681,13 @@ const UserManagement: FC = () => {
             : p
         )
       );
+      addToast(`User ${activePatron.fullName} status updated to ${nextActive ? 'Active' : 'Suspended'}.`, 'success');
       setIsSuspendModalOpen(false);
+      setSuspendError('');
       await loadUsers();
     } catch (err: any) {
       console.error('Failed to toggle status:', err);
-      alert(err?.message || 'Failed to toggle status.');
+      setSuspendError(err?.message || 'Failed to toggle status.');
     }
   };
 
@@ -702,8 +706,10 @@ const UserManagement: FC = () => {
       }
       setPatrons((prev) => prev.filter((p) => p.id !== userToDelete.id));
       setSelectedIds((prev) => prev.filter((id) => id !== userToDelete.id));
+      addToast(`User ${userToDelete.fullName} account deleted successfully.`, 'success');
       setIsSingleDeleteModalOpen(false);
       setUserToDelete(null);
+      setSingleDeleteError('');
       await loadUsers();
     } catch (err: any) {
       console.error('Failed to delete user:', err);
@@ -717,16 +723,19 @@ const UserManagement: FC = () => {
     try {
       const res = await bulkDeleteAdminUsers(selectedIds);
       if (!res || !res.success) {
-        alert(res?.message || res?.errors?.[0] || 'Failed to bulk delete user accounts.');
+        setBulkDeleteError(res?.message || res?.errors?.[0] || 'Failed to bulk delete user accounts.');
         return;
       }
+      const count = selectedIds.length;
       setPatrons((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
       setSelectedIds([]);
+      addToast(`${count} patron account(s) deactivated and purged.`, 'success');
       setIsBulkDeleteModalOpen(false);
+      setBulkDeleteError('');
       await loadUsers();
     } catch (err: any) {
       console.error('Bulk deletion failed:', err);
-      alert(err?.message || 'Bulk deletion failed.');
+      setBulkDeleteError(err?.message || 'Bulk deletion failed.');
     }
   };
 
@@ -2595,6 +2604,11 @@ const UserManagement: FC = () => {
             <p className="font-caption text-caption text-status-danger bg-error-container/20 p-space-sm rounded-lg">
               Notice: Suspended users will be immediately blocked from borrowing physical repository materials and reserving items at terminal desks.
             </p>
+            {suspendError && (
+              <div className="p-3 bg-error-container/20 border border-error/30 rounded-lg text-status-danger text-caption font-semibold">
+                {suspendError}
+              </div>
+            )}
           </div>
         )}
       </DefaultFloatingModalCard>
@@ -2651,14 +2665,20 @@ const UserManagement: FC = () => {
       {/* 5.5. CONFIRM BULK DELETION MODAL */}
       <DefaultFloatingModalCard
         isOpen={isBulkDeleteModalOpen}
-        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onClose={() => {
+          setIsBulkDeleteModalOpen(false);
+          setBulkDeleteError('');
+        }}
         title="Confirm Bulk Deletion"
         maxWidth="max-w-md"
         footer={
           <>
             <button
               type="button"
-              onClick={() => setIsBulkDeleteModalOpen(false)}
+              onClick={() => {
+                setIsBulkDeleteModalOpen(false);
+                setBulkDeleteError('');
+              }}
               className="px-space-md py-2 rounded-full bg-surface-container text-text-secondary hover:text-text-primary font-small text-small font-semibold cursor-pointer"
             >
               Cancel
@@ -2673,11 +2693,18 @@ const UserManagement: FC = () => {
           </>
         }
       >
-        <p className="font-small text-small text-text-secondary">
-          Are you sure you want to permanently delete{' '}
-          <strong className="text-status-danger font-bold">{selectedIds.length}</strong> selected user accounts?
-          This action cannot be undone.
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="font-small text-small text-text-secondary">
+            Are you sure you want to permanently delete{' '}
+            <strong className="text-status-danger font-bold">{selectedIds.length}</strong> selected user accounts?
+            This action cannot be undone.
+          </p>
+          {bulkDeleteError && (
+            <div className="p-3 bg-error-container/20 border border-error/30 rounded-lg text-status-danger text-caption font-semibold">
+              {bulkDeleteError}
+            </div>
+          )}
+        </div>
       </DefaultFloatingModalCard>
 
       {/* 6. ADVANCED CSV / EXCEL EXPORT MODAL */}

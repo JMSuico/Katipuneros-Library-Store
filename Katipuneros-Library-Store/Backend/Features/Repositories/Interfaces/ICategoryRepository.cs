@@ -14,5 +14,6 @@ public interface ICategoryRepository
     Task AddAsync(Category category);
     Task UpdateAsync(Category category);
     Task DeleteAsync(Category category);
+    Task DeleteRangeAsync(IEnumerable<Category> categories);
     Task<bool> SaveChangesAsync();
 }

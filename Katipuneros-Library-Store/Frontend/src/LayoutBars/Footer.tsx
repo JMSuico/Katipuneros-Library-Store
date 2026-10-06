@@ -29,16 +29,19 @@ const Footer: React.FC = () => {
 
         {/* Footer Nav Links */}
         <div className="flex items-center gap-space-md">
-          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="#home">
+          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="/#home">
             Home
           </a>
-          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="#services">
+          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="/about">
+            About
+          </a>
+          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="/#services">
             Services
           </a>
-          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="#products">
+          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="/products">
             Products
           </a>
-          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="#contact">
+          <a className="font-small text-small text-white/80 hover:text-white transition-colors" href="/contact">
             Contact
           </a>
         </div>

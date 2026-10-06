@@ -28,7 +28,7 @@ public class AuditService : IAuditService
     public async Task<AuditLogEntry> LogEventAsync(Guid? userId, string action, string targetEntity, string? recordRef, string? delta, string ipAddress, string severity = "Info")
     {
         var latest = await _auditRepository.GetLatestLogAsync();
-        string previousHash = latest?.CurrentHash ?? AuditHelper.GenesisHash;
+        string previousHash = !string.IsNullOrWhiteSpace(latest?.CurrentHash) ? latest.CurrentHash : AuditHelper.GenesisHash;
         var now = DateTime.UtcNow;
 
         string currentHash = AuditHelper.ComputeHash(previousHash, action, targetEntity, delta ?? string.Empty, now);
@@ -121,8 +121,20 @@ public class AuditService : IAuditService
         };
     }
 
-    public async Task<MerkleRootResponseDto> ForceReindexChainAsync() =>
-        await GetMerkleRootAsync();
+    public async Task<MerkleRootResponseDto> ForceReindexChainAsync()
+    {
+        var logs = await _auditRepository.GetAllAsync(null, 5000);
+        var ordered = logs.OrderBy(l => l.Timestamp).ToList();
+        string prevHash = AuditHelper.GenesisHash;
+        foreach (var log in ordered)
+        {
+            log.PreviousHash = prevHash;
+            log.CurrentHash = AuditHelper.ComputeHash(prevHash, log.Action, log.TargetEntity, log.DeltaModification ?? string.Empty, log.Timestamp);
+            prevHash = log.CurrentHash;
+        }
+        await _auditRepository.SaveChangesAsync();
+        return await GetMerkleRootAsync();
+    }
 
     public async Task<bool> BulkDeleteLogsAsync(List<Guid> ids)
     {

@@ -5,6 +5,7 @@
 // Universal lambda syntax (=>), zero hardcoded mock values, zero alert().
 
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import {
   getAdminReservations,
@@ -16,8 +17,14 @@ import {
   ReservationMetrics,
   EMPTY_RESERVATION_METRICS,
 } from '../../../../../Endpoints/Admin/reservationsApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { Checkbox } from '../../../../../Shared/Checkbox';
+import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const PendingReservations: FC = () => {
+  const navigate = useNavigate();
   const { toasts, addToast, removeToast } = useToasts();
 
   const [reservations, setReservations] = useState<BackendReservation[]>([]);
@@ -31,7 +38,20 @@ export const PendingReservations: FC = () => {
   // Search, Filter & Sort
   const [filterTab, setFilterTab] = useState<'all' | 'today' | 'tomorrow' | 'scholastic' | 'waitlist'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sortOption, setSortOption] = useState<'pickup' | 'newest' | 'standing'>('pickup');
+
+  // View Mode (persisted)
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_reservations_view') || 'table';
+  });
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_reservations_view', mode);
+  };
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
 
   // Rejection Modal
   const [rejectModalItem, setRejectModalItem] = useState<BackendReservation | null>(null);
@@ -113,6 +133,15 @@ export const PendingReservations: FC = () => {
     }
   };
 
+  const handleIssuePhysicalLoan = (r: BackendReservation, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const patronParam = r.patronId || r.patronLibraryId || '';
+    const barcodeParam = r.bookCallNumber || r.bookTitle || '';
+    const bookIdParam = r.bookId || '';
+    addToast(`Bridging hold #${r.id.substring(0, 8).toUpperCase()} to Circulation Checkout...`, 'info');
+    navigate(`/cashier/checkout?patronId=${encodeURIComponent(patronParam)}&bookId=${encodeURIComponent(bookIdParam)}&barcode=${encodeURIComponent(barcodeParam)}`);
+  };
+
   const handleBatchApprove = async () => {
     if (selectedIds.size === 0) return;
     setIsProcessing(true);
@@ -192,13 +221,14 @@ export const PendingReservations: FC = () => {
         return true;
       })
       .filter((r) => {
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
+        if (!debouncedSearchQuery.trim()) return true;
+        const q = debouncedSearchQuery.toLowerCase();
         return (
           r.patronName?.toLowerCase().includes(q) ||
           r.bookTitle?.toLowerCase().includes(q) ||
           r.patronLibraryId?.toLowerCase().includes(q) ||
-          r.bookCallNumber?.toLowerCase().includes(q)
+          r.bookCallNumber?.toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q)
         );
       })
       .sort((a, b) => {
@@ -210,7 +240,24 @@ export const PendingReservations: FC = () => {
         }
         return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
       });
-  }, [reservations, filterTab, searchQuery, sortOption]);
+  }, [reservations, filterTab, debouncedSearchQuery, sortOption]);
+
+  // Pagination for Queue
+  const {
+    paginatedItems: paginatedReservations,
+    currentPage,
+    totalPages,
+    pageSize,
+    pageSizeOptions,
+    setPageSize,
+    nextPage,
+    prevPage,
+    canNextPage,
+    canPrevPage,
+  } = usePagination(filteredReservations, {
+    initialPageSize: 10,
+    pageSizeOptions: [10, 25, 50, 100],
+  });
 
   const allSelected = reservations.length > 0 && selectedIds.size === reservations.length;
 
@@ -226,14 +273,14 @@ export const PendingReservations: FC = () => {
               </span>
               <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-caption font-caption bg-surface-container text-text-secondary">
                 <span className="w-1.5 h-1.5 rounded-full bg-action-green animate-pulse"></span>
-                <span>{isLoading ? 'Syncing...' : 'RFID Staging Sync Live'}</span>
+                <span>{isLoading ? 'Syncing...' : 'Live Holds Queue Active'}</span>
               </div>
             </div>
             <h1 className="font-headline-2 text-headline-2 text-primary tracking-tight">
               Pending Reservations Queue
             </h1>
             <p className="font-body text-small text-text-secondary max-w-3xl">
-              Verify user standing, confirm physical copy staging in staging lockers, and approve or reject borrower hold requests prior to automated dispatch.
+              Verify user standing, confirm physical copy staging in pickup staging bays, and approve or reject borrower hold requests prior to automated dispatch.
             </p>
           </div>
 
@@ -244,7 +291,7 @@ export const PendingReservations: FC = () => {
                 loadData();
                 addToast('Queue synchronized with live database.', 'info');
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-surface-container-lowest text-text-primary rounded-xl font-small text-small shadow-sm hover:bg-surface-container transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-surface-container-lowest text-text-primary rounded-xl font-small text-small shadow-sm hover:bg-surface-container transition-all cursor-pointer border border-outline/10"
               type="button"
             >
               <span className="material-symbols-outlined text-lg">sync</span>
@@ -252,7 +299,7 @@ export const PendingReservations: FC = () => {
             </button>
             <button
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-surface-container-lowest text-text-primary rounded-xl font-small text-small shadow-sm hover:bg-surface-container transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-surface-container-lowest text-text-primary rounded-xl font-small text-small shadow-sm hover:bg-surface-container transition-all cursor-pointer border border-outline/10"
               type="button"
             >
               <span className="material-symbols-outlined text-lg">download</span>
@@ -272,7 +319,7 @@ export const PendingReservations: FC = () => {
 
         {/* Operational Metrics & Fast-Action Summary Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between border border-outline/10">
             <div className="space-y-1">
               <p className="font-caption text-caption text-text-secondary uppercase font-semibold">
                 Total Pending Verification
@@ -289,7 +336,7 @@ export const PendingReservations: FC = () => {
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between border border-outline/10">
             <div className="space-y-1">
               <p className="font-caption text-caption text-text-secondary uppercase font-semibold">
                 Active Hold Queue
@@ -306,7 +353,7 @@ export const PendingReservations: FC = () => {
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between border border-outline/10">
             <div className="space-y-1">
               <p className="font-caption text-caption text-text-secondary uppercase font-semibold">
                 Staged in Lockers
@@ -323,7 +370,7 @@ export const PendingReservations: FC = () => {
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between border border-outline/10">
             <div className="space-y-1">
               <p className="font-caption text-caption text-text-secondary uppercase font-semibold">
                 Assigned Lockers
@@ -341,94 +388,102 @@ export const PendingReservations: FC = () => {
           </div>
         </div>
 
-        {/* Filtering, Pill Tabs & Search Controls */}
-        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-            <button
-              onClick={() => setFilterTab('all')}
-              className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                filterTab === 'all'
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
-              }`}
-              type="button"
-            >
-              All Pending ({reservations.length})
-            </button>
-            <button
-              onClick={() => setFilterTab('today')}
-              className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                filterTab === 'today'
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
-              }`}
-              type="button"
-            >
-              Due Today
-            </button>
-            <button
-              onClick={() => setFilterTab('tomorrow')}
-              className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                filterTab === 'tomorrow'
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
-              }`}
-              type="button"
-            >
-              Tomorrow
-            </button>
-            <button
-              onClick={() => setFilterTab('scholastic')}
-              className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                filterTab === 'scholastic'
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
-              }`}
-              type="button"
-            >
-              Scholastic Priority
-            </button>
-            <button
-              onClick={() => setFilterTab('waitlist')}
-              className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                filterTab === 'waitlist'
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
-              }`}
-              type="button"
-            >
-              Waitlist
-            </button>
+        {/* Filtering, Pill Tabs, View Switch, Search & Sort Controls */}
+        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col space-y-3 border border-outline/10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Category Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+              <button
+                onClick={() => setFilterTab('all')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  filterTab === 'all'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
+                }`}
+                type="button"
+              >
+                All Pending ({reservations.length})
+              </button>
+              <button
+                onClick={() => setFilterTab('today')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  filterTab === 'today'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
+                }`}
+                type="button"
+              >
+                Due Today
+              </button>
+              <button
+                onClick={() => setFilterTab('tomorrow')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  filterTab === 'tomorrow'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
+                }`}
+                type="button"
+              >
+                Tomorrow
+              </button>
+              <button
+                onClick={() => setFilterTab('scholastic')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  filterTab === 'scholastic'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
+                }`}
+                type="button"
+              >
+                Scholastic Priority
+              </button>
+              <button
+                onClick={() => setFilterTab('waitlist')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  filterTab === 'waitlist'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container hover:bg-surface-container-high text-text-secondary'
+                }`}
+                type="button"
+              >
+                Waitlist
+              </button>
+            </div>
+
+            {/* View Switch */}
+            <div className="flex items-center gap-3">
+              <RadioGroup
+                name="reservationsViewMode"
+                options={[
+                  { value: 'table', label: 'Table' },
+                  { value: 'card', label: 'Cards' },
+                ]}
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+              />
+            </div>
           </div>
 
           {/* Search bar & Sorting */}
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-            <div className="relative flex-1 lg:w-80">
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-text-secondary text-base">
-                search
-              </span>
-              <input
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex-1 w-full">
+              <SearchBar
+                placeholder="Filter holds by patron, book title, card ID, or ref..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-surface-container rounded-xl text-small font-small text-on-surface placeholder:text-text-secondary outline-none focus:bg-surface-bright transition-colors"
-                placeholder="Filter by Ref, User, or ISBN..."
-                type="text"
+                onChange={(v) => setSearchQuery(v)}
+                shortcutKey=""
               />
             </div>
-            <div className="relative">
+            <div className="w-full sm:w-auto">
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value as 'pickup' | 'newest' | 'standing')}
-                className="appearance-none bg-surface-container text-text-primary pl-3 pr-8 py-2 rounded-xl text-small font-small outline-none cursor-pointer focus:bg-surface-bright"
+                className="w-full sm:w-auto bg-surface-container text-text-primary px-3 py-2 rounded-xl text-small font-small outline-none cursor-pointer border border-outline/10"
               >
-                <option value="pickup">Earliest Requested Pickup</option>
-                <option value="newest">Newest Request</option>
-                <option value="standing">User Standing</option>
+                <option value="pickup">Sort: Earliest Pickup</option>
+                <option value="newest">Sort: Newest Request</option>
+                <option value="standing">Sort: User Standing / Dept</option>
               </select>
-              <span className="material-symbols-outlined absolute right-2 top-2.5 text-text-secondary pointer-events-none text-base">
-                expand_more
-              </span>
             </div>
           </div>
         </div>
@@ -436,7 +491,7 @@ export const PendingReservations: FC = () => {
         {/* Main Split Layout: Operational Data Table & Live Action Staging Drawer */}
         <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 items-start">
           {/* Queue Table Column */}
-          <div className="2xl:col-span-8 bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+          <div className="2xl:col-span-8 bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline/10">
             <div className="px-5 py-3.5 bg-surface-container-low flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="font-body-medium text-body-medium font-bold text-primary">
@@ -469,196 +524,351 @@ export const PendingReservations: FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-small font-small">
-                  <thead>
-                    <tr className="bg-surface-container text-text-secondary uppercase text-caption font-caption tracking-wider">
-                      <th className="py-3 px-4 w-10" scope="col">
-                        <input
-                          checked={allSelected}
-                          onChange={(e) => handleToggleSelectAll(e.target.checked)}
-                          className="w-4 h-4 rounded text-primary cursor-pointer accent-primary"
-                          type="checkbox"
-                        />
-                      </th>
-                      <th className="py-3 px-4" scope="col">Reservation Ref</th>
-                      <th className="py-3 px-4" scope="col">User Details</th>
-                      <th className="py-3 px-4" scope="col">Requested Volume</th>
-                      <th className="py-3 px-4" scope="col">Stacks &amp; Staging</th>
-                      <th className="py-3 px-4" scope="col">Hold Schedule</th>
-                      <th className="py-3 px-4" scope="col">Standing</th>
-                      <th className="py-3 px-4 text-right" scope="col">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-container-high/40">
-                    {filteredReservations.map((r) => {
-                      const isFocused = activeReservation?.id === r.id;
-                      const isChecked = selectedIds.has(r.id);
-                      return (
-                        <tr
-                          key={r.id}
-                          onClick={() => setActiveReservationId(r.id)}
-                          className={`transition-colors cursor-pointer ${
-                            isFocused
-                              ? 'bg-soft-blue/20 hover:bg-soft-blue/30'
-                              : 'hover:bg-surface-container-low'
-                          }`}
-                        >
-                          <td className="py-4 px-4 align-top" onClick={(e) => e.stopPropagation()}>
+              <>
+                {/* Table View (Retained in DOM for useTableDraggable) */}
+                <div
+                  ref={tableContainerRef}
+                  className={viewMode === 'table' ? 'overflow-x-auto' : 'hidden'}
+                >
+                  <table className="w-full text-left text-small font-small min-w-[750px]">
+                    <thead>
+                      <tr className="bg-surface-container text-text-secondary uppercase text-caption font-caption tracking-wider">
+                        <th className="py-3 px-4 w-10" scope="col">
+                          <Checkbox
+                            checked={allSelected}
+                            indeterminate={selectedIds.size > 0 && !allSelected}
+                            onChange={(checked) => handleToggleSelectAll(checked)}
+                            aria-label="Select all pending holds"
+                          />
+                        </th>
+                        <th className="py-3 px-4" scope="col">Reservation Ref</th>
+                        <th className="py-3 px-4" scope="col">User Details</th>
+                        <th className="py-3 px-4" scope="col">Requested Volume</th>
+                        <th className="py-3 px-4" scope="col">Stacks &amp; Staging</th>
+                        <th className="py-3 px-4" scope="col">Hold Schedule</th>
+                        <th className="py-3 px-4" scope="col">Standing</th>
+                        <th className="py-3 px-4 text-right" scope="col">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-container-high/40">
+                      {paginatedReservations.map((r) => {
+                        const isFocused = activeReservation?.id === r.id;
+                        const isChecked = selectedIds.has(r.id);
+                        return (
+                          <tr
+                            key={r.id}
+                            onClick={() => setActiveReservationId(r.id)}
+                            className={`transition-colors cursor-pointer ${
+                              isFocused
+                                ? 'bg-soft-blue/20 hover:bg-soft-blue/30'
+                                : 'hover:bg-surface-container-low'
+                            }`}
+                          >
+                            <td className="py-4 px-4 align-top" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isChecked}
+                                onChange={() => {
+                                  const next = new Set(selectedIds);
+                                  if (next.has(r.id)) {
+                                    next.delete(r.id);
+                                  } else {
+                                    next.add(r.id);
+                                  }
+                                  setSelectedIds(next);
+                                }}
+                                aria-label={`Select reservation ${r.id}`}
+                              />
+                            </td>
+                            <td className="py-4 px-4 align-top">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-primary font-body-medium">
+                                  #{r.id.substring(0, 8).toUpperCase()}
+                                </span>
+                                <span className="font-caption text-caption text-text-secondary">
+                                  {new Date(r.reservationDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {r.priorityLabel && (
+                                  <span className="inline-flex items-center gap-1 mt-1 text-caption font-caption px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger font-bold w-max">
+                                    {r.priorityLabel}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 align-top">
+                              <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-full bg-soft-blue text-primary flex items-center justify-center font-bold text-caption flex-shrink-0">
+                                  {r.patronName?.charAt(0) || 'U'}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-text-primary leading-snug">
+                                    {r.patronName}
+                                  </span>
+                                  <span className="font-caption text-caption text-text-secondary">
+                                    {r.patronLibraryId || 'KP-ID'}
+                                  </span>
+                                  <span className="text-caption font-caption text-secondary">
+                                    {r.patronDepartment || 'Academic Department'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 align-top">
+                              <div className="flex items-start gap-2.5">
+                                {r.bookCoverImage ? (
+                                  <img
+                                    className="w-9 h-12 rounded object-cover shadow-sm flex-shrink-0"
+                                    src={r.bookCoverImage}
+                                    alt={r.bookTitle}
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-9 h-12 rounded bg-soft-blue text-primary flex items-center justify-center flex-shrink-0">
+                                    <span className="material-symbols-outlined text-base">book</span>
+                                  </div>
+                                )}
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-text-primary line-clamp-1">
+                                    {r.bookTitle}
+                                  </span>
+                                  <span className="font-caption text-caption text-text-secondary">
+                                    {r.bookAuthor}
+                                  </span>
+                                  <span className="font-caption text-caption text-secondary font-mono">
+                                    {r.bookCallNumber || 'Call N/A'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 align-top">
+                              <div className="flex flex-col gap-1">
+                                <span className="inline-flex items-center gap-1 font-caption text-caption px-2 py-0.5 rounded-full bg-surface-container font-mono text-primary font-bold">
+                                  {r.pickupBranch || 'Desk Bay 01'}
+                                </span>
+                                <span className="font-caption text-caption text-status-available font-semibold">
+                                  Staging Bay {r.lockerBay || 'A-01'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 align-top">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-text-primary">
+                                  {new Date(r.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </span>
+                                <span className="font-caption text-caption text-text-secondary">
+                                  Expiry: 48 Hours
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 align-top">
+                              <div className="flex flex-col gap-1">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-caption bg-status-available/15 text-status-available font-bold w-max">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-status-available"></span>
+                                  Good Standing
+                                </span>
+                                <span className="text-caption font-caption text-text-secondary">
+                                  Quota Active
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 align-top text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={(e) => handleIssuePhysicalLoan(r, e)}
+                                  className="p-1.5 rounded-lg bg-surface-container text-primary hover:bg-soft-blue transition-colors cursor-pointer"
+                                  title="Issue Physical Loan (Checkout)"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">shopping_cart_checkout</span>
+                                </button>
+                                <button
+                                  onClick={(e) => handleSingleApprove(r, e)}
+                                  disabled={isProcessing}
+                                  className="p-1.5 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover transition-colors cursor-pointer"
+                                  title="Quick Approve"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">check</span>
+                                </button>
+                                <button
+                                  onClick={(e) => handleOpenRejectModal(r, undefined, e)}
+                                  disabled={isProcessing}
+                                  className="p-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container transition-colors cursor-pointer"
+                                  title="Quick Reject"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">close</span>
+                                </button>
+                                <button
+                                  onClick={() => setActiveReservationId(r.id)}
+                                  className="p-1.5 rounded-lg bg-surface-container text-primary hover:bg-soft-blue transition-colors cursor-pointer"
+                                  title="View Full Inspection"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">visibility</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Cards Grid View */}
+                <div className={viewMode === 'card' ? 'grid grid-cols-1 md:grid-cols-2 gap-4 p-4' : 'hidden'}>
+                  {paginatedReservations.map((r) => {
+                    const isFocused = activeReservation?.id === r.id;
+                    const isChecked = selectedIds.has(r.id);
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={() => setActiveReservationId(r.id)}
+                        className={`p-4 rounded-xl border bg-surface-container-low shadow-sm flex flex-col justify-between space-y-3 transition-colors cursor-pointer ${
+                          isFocused ? 'border-primary ring-1 ring-primary' : 'border-outline/10'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
                             <input
                               checked={isChecked}
                               onChange={(e) => handleToggleSelectRow(r.id, e as unknown as React.MouseEvent)}
+                              onClick={(e) => e.stopPropagation()}
                               className="w-4 h-4 rounded cursor-pointer accent-primary"
                               type="checkbox"
                             />
-                          </td>
-                          <td className="py-4 px-4 align-top">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-primary font-body-medium">
-                                #{r.id.substring(0, 8).toUpperCase()}
-                              </span>
-                              <span className="font-caption text-caption text-text-secondary">
-                                {new Date(r.reservationDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              {r.priorityLabel && (
-                                <span className="inline-flex items-center gap-1 mt-1 text-caption font-caption px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger font-bold w-max">
-                                  {r.priorityLabel}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 align-top">
-                            <div className="flex items-start gap-3">
-                              <div className="w-9 h-9 rounded-full bg-soft-blue text-primary flex items-center justify-center font-bold text-caption flex-shrink-0">
-                                {r.patronName?.charAt(0) || 'U'}
+                            <span className="font-mono font-bold text-primary text-small">
+                              #{r.id.substring(0, 8).toUpperCase()}
+                            </span>
+                          </div>
+                          {r.priorityLabel && (
+                            <span className="text-caption font-caption px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger font-bold">
+                              {r.priorityLabel}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-16 rounded overflow-hidden bg-surface-container-high flex-shrink-0 shadow-sm">
+                            {r.bookCoverImage ? (
+                              <img
+                                src={r.bookCoverImage}
+                                alt={r.bookTitle}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-soft-blue text-primary">
+                                <span className="material-symbols-outlined text-base">book</span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-text-primary leading-snug">
-                                  {r.patronName}
-                                </span>
-                                <span className="font-caption text-caption text-text-secondary">
-                                  {r.patronLibraryId || 'KP-ID'}
-                                </span>
-                                <span className="text-caption font-caption text-secondary">
-                                  {r.patronDepartment || 'Academic Department'}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 align-top">
-                            <div className="flex items-start gap-2.5">
-                              {r.bookCoverImage ? (
-                                <img
-                                  className="w-9 h-12 rounded object-cover shadow-sm flex-shrink-0"
-                                  src={r.bookCoverImage}
-                                  alt={r.bookTitle}
-                                  onError={(e) => {
-                                    (e.target as HTMLElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-9 h-12 rounded bg-soft-blue text-primary flex items-center justify-center flex-shrink-0">
-                                  <span className="material-symbols-outlined text-base">book</span>
-                                </div>
-                              )}
-                              <div className="flex flex-col">
-                                <span className="font-bold text-text-primary line-clamp-1">
-                                  {r.bookTitle}
-                                </span>
-                                <span className="font-caption text-caption text-text-secondary">
-                                  {r.bookAuthor}
-                                </span>
-                                <span className="font-caption text-caption text-secondary font-mono">
-                                  {r.bookCallNumber || 'Call N/A'}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 align-top">
-                            <div className="flex flex-col gap-1">
-                              <span className="inline-flex items-center gap-1 font-caption text-caption px-2 py-0.5 rounded-full bg-surface-container font-mono text-primary font-bold">
-                                {r.pickupBranch || 'Desk Bay 01'}
-                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-body-medium text-body-medium font-bold text-text-primary line-clamp-1">
+                              {r.bookTitle}
+                            </h4>
+                            <p className="font-caption text-caption text-text-secondary">
+                              Patron: <strong className="text-text-primary">{r.patronName}</strong> ({r.patronLibraryId})
+                            </p>
+                            <p className="font-caption text-caption text-text-secondary mt-0.5">
+                              Call: {r.bookCallNumber || 'N/A'} • Bay: {r.pickupBranch || 'Desk Bay 01'}
+                            </p>
+                            <div className="mt-1 flex items-center gap-2">
                               <span className="font-caption text-caption text-status-available font-semibold">
-                                Staging Locker {r.lockerBay || 'Auto'}
+                                Locker {r.lockerBay || 'Auto'}
                               </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 align-top">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-text-primary">
-                                {new Date(r.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                              </span>
+                              <span className="text-text-secondary text-caption">•</span>
                               <span className="font-caption text-caption text-text-secondary">
-                                Expiry: 48 Hours
+                                Exp: {new Date(r.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                               </span>
                             </div>
-                          </td>
-                          <td className="py-4 px-4 align-top">
-                            <div className="flex flex-col gap-1">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-caption bg-status-available/15 text-status-available font-bold w-max">
-                                <span className="w-1.5 h-1.5 rounded-full bg-status-available"></span>
-                                Good Standing
-                              </span>
-                              <span className="text-caption font-caption text-text-secondary">
-                                Quota Active
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 align-top text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={(e) => handleSingleApprove(r, e)}
-                                disabled={isProcessing}
-                                className="p-1.5 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover transition-colors cursor-pointer"
-                                title="Quick Approve"
-                                type="button"
-                              >
-                                <span className="material-symbols-outlined text-base">check</span>
-                              </button>
-                              <button
-                                onClick={(e) => handleOpenRejectModal(r, undefined, e)}
-                                disabled={isProcessing}
-                                className="p-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container transition-colors cursor-pointer"
-                                title="Quick Reject"
-                                type="button"
-                              >
-                                <span className="material-symbols-outlined text-base">close</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveReservationId(r.id)}
-                                className="p-1.5 rounded-lg bg-surface-container text-primary hover:bg-soft-blue transition-colors cursor-pointer"
-                                title="View Full Inspection"
-                                type="button"
-                              >
-                                <span className="material-symbols-outlined text-base">visibility</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-surface-container flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => handleIssuePhysicalLoan(r, e)}
+                            className="px-3 py-1.5 rounded-lg bg-surface-container text-primary font-caption text-caption font-bold hover:bg-soft-blue transition-colors cursor-pointer flex items-center gap-1"
+                            title="Issue Physical Loan (Checkout)"
+                            type="button"
+                          >
+                            <span className="material-symbols-outlined text-sm">shopping_cart_checkout</span>
+                            <span>Checkout</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleSingleApprove(r, e)}
+                            disabled={isProcessing}
+                            className="px-3 py-1.5 rounded-lg bg-action-green text-text-primary font-caption text-caption font-bold hover:bg-action-green-hover transition-colors cursor-pointer"
+                            type="button"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={(e) => handleOpenRejectModal(r, undefined, e)}
+                            disabled={isProcessing}
+                            className="px-3 py-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container font-caption text-caption font-bold transition-colors cursor-pointer"
+                            type="button"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
 
-            {/* Table Footer */}
-            <div className="px-5 py-3.5 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-caption font-caption text-text-secondary">
-              <div>
-                Showing <strong className="text-text-primary">{filteredReservations.length}</strong> of{' '}
-                <strong className="text-text-primary">{reservations.length}</strong> queue records • Auto-refreshes every 30s
+            {/* Table Footer with Pagination Controls */}
+            {filteredReservations.length > 0 && (
+              <div className="px-5 py-3.5 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-caption font-caption text-text-secondary border-t border-surface-container">
+                <div>
+                  Showing <strong className="text-text-primary">{(currentPage - 1) * pageSize + 1}</strong> to{' '}
+                  <strong className="text-text-primary">{Math.min(currentPage * pageSize, filteredReservations.length)}</strong> of{' '}
+                  <strong className="text-text-primary">{filteredReservations.length}</strong> queue records
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!canPrevPage}
+                    onClick={prevPage}
+                    className="p-1 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-text-primary disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">chevron_left</span>
+                  </button>
+                  <span className="font-caption text-caption px-2 text-text-secondary">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!canNextPage}
+                    onClick={nextPage}
+                    className="p-1 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-text-primary disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">chevron_right</span>
+                  </button>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="h-7 px-2 rounded-lg bg-surface-container-lowest text-text-secondary font-caption text-caption outline-none cursor-pointer"
+                  >
+                    {pageSizeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt} / page
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 bg-surface-container-lowest rounded shadow-xs font-mono font-bold text-primary">
-                  Bay 01 Terminal Live
-                </span>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Interactive Approval & Inspection Panel (Right Column) */}
-          <div className="2xl:col-span-4 bg-surface-container-lowest rounded-xl shadow-md p-5 flex flex-col space-y-5 sticky top-20">
+          <div className="2xl:col-span-4 bg-surface-container-lowest rounded-xl shadow-md p-5 flex flex-col space-y-5 sticky top-20 border border-outline/10">
             {/* Panel Header */}
             <div className="flex items-center justify-between pb-3 border-b border-surface-container">
               <div className="flex items-center gap-2">
@@ -770,12 +980,12 @@ export const PendingReservations: FC = () => {
                     </div>
                   </div>
 
-                  {/* Staging Locker & Physical Copy Tag */}
+                  {/* Staging Counter Bay & Physical Copy Tag */}
                   <div className="p-3 bg-surface-container-lowest rounded-lg space-y-2">
                     <div className="flex items-center justify-between text-caption font-caption">
-                      <span className="text-text-secondary">Staging Locker:</span>
+                      <span className="text-text-secondary">Staging Counter Bay:</span>
                       <span className="font-bold text-text-primary bg-soft-blue text-primary px-2 py-0.5 rounded font-mono">
-                        {activeReservation.lockerBay || 'Bay 01 Locker Auto'}
+                        {activeReservation.lockerBay || 'Staging Bay A-01'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-caption font-caption">
@@ -789,13 +999,20 @@ export const PendingReservations: FC = () => {
                 <div className="p-3 bg-soft-blue/30 rounded-xl flex items-start gap-2.5">
                   <span className="material-symbols-outlined text-primary text-lg flex-shrink-0">info</span>
                   <p className="font-caption text-caption text-text-primary leading-tight">
-                    Approving this hold will trigger an automated SMS/Email notification to the user containing their
-                    one-time smart locker PIN code.
+                    Approving this hold dispatches accession voucher code and confirms Staging Bay assignment for counter pickup.
                   </p>
                 </div>
 
                 {/* Primary Confirmation Actions */}
                 <div className="pt-2 space-y-2.5">
+                  <button
+                    onClick={() => handleIssuePhysicalLoan(activeReservation)}
+                    className="w-full py-3 px-4 bg-surface-container hover:bg-soft-blue text-primary font-body-medium text-body-medium font-bold rounded-xl border border-primary/20 shadow-sm transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined text-xl">shopping_cart_checkout</span>
+                    <span>Issue Physical Loan (Checkout)</span>
+                  </button>
                   <button
                     onClick={() => handleSingleApprove(activeReservation)}
                     disabled={isProcessing}
@@ -803,7 +1020,7 @@ export const PendingReservations: FC = () => {
                     type="button"
                   >
                     <span className="material-symbols-outlined text-xl">mark_email_read</span>
-                    <span>Confirm Approval &amp; Dispatch PIN</span>
+                    <span>Confirm Approval &amp; Dispatch Voucher</span>
                   </button>
                   <div className="grid grid-cols-2 gap-2">
                     <button

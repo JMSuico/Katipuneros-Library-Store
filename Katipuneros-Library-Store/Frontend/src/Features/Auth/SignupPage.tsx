@@ -80,6 +80,17 @@ export const SignupPage: React.FC = () => {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setErrorMessage('Username must be at least 3 characters in length.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match. Please re-enter.');
       return;

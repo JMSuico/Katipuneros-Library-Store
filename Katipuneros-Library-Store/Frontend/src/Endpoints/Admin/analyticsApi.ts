@@ -42,8 +42,10 @@ export interface InventoryDensityData {
   stagedHoldsCount: number;
   maintenancePercent: number;
   maintenanceCount: number;
-  rfidSyncActive: boolean;
-  rfidStatusText: string;
+  inventoryAuditActive: boolean;
+  inventoryAuditStatusText: string;
+  rfidSyncActive?: boolean;
+  rfidStatusText?: string;
 }
 
 export interface HourlyFootfallPointData {
@@ -136,8 +138,10 @@ export const getInventoryDensity = async (): Promise<InventoryDensityData> => {
       stagedHoldsCount: 0,
       maintenancePercent: 0,
       maintenanceCount: 0,
+      inventoryAuditActive: false,
+      inventoryAuditStatusText: 'Stacks census idle',
       rfidSyncActive: false,
-      rfidStatusText: 'RFID telemetry idle',
+      rfidStatusText: 'Stacks census idle',
     }
   );
 };
@@ -149,7 +153,7 @@ export const getCommunityFlow = async (): Promise<CommunityFlowData> => {
       digitalLogins: 0,
       digitalLoginsVsLastMo: 0,
       recordedVisits: 0,
-      turnstileCounterLabel: 'Turnstile counter (idle)',
+      turnstileCounterLabel: 'Circulation foot traffic (idle)',
       peakWindow: 'No activity recorded',
       wifiConcurrences: 0,
       hourlyFootfall: [],

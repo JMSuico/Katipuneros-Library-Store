@@ -14,5 +14,7 @@ export * from './ImageGallery';
 export * from './TreeView';
 export * from './KebabMenu';
 export * from './Switch';
+export * from './Checkbox';
+export * from './Components/NotificationDropdownCard';
 export * from './Charts';
 export { useDebounce } from '../Hooks/useDebounce';

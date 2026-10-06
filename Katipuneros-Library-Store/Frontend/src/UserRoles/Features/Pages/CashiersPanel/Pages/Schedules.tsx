@@ -1,10 +1,5 @@
-// [Layer: UserRoles/Features/Pages/CashiersPanel/Pages]
-// Schedules.tsx -- Cashier Library Schedules & Desk Shifts.
-// Connects to live /api/cashier endpoints.
-// Strictly adheres to real-time data mandate: zero hardcoded mock values, clean empty states when N=0.
-// Universal lambda syntax (=>), zero browser alert().
-
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import {
   getCashierDashboardKpis,
@@ -14,8 +9,27 @@ import {
   CashierIntakeQueueItem,
   CashierOverdueQueueItem,
 } from '../../../../../Endpoints/Cashier/cashierApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
+
+interface UnifiedScheduleItem {
+  id: string;
+  type: 'pickup' | 'overdue';
+  title: string;
+  patronName: string;
+  libraryCardNumber: string;
+  dateLabel: string;
+  badge: string;
+  badgeType: 'primary' | 'danger';
+  targetQuery: string;
+  actionLabel: string;
+  rawItem: CashierIntakeQueueItem | CashierOverdueQueueItem;
+}
 
 export const Schedules: FC = () => {
+  const navigate = useNavigate();
   const { toasts, addToast, removeToast } = useToasts();
 
   const [kpis, setKpis] = useState<CashierDashboardKpis | null>(null);
@@ -24,8 +38,24 @@ export const Schedules: FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'day' | 'agenda'>('day');
   const [selectedDurationDays, setSelectedDurationDays] = useState<number>(14);
+
+  // View state & primitives
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_schedules_view') || 'table';
+  });
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_schedules_view', mode);
+  };
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'pickup' | 'overdue'>('all');
+  const [sortBy, setSortBy] = useState<'date-asc' | 'date-desc' | 'patron-asc' | 'title-asc'>('date-asc');
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -79,6 +109,85 @@ export const Schedules: FC = () => {
     year: 'numeric',
   });
 
+  // Unified items
+  const unifiedItems: UnifiedScheduleItem[] = useMemo(() => {
+    const pickups: UnifiedScheduleItem[] = intakeQueue.map((item) => ({
+      id: `pickup-${item.id}`,
+      type: 'pickup',
+      title: item.bookTitle,
+      patronName: item.patronName,
+      libraryCardNumber: item.libraryCardNumber || 'KP-CARD',
+      dateLabel: `Pickup: ${item.requestedPickupDate}`,
+      badge: `${item.durationDays}d Hold Term`,
+      badgeType: 'primary',
+      targetQuery: item.libraryCardNumber || item.patronName,
+      actionLabel: 'Release Hold',
+      rawItem: item,
+    }));
+
+    const overdues: UnifiedScheduleItem[] = overdueQueue.map((item) => ({
+      id: `overdue-${item.id}`,
+      type: 'overdue',
+      title: item.bookTitle,
+      patronName: item.patronName,
+      libraryCardNumber: item.libraryCardNumber || 'KP-CARD',
+      dateLabel: `Due: ${item.dueDate} (${item.daysOverdue}d overdue)`,
+      badge: `₱${item.calculatedFine.toFixed(2)} Fine`,
+      badgeType: 'danger',
+      targetQuery: item.barcode || item.libraryCardNumber,
+      actionLabel: 'Process Return',
+      rawItem: item,
+    }));
+
+    return [...pickups, ...overdues];
+  }, [intakeQueue, overdueQueue]);
+
+  // Filtered and Sorted
+  const filteredItems = useMemo(() => {
+    const list = unifiedItems
+      .filter((item) => {
+        if (typeFilter === 'pickup') return item.type === 'pickup';
+        if (typeFilter === 'overdue') return item.type === 'overdue';
+        return true;
+      })
+      .filter((item) => {
+        if (!debouncedSearch.trim()) return true;
+        const q = debouncedSearch.toLowerCase();
+        return (
+          item.title.toLowerCase().includes(q) ||
+          item.patronName.toLowerCase().includes(q) ||
+          item.libraryCardNumber.toLowerCase().includes(q) ||
+          item.dateLabel.toLowerCase().includes(q)
+        );
+      });
+
+    return [...list].sort((a, b) => {
+      if (sortBy === 'patron-asc') return a.patronName.localeCompare(b.patronName);
+      if (sortBy === 'title-asc') return a.title.localeCompare(b.title);
+      if (sortBy === 'date-asc') return a.dateLabel.localeCompare(b.dateLabel);
+      if (sortBy === 'date-desc') return b.dateLabel.localeCompare(a.dateLabel);
+      return 0;
+    });
+  }, [unifiedItems, typeFilter, debouncedSearch, sortBy]);
+
+  // Pagination hook
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems,
+    startIndex,
+    endIndex,
+    canNextPage,
+    canPrevPage,
+    goToPage,
+    nextPage,
+    prevPage,
+    setPageSize,
+    pageSizeOptions,
+  } = usePagination(filteredItems, { initialPageSize: 10, pageSizeOptions: [10, 25, 50, 100] });
+
   return (
     <div className="w-full">
       <div className="flex flex-col w-full pb-16 space-y-6">
@@ -126,32 +235,30 @@ export const Schedules: FC = () => {
               </div>
             </div>
 
-            {/* View Switcher Tabs */}
+            {/* View Switcher RadioGroup & Sync Action */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex bg-surface-container-low p-1 rounded-full shadow-inner text-text-secondary">
-                <button
-                  onClick={() => setViewMode('day')}
-                  className={`px-4 py-1.5 rounded-full font-caption text-caption font-bold transition-all cursor-pointer ${
-                    viewMode === 'day'
-                      ? 'bg-surface-container-lowest text-primary shadow-sm'
-                      : 'text-text-secondary hover:text-primary'
-                  }`}
-                  type="button"
-                >
-                  Day View
-                </button>
-                <button
-                  onClick={() => setViewMode('agenda')}
-                  className={`px-4 py-1.5 rounded-full font-caption text-caption font-bold transition-all cursor-pointer ${
-                    viewMode === 'agenda'
-                      ? 'bg-surface-container-lowest text-primary shadow-sm'
-                      : 'text-text-secondary hover:text-primary'
-                  }`}
-                  type="button"
-                >
-                  Agenda List
-                </button>
-              </div>
+              <RadioGroup
+                name="cashierSchedulesView"
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+                options={[
+                  { value: 'table', label: 'Table' },
+                  { value: 'card', label: 'Cards' },
+                ]}
+                variant="simple"
+              />
+
+              <button
+                onClick={() => {
+                  loadData();
+                  addToast('Circulation schedules synchronized.', 'info');
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary font-caption text-caption font-bold transition-colors cursor-pointer"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-base">sync</span>
+                <span>Refresh</span>
+              </button>
             </div>
           </div>
 
@@ -247,113 +354,317 @@ export const Schedules: FC = () => {
           </div>
         </section>
 
-        {/* Schedule Breakdown: Scheduled Intake vs Overdue Recovery */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Column 1: Intake & Pickup Schedule */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl">event_available</span>
-                <h2 className="font-headline-4 text-headline-4 text-text-primary">
-                  Scheduled Hold Pickups
-                </h2>
-              </div>
-              <span className="font-caption text-caption px-2.5 py-0.5 rounded-full bg-soft-blue text-primary font-bold">
-                {intakeQueue.length} Queue Items
-              </span>
-            </div>
-
-            {intakeQueue.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-4">
-                <span className="material-symbols-outlined text-4xl text-text-secondary/40 mb-2">
-                  calendar_today
-                </span>
-                <p className="font-body-medium text-body-medium text-text-primary font-semibold">
-                  No pickups scheduled
-                </p>
-                <p className="font-caption text-caption text-text-secondary mt-0.5">
-                  All reservation holds have been cleared or are awaiting patron creation.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-3">
-                {intakeQueue.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3.5 rounded-xl bg-surface-container-low flex items-start justify-between gap-3"
-                  >
-                    <div>
-                      <span className="font-body-medium text-body-medium font-bold text-text-primary block">
-                        {item.bookTitle}
-                      </span>
-                      <p className="font-caption text-caption text-text-secondary mt-0.5">
-                        Patron: {item.patronName} ({item.libraryCardNumber || 'KP-CARD'})
-                      </p>
-                      <span className="font-caption text-caption text-primary font-bold inline-block mt-1">
-                        Pickup: {item.requestedPickupDate}
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-caption font-caption bg-surface-container-highest text-text-primary font-bold">
-                      {item.durationDays}d Term
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Search, Filter & Sort Bar */}
+        <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+          <div className="flex-1 max-w-xl">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              placeholder="Search schedule by book title, patron, or card #..."
+            />
           </div>
 
-          {/* Column 2: Expected Returns & Delinquent Schedules */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-surface-container">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-error text-xl">assignment_late</span>
-                <h2 className="font-headline-4 text-headline-4 text-text-primary">
-                  Overdue Return Schedules
-                </h2>
-              </div>
-              <span className="font-caption text-caption px-2.5 py-0.5 rounded-full bg-error-container text-on-error-container font-bold">
-                {overdueQueue.length} Overdue
-              </span>
+          <div className="flex items-center flex-wrap gap-2">
+            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setTypeFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-caption font-caption font-bold transition-colors cursor-pointer ${
+                  typeFilter === 'all'
+                    ? 'bg-surface-container-lowest text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                All Events ({unifiedItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('pickup')}
+                className={`px-3 py-1.5 rounded-lg text-caption font-caption font-bold transition-colors cursor-pointer ${
+                  typeFilter === 'pickup'
+                    ? 'bg-surface-container-lowest text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Hold Pickups ({intakeQueue.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('overdue')}
+                className={`px-3 py-1.5 rounded-lg text-caption font-caption font-bold transition-colors cursor-pointer ${
+                  typeFilter === 'overdue'
+                    ? 'bg-surface-container-lowest text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Overdue Returns ({overdueQueue.length})
+              </button>
             </div>
 
-            {overdueQueue.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-4">
-                <span className="material-symbols-outlined text-4xl text-status-available/60 mb-2">
-                  verified
-                </span>
-                <p className="font-body-medium text-body-medium text-text-primary font-semibold">
-                  No overdue returns pending
-                </p>
-                <p className="font-caption text-caption text-text-secondary mt-0.5">
-                  All circulation loans are currently on schedule.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-3">
-                {overdueQueue.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3.5 rounded-xl bg-surface-container-low flex items-start justify-between gap-3"
-                  >
-                    <div>
-                      <span className="font-body-medium text-body-medium font-bold text-text-primary block">
-                        {item.bookTitle}
-                      </span>
-                      <p className="font-caption text-caption text-text-secondary mt-0.5">
-                        Borrower: {item.patronName} ({item.libraryCardNumber || 'KP-CARD'})
-                      </p>
-                      <span className="font-caption text-caption text-error font-bold inline-block mt-1">
-                        Overdue by {item.daysOverdue} Days • Fine: ₱{item.calculatedFine.toFixed(2)}
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-caption font-caption bg-error/10 text-error font-bold">
-                      Due: {item.dueDate}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              aria-label="Sort schedule events"
+              className="px-3 py-2 bg-surface-container-low rounded-xl text-caption font-caption font-bold text-text-primary outline-none cursor-pointer border border-outline/10"
+            >
+              <option value="date-asc">Date (Earliest First)</option>
+              <option value="date-desc">Date (Latest First)</option>
+              <option value="patron-asc">Patron: A to Z</option>
+              <option value="title-asc">Book Title: A to Z</option>
+            </select>
           </div>
+        </div>
+
+        {/* Schedule Queue Section (Table & Cards) */}
+        <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+          {isLoading ? (
+            <div className="py-16 flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="font-caption text-caption text-text-secondary mt-2">Loading shift schedule...</span>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center p-6">
+              <span className="material-symbols-outlined text-5xl text-status-available/60 mb-2">
+                verified
+              </span>
+              <p className="font-body-medium text-body-medium text-text-primary font-semibold">
+                No scheduled queue events found
+              </p>
+              <p className="font-caption text-caption text-text-secondary max-w-sm mt-1">
+                {searchQuery
+                  ? `No events matching "${searchQuery}". Clear query to view all items.`
+                  : 'All holds and return deadlines are currently clear.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Table Container (Kept mounted with ref to preserve drag listeners) */}
+              <div
+                ref={tableContainerRef}
+                className={viewMode === 'table' ? 'overflow-x-auto' : 'hidden'}
+              >
+                <table className="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr className="bg-surface-container-low text-text-secondary font-caption text-caption uppercase tracking-wider">
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Circulation Item</th>
+                      <th className="py-3 px-4">Patron Account</th>
+                      <th className="py-3 px-4">Schedule / Status</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-container-high/40 text-small font-small">
+                    {paginatedItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-surface-container-low/60 transition-colors">
+                        <td className="py-4 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-caption text-caption font-bold ${
+                              item.type === 'pickup'
+                                ? 'bg-soft-blue text-primary'
+                                : 'bg-error-container text-on-error-container'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-xs">
+                              {item.type === 'pickup' ? 'shopping_bag' : 'warning'}
+                            </span>
+                            {item.type === 'pickup' ? 'Hold Pickup' : 'Overdue Return'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-body-medium text-body-medium font-bold text-text-primary">
+                              {item.title}
+                            </span>
+                            <span className="font-caption text-caption text-text-secondary mt-0.5">
+                              {item.type === 'pickup'
+                                ? `Bay: ${(item.rawItem as CashierIntakeQueueItem).stacksLocation || 'Desk Bay 01'}`
+                                : `Barcode: ${(item.rawItem as CashierOverdueQueueItem).barcode || 'N/A'}`}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-text-primary">
+                              {item.patronName}
+                            </span>
+                            <span className="font-caption text-caption text-text-secondary font-mono">
+                              Card: {item.libraryCardNumber}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span
+                              className={`font-bold ${
+                                item.type === 'pickup' ? 'text-primary' : 'text-error'
+                              }`}
+                            >
+                              {item.dateLabel}
+                            </span>
+                            <span className="font-caption text-caption text-text-secondary mt-0.5">
+                              {item.badge}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <button
+                            onClick={() => {
+                              if (item.type === 'pickup') {
+                                navigate(`/cashier/checkout?query=${encodeURIComponent(item.targetQuery)}`);
+                              } else {
+                                navigate(`/cashier/returns?barcode=${encodeURIComponent(item.targetQuery)}`);
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-small text-small font-semibold transition-colors cursor-pointer ${
+                              item.type === 'pickup'
+                                ? 'bg-primary hover:bg-primary-hover text-on-primary'
+                                : 'bg-surface-container hover:bg-surface-container-high text-primary'
+                            }`}
+                            type="button"
+                          >
+                            <span className="material-symbols-outlined text-base">
+                              {item.type === 'pickup' ? 'shopping_cart_checkout' : 'assignment_return'}
+                            </span>
+                            <span>{item.actionLabel}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Cards Grid View */}
+              {viewMode === 'card' && (
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-surface-container-low rounded-xl p-4 flex flex-col justify-between border border-outline/10 hover:border-primary/20 transition-all shadow-xs"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-caption text-caption font-bold ${
+                              item.type === 'pickup'
+                                ? 'bg-soft-blue text-primary'
+                                : 'bg-error-container text-on-error-container'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-xs">
+                              {item.type === 'pickup' ? 'shopping_bag' : 'warning'}
+                            </span>
+                            {item.type === 'pickup' ? 'Hold Pickup' : 'Overdue'}
+                          </span>
+                          <span className="font-caption text-caption text-text-secondary font-mono">
+                            {item.libraryCardNumber}
+                          </span>
+                        </div>
+
+                        <h4 className="font-body-medium text-body-medium font-bold text-text-primary line-clamp-2">
+                          {item.title}
+                        </h4>
+                        <p className="font-caption text-caption text-text-secondary mt-1">
+                          Patron: <strong className="text-text-primary">{item.patronName}</strong>
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-surface-container flex items-center justify-between text-caption font-caption">
+                        <div>
+                          <span className="text-text-secondary block">Timeline:</span>
+                          <span
+                            className={`font-bold ${
+                              item.type === 'pickup' ? 'text-primary' : 'text-error'
+                            }`}
+                          >
+                            {item.dateLabel}
+                          </span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded bg-surface-container-highest font-bold text-text-primary">
+                          {item.badge}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-end">
+                        <button
+                          onClick={() => {
+                            if (item.type === 'pickup') {
+                              navigate(`/cashier/checkout?query=${encodeURIComponent(item.targetQuery)}`);
+                            } else {
+                              navigate(`/cashier/returns?barcode=${encodeURIComponent(item.targetQuery)}`);
+                            }
+                          }}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg font-small text-small font-semibold transition-colors cursor-pointer ${
+                            item.type === 'pickup'
+                              ? 'bg-primary hover:bg-primary-hover text-on-primary'
+                              : 'bg-surface-container hover:bg-surface-container-high text-primary'
+                          }`}
+                          type="button"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            {item.type === 'pickup' ? 'shopping_cart_checkout' : 'assignment_return'}
+                          </span>
+                          <span>{item.actionLabel}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination Footer */}
+              <div className="p-4 border-t border-surface-container flex flex-col sm:flex-row items-center justify-between gap-4 font-caption text-caption text-text-secondary">
+                <div className="flex items-center gap-2">
+                  <span>
+                    Showing <span className="font-bold text-text-primary">{totalItems === 0 ? 0 : startIndex + 1}</span> to{' '}
+                    <span className="font-bold text-text-primary">{Math.min(endIndex, totalItems)}</span> of{' '}
+                    <span className="font-bold text-text-primary">{totalItems}</span> events
+                  </span>
+                  <span>•</span>
+                  <div className="flex items-center gap-1">
+                    <span>Rows:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      aria-label="Events per page"
+                      className="bg-surface-container-low border border-outline/10 text-text-primary font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                    >
+                      {pageSizeOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => prevPage()}
+                    disabled={!canPrevPage}
+                    className="p-1.5 rounded-lg border border-outline/10 text-text-primary hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    type="button"
+                    title="Previous page"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_left</span>
+                  </button>
+                  <span className="px-3 font-bold text-text-primary">
+                    Page {currentPage} of {Math.max(1, totalPages)}
+                  </span>
+                  <button
+                    onClick={() => nextPage()}
+                    disabled={!canNextPage}
+                    className="p-1.5 rounded-lg border border-outline/10 text-text-primary hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    type="button"
+                    title="Next page"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Dynamic Duration Due-Date Calculator Banner */}

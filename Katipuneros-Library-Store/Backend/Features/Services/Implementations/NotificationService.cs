@@ -25,6 +25,7 @@ public class NotificationService : INotificationService
 
     private static readonly List<AnnouncementResponse> _announcements = new();
     private static readonly List<SystemAlertResponse> _systemAlerts = new();
+    private static readonly HashSet<string> _resolvedAlertIds = new();
     private static readonly List<DispatchTransactionResponse> _dispatchTransactions = new();
     private static readonly List<DispatchTemplateResponse> _dispatchTemplates = new();
 
@@ -97,64 +98,6 @@ public class NotificationService : INotificationService
                     ReadsCount = 0,
                     OpenRate = 0.0,
                     IsDraft = true
-                }
-            });
-        }
-
-        if (_systemAlerts.Count == 0)
-        {
-            _systemAlerts.AddRange(new List<SystemAlertResponse>
-            {
-                new()
-                {
-                    Id = "ALT-201",
-                    Type = "deficit",
-                    Title = "Computer Science - Clean Code (Robert C. Martin)",
-                    Category = "Computer Science & Engineering",
-                    Tag = "Critical Reserve Deficit",
-                    TriggeredAgo = "Triggered 12m ago",
-                    Description = "Current queue has 14 active reservations with only 2 available copies currently present on stacks shelf (Shelf B-402).",
-                    Severity = "critical",
-                    IsResolved = false,
-                    ActiveReservations = 14,
-                    AvailableCopies = 2,
-                    ShelfBay = "Shelf B-402",
-                    DelinquentPatronCount = 0,
-                    HardwareIp = null
-                },
-                new()
-                {
-                    Id = "ALT-202",
-                    Type = "delinquency",
-                    Title = "Overdue Delinquency Spike Detected",
-                    Category = "Automated Daily Batch Delinquency Monitor",
-                    Tag = "Circulation Sanction Warning",
-                    TriggeredAgo = "Triggered 46m ago",
-                    Description = "18 patrons have passed the strict 14-day hold freeze mark. Automatic system penalties require Dean of Admissions notification clearance.",
-                    Severity = "warning",
-                    IsResolved = false,
-                    ActiveReservations = 0,
-                    AvailableCopies = 0,
-                    ShelfBay = null,
-                    DelinquentPatronCount = 18,
-                    HardwareIp = null
-                },
-                new()
-                {
-                    Id = "ALT-203",
-                    Type = "hardware",
-                    Title = "RFID Gate Reader 02 Offline Ping Failure",
-                    Category = "IP: 192.168.4.118 (North Turnstile)",
-                    Tag = "Facility Hardware Failure",
-                    TriggeredAgo = "Triggered 1h 05m ago",
-                    Description = "Turnstile scanner #2 stopped responding to heartbeat polling. Patron egress self-checkout validation currently bypassed to prevent foyer congestion.",
-                    Severity = "critical",
-                    IsResolved = false,
-                    ActiveReservations = 0,
-                    AvailableCopies = 0,
-                    ShelfBay = null,
-                    DelinquentPatronCount = 0,
-                    HardwareIp = "192.168.4.118"
                 }
             });
         }
@@ -278,10 +221,11 @@ public class NotificationService : INotificationService
         }
     }
 
-    public Task<TopBentoMetricsResponse> GetTopBentoMetricsAsync()
+    public async Task<TopBentoMetricsResponse> GetTopBentoMetricsAsync()
     {
         var activeBulletins = _announcements.Count(a => a.Status.Contains("Live") || a.Status.Contains("Published"));
-        var urgentAlerts = _systemAlerts.Count(a => !a.IsResolved);
+        var activeAlerts = await GetSystemAlertsAsync();
+        var urgentAlerts = activeAlerts.Count(a => a.Severity == "critical" && !a.IsResolved);
         int totalDispatches = _dispatchTransactions.Count;
         int emailCount = _dispatchTransactions.Count(d => d.Channel.Contains("Email", StringComparison.OrdinalIgnoreCase));
         int smsCount = _dispatchTransactions.Count(d => d.Channel.Contains("SMS", StringComparison.OrdinalIgnoreCase));
@@ -291,7 +235,7 @@ public class NotificationService : INotificationService
         double failRate = totalDispatches > 0 ? Math.Round(100.0 - reliability, 1) : 0.0;
         int totalViews = _announcements.Sum(a => a.ViewsCount);
 
-        return Task.FromResult(new TopBentoMetricsResponse
+        return new TopBentoMetricsResponse
         {
             TodayDispatchedTotal = totalDispatches,
             TodayEmail = emailCount,
@@ -302,27 +246,118 @@ public class NotificationService : INotificationService
             UrgentAlertsCount = urgentAlerts,
             ActiveBulletinsCount = activeBulletins,
             PortalViewsToday = totalViews
-        });
+        };
     }
 
-    public Task<List<SystemAlertResponse>> GetSystemAlertsAsync() =>
-        Task.FromResult(_systemAlerts.Where(a => !a.IsResolved).ToList());
-
-    public Task<bool> ResolveAllAlertsAsync()
+    public async Task<List<SystemAlertResponse>> GetSystemAlertsAsync()
     {
+        var alerts = new List<SystemAlertResponse>();
+
+        // 1. Dynamic Check: Reserve Deficits (Pending Reservations > Available Copies)
+        try
+        {
+            var pendingReservations = await _reservationRepository.GetAllPendingAsync();
+            if (pendingReservations.Count > 0)
+            {
+                var bookGroups = pendingReservations.GroupBy(r => r.BookId);
+                foreach (var group in bookGroups)
+                {
+                    var book = await _bookRepository.GetByIdAsync(group.Key);
+                    if (book != null && group.Count() > book.AvailableCopies)
+                    {
+                        var alertId = $"ALT-DEFICIT-{book.Id}";
+                        if (!_resolvedAlertIds.Contains(alertId))
+                        {
+                            alerts.Add(new SystemAlertResponse
+                            {
+                                Id = alertId,
+                                Type = "deficit",
+                                Title = $"{book.Title} ({(string.IsNullOrWhiteSpace(book.Author) ? "Unknown Author" : book.Author)})",
+                                Category = book.Category?.Name ?? "General Collection",
+                                Tag = "Critical Reserve Deficit",
+                                TriggeredAgo = "High Circulation Demand",
+                                Description = $"Current queue has {group.Count()} active reservations with only {book.AvailableCopies} available copies present on stacks shelf ({(string.IsNullOrWhiteSpace(book.BayLocation) ? "Main Stacks" : book.BayLocation)}).",
+                                Severity = "critical",
+                                IsResolved = false,
+                                ActiveReservations = group.Count(),
+                                AvailableCopies = book.AvailableCopies,
+                                ShelfBay = string.IsNullOrWhiteSpace(book.BayLocation) ? "Main Stacks" : book.BayLocation,
+                                DelinquentPatronCount = 0,
+                                HardwareIp = null
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 2. Dynamic Check: Overdue Delinquencies
+        try
+        {
+            var overdueLoans = await _borrowRepository.GetOverdueLoansAsync();
+            if (overdueLoans.Count > 0)
+            {
+                var alertId = "ALT-DELINQUENCY-BATCH";
+                if (!_resolvedAlertIds.Contains(alertId))
+                {
+                    int delinquentCount = overdueLoans.Select(l => l.PatronId).Distinct().Count();
+                    alerts.Add(new SystemAlertResponse
+                    {
+                        Id = alertId,
+                        Type = "delinquency",
+                        Title = "Overdue Delinquency Spike Detected",
+                        Category = "Circulation Loan Monitor",
+                        Tag = "Circulation Sanction Warning",
+                        TriggeredAgo = "Active Overdue Cycle",
+                        Description = $"{overdueLoans.Count} active loan(s) across {delinquentCount} patron(s) have passed their due date. Automatic penalties apply.",
+                        Severity = overdueLoans.Count >= 5 ? "critical" : "warning",
+                        IsResolved = false,
+                        ActiveReservations = 0,
+                        AvailableCopies = 0,
+                        ShelfBay = null,
+                        DelinquentPatronCount = delinquentCount,
+                        HardwareIp = null
+                    });
+                }
+            }
+        }
+        catch { }
+
+        // Include any custom in-memory system alerts not resolved
+        foreach (var sa in _systemAlerts.Where(a => !a.IsResolved && !_resolvedAlertIds.Contains(a.Id)))
+        {
+            alerts.Add(sa);
+        }
+
+        return alerts;
+    }
+
+    public async Task<bool> ResolveAllAlertsAsync()
+    {
+        var currentAlerts = await GetSystemAlertsAsync();
+        foreach (var a in currentAlerts)
+        {
+            _resolvedAlertIds.Add(a.Id);
+            a.IsResolved = true;
+        }
+
         foreach (var alert in _systemAlerts)
         {
             alert.IsResolved = true;
+            _resolvedAlertIds.Add(alert.Id);
         }
 
-        return Task.FromResult(true);
+        return true;
     }
 
     public async Task<bool> TriggerAcquisitionOrderAsync(TriggerAcquisitionRequest req)
     {
-        var targetAlert = _systemAlerts.FirstOrDefault(a => a.Type == "deficit");
+        var alerts = await GetSystemAlertsAsync();
+        var targetAlert = alerts.FirstOrDefault(a => a.Type == "deficit");
         if (targetAlert != null)
         {
+            _resolvedAlertIds.Add(targetAlert.Id);
             targetAlert.IsResolved = true;
         }
 
@@ -340,9 +375,11 @@ public class NotificationService : INotificationService
 
     public async Task<bool> SendRegistrarNoticeAsync(SendRegistrarNoticeRequest req)
     {
-        var targetAlert = _systemAlerts.FirstOrDefault(a => a.Type == "delinquency");
+        var alerts = await GetSystemAlertsAsync();
+        var targetAlert = alerts.FirstOrDefault(a => a.Type == "delinquency");
         if (targetAlert != null)
         {
+            _resolvedAlertIds.Add(targetAlert.Id);
             targetAlert.IsResolved = true;
         }
 

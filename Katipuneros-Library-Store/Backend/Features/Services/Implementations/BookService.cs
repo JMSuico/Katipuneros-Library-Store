@@ -4,6 +4,7 @@
 // DO NOT access AppDbContext directly -- use IBookRepository only.
 // DO NOT access HttpContext -- HTTP concerns stay in controllers.
 
+using Microsoft.EntityFrameworkCore;
 using Backend.Features.Data.Models;
 using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
@@ -84,9 +85,20 @@ public class BookService : IBookService
 
     private async Task<(bool Success, string? Error)> PerformBookDeleteAsync(Book book)
     {
-        await _bookRepository.DeleteAsync(book);
-        var saved = await _bookRepository.SaveChangesAsync();
-        return (saved, saved ? null : "Failed to delete book asset.");
+        try
+        {
+            await _bookRepository.DeleteAsync(book);
+            var saved = await _bookRepository.SaveChangesAsync();
+            return (saved, saved ? null : "Failed to delete book asset.");
+        }
+        catch (DbUpdateException)
+        {
+            return (false, "Cannot de-accession catalog asset: historical circulation, reservation, or ledger records are linked. Please archive the title instead.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error deleting book asset: {ex.Message}");
+        }
     }
 
     public async Task<(int TotalTitles, int PhysicalCopies, int InCirculation, int ActiveDisciplines)> GetCatalogMetricsAsync()
@@ -111,9 +123,20 @@ public class BookService : IBookService
             }
         }
         if (toDelete.Count == 0) return (0, "No eligible books found to de-accession (books on loan cannot be deleted).");
-        await _bookRepository.DeleteRangeAsync(toDelete);
-        await _bookRepository.SaveChangesAsync();
-        return (toDelete.Count, null);
+        try
+        {
+            await _bookRepository.DeleteRangeAsync(toDelete);
+            await _bookRepository.SaveChangesAsync();
+            return (toDelete.Count, null);
+        }
+        catch (DbUpdateException)
+        {
+            return (0, "Cannot de-accession one or more selected assets: historical circulation or reservation records are linked. Please archive instead.");
+        }
+        catch (Exception ex)
+        {
+            return (0, $"Error during bulk de-accession: {ex.Message}");
+        }
     }
 
     public async Task<(bool Success, string? Error)> ToggleArchiveAsync(Guid id, bool isArchived)

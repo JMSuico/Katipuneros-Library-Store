@@ -315,22 +315,22 @@ const Notifications: FC = () => {
     });
 
     if (success) {
-      toast.success(`Priority support ticket logged for ${hardwareAlert.hardwareIp}. Hardware dispatched.`);
+      toast.success(`Priority support ticket logged for ${hardwareAlert.title}. Support ticket dispatched.`);
       setIsHardwarePingModalOpen(false);
       fetchAllData();
     } else {
-      toast.error('Failed to log hardware ticket.');
+      toast.error('Failed to log infrastructure ticket.');
     }
   };
 
   const handleRepollSocket = async () => {
-    toast.info('Sending heartbeat ping to turnstile gateway (192.168.4.118)...');
+    toast.info('Sending health check ping to circulation desk service...');
     const success = await repollHardwareSocket();
     if (success) {
-      toast.success('Gateway responded: 200 OK (Latency 12ms). Scanner heartbeat nominal.');
+      toast.success('Circulation service responded: 200 OK (Latency 12ms). Service operational.');
       fetchAllData();
     } else {
-      toast.error('Heartbeat timeout: turnstile remains offline.');
+      toast.error('Health check timeout: service remains unreachable.');
     }
   };
 
@@ -646,7 +646,7 @@ const Notifications: FC = () => {
             </div>
           </div>
           <div className="mt-space-md pt-space-xs flex items-center justify-between text-on-error-container font-caption text-caption border-t border-error/15">
-            <span className="truncate">Hardware, Stacks, Delinquency</span>
+            <span className="truncate">System, Stacks, Delinquency</span>
             <button
               type="button"
               onClick={() => setActiveTab('tab-alerts')}
@@ -783,7 +783,7 @@ const Notifications: FC = () => {
                   All System Alerts Resolved
                 </p>
                 <p className="font-small text-small text-text-secondary max-w-md">
-                  No pending hardware failures or inventory deficit triggers are currently queued for administrator intervention.
+                  No pending system incidents or inventory deficit triggers are currently queued for administrator intervention.
                 </p>
               </div>
             ) : (
@@ -895,11 +895,11 @@ const Notifications: FC = () => {
                             className="h-10 px-space-md rounded-full bg-primary text-on-primary hover:bg-primary-container font-small text-small font-semibold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[18px]">build</span>
-                            <span>Ping Hardware Team</span>
+                            <span>Notify Facilities Team</span>
                           </button>
                           <button
                             type="button"
-                            title="Re-poll hardware socket"
+                            title="Re-poll circulation service"
                             onClick={handleRepollSocket}
                             className="h-10 w-10 rounded-full bg-surface-container-lowest hover:bg-surface text-text-secondary flex items-center justify-center cursor-pointer border border-outline-variant/15"
                           >
@@ -2212,22 +2212,22 @@ const Notifications: FC = () => {
         </div>
       </DefaultFloatingModalCard>
 
-      {/* Ping Hardware Team Modal */}
+      {/* Maintenance Support Notice Modal */}
       <DefaultFloatingModalCard
         isOpen={isHardwarePingModalOpen}
         onClose={() => setIsHardwarePingModalOpen(false)}
-        title="Ping Hardware Maintenance Team"
-        subtitle="Facility Hardware Failure: RFID Turnstile Scanner Offline"
+        title="Dispatch System Maintenance Notice"
+        subtitle="Facility Infrastructure Incident: Circulation Desk Node Offline"
         size="md"
       >
         <div className="flex flex-col gap-space-md">
           <div className="p-space-md rounded-xl bg-error-container/30 border border-error/20 flex flex-col gap-1">
-            <span className="font-caption text-caption text-error uppercase font-bold">Offline Device</span>
+            <span className="font-caption text-caption text-error uppercase font-bold">Unreachable Node</span>
             <p className="font-body text-body font-bold text-text-primary">
               {hardwareAlert?.title} (IP: {hardwareAlert?.hardwareIp})
             </p>
             <p className="font-caption text-caption text-text-secondary mt-1">
-              Turnstile #2 stopped responding to heartbeat polling. Self-checkout egress validation currently bypassed.
+              Circulation Desk Terminal node stopped responding to network polling. Transactions operate in resilient offline-buffered mode.
             </p>
           </div>
           <div className="flex justify-end gap-space-sm pt-space-sm border-t border-outline-variant/10">

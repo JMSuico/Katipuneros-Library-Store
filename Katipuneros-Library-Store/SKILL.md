@@ -261,6 +261,7 @@ FRONTEND/                                            # Root frontend -- Vite + R
 |   |
 |   |-- Shared/                                      # GLOBAL CALLING IMPORT -- universal reusable presentational primitives
 |   |   |-- Button.tsx                               # GLOBAL: Universal atomic button primitive (7 variants, 4 sizes, icons, loading)
+|   |   |-- Checkbox.tsx                             # GLOBAL: Universal atomic checkbox primitive (checked, unchecked, indeterminate state '-')
 |   |   |-- RadioButton.tsx                          # GLOBAL: Universal atomic radio button and accessible RadioGroup primitive
 |   |   |-- Dropdown.tsx                             # GLOBAL: Generic dropdown component and floating menu panel layout (outside-click auto-close)
 |   |   |-- SearchBar.tsx                            # GLOBAL: Universal glassmorphic search bar with ⌘K shortcut, clear icon, debounced typing
@@ -275,7 +276,8 @@ FRONTEND/                                            # Root frontend -- Vite + R
 |   |   |   |-- PieGraphChart.tsx                    # GLOBAL: Multi-segment donut & pie graph visualizer, KPI metric center, interactive hover, N=0 baseline
 |   |   |   |-- HeatmapChart.tsx                     # GLOBAL: 2D intensity matrix, adaptive color scale, cell hover tooltips, N=0 baseline
 |   |   |   `-- index.ts                             # Barrel export for all chart components and data contracts
-|   |   |-- Components/                              # Shared components alias mirror (Button.tsx, Dropdown.tsx, RadioButton.tsx)
+|   |   |-- Components/                              # Shared components alias mirror (Button.tsx, Dropdown.tsx, RadioButton.tsx, NotificationDropdownCard.tsx)
+|   |   |   `-- NotificationDropdownCard.tsx         # GLOBAL: Floating notification bell card with descending items, role-filter & read state
 |   |   `-- index.ts                                 # Master barrel export for all global primitives, charts, and debouncing hook
 |   |   # GLOBAL CALLING IMPORT: import { Button, Dropdown, RadioButton, SearchBar, DefaultFloatingModalCard, LinearCurveyChart, BarGraphChart, PieGraphChart, HeatmapChart } from '@/Shared'
 |   |   # Accessible across Landing Page and ALL UserRole panels. DO NOT put API calls or business logic here.
@@ -305,9 +307,12 @@ FRONTEND/                                            # Root frontend -- Vite + R
 |   |   |-- useAutoRefresh.ts                        # GLOBAL: Periodic data refresh and polling interval hook
 |   |   |-- usePagesGlobalRefresh.ts                 # GLOBAL: Auto-refresh page on network online, health recovery, tab focus
 |   |   |-- useRefreshTelemetry.ts                   # GLOBAL: Telemetry auto-refresh hook: feed countdown & interval telemetry sync
+|   |   |-- useSelection.ts                          # GLOBAL: Generic selection state hook (Set<string>, toggle, select-all, indeterminate, counts)
+|   |   |-- useNotification.ts                       # GLOBAL: Role-aware notification hook (Admin/Cashier/Customer, descending order, unread count)
 |   |   `-- useNotifications.ts                      # GLOBAL: Notification state and read/unread badge tracking hook
 |   |   # GLOBAL CALLING IMPORT: import { useFluidResposiveness } from '@/Hooks/useFluidResposiveness'
 |   |   # import { useDebounce } from '@/Hooks/useDebounce'; import { usePagination } from '@/Hooks/usePagination';
+|   |   # import { useSelection } from '@/Hooks/useSelection'; import { useNotification } from '@/Hooks/useNotification';
 |   |   # import { usePagesGlobalRefresh } from '@/Hooks/usePagesGlobalRefresh'; import { useRefreshTelemetry } from '@/Hooks/useRefreshTelemetry';
 |   |   # Feature-specific hooks go inside Features/{FeatureName}/hooks/ -- NOT here
 |   |

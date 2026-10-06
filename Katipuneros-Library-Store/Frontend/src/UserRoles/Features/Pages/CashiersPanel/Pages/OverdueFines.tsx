@@ -9,6 +9,11 @@ import { useToasts } from '../../../../../Hooks/useToasts';
 import { getAdminBorrowings, BackendBorrowing } from '../../../../../Endpoints/Admin/borrowingsApi';
 import { getCashierDashboardKpis, CashierDashboardKpis } from '../../../../../Endpoints/Cashier/cashierApi';
 import { processBookReturn } from '../../../../../Endpoints/Cashier/transactionApi';
+import { RadioGroup } from '../../../../../Shared/RadioButton';
+import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
+import { Checkbox } from '../../../../../Shared/Checkbox';
+import { usePagination } from '../../../../../Hooks/usePagination';
+import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const OverdueFines: FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
@@ -18,7 +23,21 @@ export const OverdueFines: FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'all' | '1-3' | '4-7' | 'critical' | 'repeat'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [sortBy, setSortBy] = useState<'days-desc' | 'days-asc' | 'fine-desc' | 'patron-asc' | 'title-asc'>('days-desc');
   const [selectedLoan, setSelectedLoan] = useState<BackendBorrowing | null>(null);
+
+  // View state & drag support
+  const [viewMode, setViewMode] = useState<string>(() => {
+    return localStorage.getItem('cashier_overdue_view') || 'table';
+  });
+
+  const { containerRef: tableContainerRef } = useTableDraggable<HTMLDivElement>();
+
+  const handleViewModeChange = (mode: string) => {
+    setViewMode(mode);
+    localStorage.setItem('cashier_overdue_view', mode);
+  };
 
   // Cash drawer button state
   const [isKickingDrawer, setIsKickingDrawer] = useState<boolean>(false);
@@ -91,9 +110,9 @@ export const OverdueFines: FC = () => {
     return Math.min(500, chargeableDays * 15);
   }, []);
 
-  // Filtered loans list
+  // Filtered and Sorted loans list
   const filteredLoans = useMemo(() => {
-    return loans.filter((loan) => {
+    const list = loans.filter((loan) => {
       const elapsed = getDaysElapsed(loan.dueDate);
 
       // Tab filter
@@ -103,8 +122,8 @@ export const OverdueFines: FC = () => {
       if (activeTab === 'repeat' && elapsed < 14 && (loan.renewalCount ?? 0) === 0) return false;
 
       // Query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
         const patron = loan.patronName?.toLowerCase() || '';
         const id = loan.patronLibraryId?.toLowerCase() || '';
         const title = loan.bookTitle?.toLowerCase() || '';
@@ -115,7 +134,40 @@ export const OverdueFines: FC = () => {
 
       return true;
     });
-  }, [loans, activeTab, searchQuery, getDaysElapsed]);
+
+    return [...list].sort((a, b) => {
+      const elapsedA = getDaysElapsed(a.dueDate);
+      const elapsedB = getDaysElapsed(b.dueDate);
+      if (sortBy === 'days-desc') return elapsedB - elapsedA;
+      if (sortBy === 'days-asc') return elapsedA - elapsedB;
+      if (sortBy === 'fine-desc') {
+        const fineA = getAccruedFine(getChargeableDays(elapsedA));
+        const fineB = getAccruedFine(getChargeableDays(elapsedB));
+        return fineB - fineA;
+      }
+      if (sortBy === 'patron-asc') return (a.patronName || '').localeCompare(b.patronName || '');
+      if (sortBy === 'title-asc') return (a.bookTitle || '').localeCompare(b.bookTitle || '');
+      return 0;
+    });
+  }, [loans, activeTab, debouncedSearch, sortBy, getDaysElapsed, getChargeableDays, getAccruedFine]);
+
+  // Pagination hook
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems,
+    startIndex,
+    endIndex,
+    canNextPage,
+    canPrevPage,
+    goToPage,
+    nextPage,
+    prevPage,
+    setPageSize,
+    pageSizeOptions,
+  } = usePagination(filteredLoans, { initialPageSize: 10, pageSizeOptions: [10, 25, 50, 100] });
 
   // Derived KPI metrics
   const activeOverdueCount = kpis?.overdueLoansCount ?? loans.length;
@@ -418,7 +470,7 @@ export const OverdueFines: FC = () => {
 
         {/* Main Ledger Workbench & Quick Actions Filter */}
         <div className="flex flex-col gap-space-md mb-space-xl">
-          {/* Filter Bar */}
+          {/* Controls Bar: Search, Filters, Sort, View Toggle */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md p-space-sm rounded-2xl bg-surface-container-lowest shadow-sm">
             {/* Tabs */}
             <div className="flex flex-wrap items-center gap-1.5">
@@ -519,25 +571,50 @@ export const OverdueFines: FC = () => {
               </button>
             </div>
 
-            {/* Quick Search Bar */}
-            <div className="relative w-full lg:w-80">
-              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[18px]">
-                search
-              </span>
-              <input
-                className="w-full h-10 pl-10 pr-4 rounded-xl bg-surface-container-low font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all"
-                placeholder="Search User ID, Book title, Barcode..."
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+            {/* View Switch, Search & Sort */}
+            <div className="flex flex-wrap items-center gap-2">
+              <RadioGroup
+                name="cashierOverdueView"
+                selectedValue={viewMode}
+                onChange={handleViewModeChange}
+                options={[
+                  { value: 'table', label: 'Table' },
+                  { value: 'card', label: 'Cards' },
+                ]}
+                variant="simple"
               />
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                aria-label="Sort overdue entries"
+                className="px-3 py-2 bg-surface-container-low rounded-xl text-caption font-caption font-bold text-text-primary outline-none cursor-pointer border border-outline/10"
+              >
+                <option value="days-desc">Most Overdue First</option>
+                <option value="days-asc">Least Overdue First</option>
+                <option value="fine-desc">Highest Fine Accrued</option>
+                <option value="patron-asc">Patron Name: A to Z</option>
+                <option value="title-asc">Book Title: A to Z</option>
+              </select>
+
+              <div className="w-full sm:w-64">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onClear={() => setSearchQuery('')}
+                  placeholder="Search patron, title, barcode..."
+                />
+              </div>
             </div>
           </div>
 
           {/* Overdue Records Master Data Table */}
-          <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+          <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col">
+            <div
+              ref={tableContainerRef}
+              className={viewMode === 'table' ? 'overflow-x-auto' : 'hidden'}
+            >
+              <table className="w-full text-left border-collapse min-w-[750px]">
                 <thead>
                   <tr className="bg-surface-container font-caption text-caption font-semibold text-text-secondary uppercase tracking-wider">
                     <th className="py-3.5 px-space-md">User / ID</th>
@@ -568,7 +645,7 @@ export const OverdueFines: FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredLoans.map((loan) => {
+                    paginatedItems.map((loan) => {
                       const elapsed = getDaysElapsed(loan.dueDate);
                       const billable = getChargeableDays(elapsed);
                       const fine = getAccruedFine(billable);
@@ -723,17 +800,125 @@ export const OverdueFines: FC = () => {
               </table>
             </div>
 
-            {/* Table Footer Indicator */}
-            <div className="flex flex-wrap items-center justify-between px-space-md py-3 bg-surface-container font-caption text-caption text-text-secondary">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-action-green"></span>
-                <span>
-                  Showing {filteredLoans.length} cashier-priority records out of {loans.length} total delinquency entries
-                </span>
+            {/* Cards Grid View */}
+            {viewMode === 'card' && (
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paginatedItems.map((loan) => {
+                  const elapsed = getDaysElapsed(loan.dueDate);
+                  const billable = getChargeableDays(elapsed);
+                  const fine = getAccruedFine(billable);
+                  const isSelected = selectedLoan?.id === loan.id;
+
+                  return (
+                    <div
+                      key={loan.id}
+                      onClick={() => setSelectedLoan(loan)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs ${
+                        isSelected
+                          ? 'bg-soft-blue/40 border-primary shadow-sm'
+                          : 'bg-surface-container-low border-outline/10 hover:border-primary/20'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="font-caption text-caption text-text-secondary font-mono">
+                            {loan.patronLibraryId || 'KP-ID'}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full font-caption text-caption font-bold ${
+                              elapsed >= 14
+                                ? 'bg-status-danger text-on-error'
+                                : elapsed >= 8
+                                ? 'bg-status-pending text-text-primary'
+                                : 'bg-primary/10 text-primary'
+                            }`}
+                          >
+                            {elapsed}d Overdue
+                          </span>
+                        </div>
+
+                        <h4 className="font-body-medium text-body-medium font-bold text-text-primary line-clamp-1">
+                          {loan.patronName}
+                        </h4>
+                        <p className="font-caption text-caption text-text-secondary mt-0.5 line-clamp-1">
+                          {loan.bookTitle}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-surface-container flex items-center justify-between">
+                        <div>
+                          <span className="font-caption text-caption text-text-secondary block">Fine Accrued:</span>
+                          <span className="font-headline-4 text-headline-4 font-bold text-text-primary">
+                            ₱{fine.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedLoan(loan);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-action-green hover:bg-action-green-hover text-text-primary font-caption text-caption font-bold flex items-center gap-1 cursor-pointer"
+                          type="button"
+                        >
+                          <span className="material-symbols-outlined text-base">receipt</span>
+                          <span>Select to Settle</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-4">
-                <span>Sort: Due Date (Oldest First)</span>
-                <span className="font-semibold text-primary">Live Database Linked</span>
+            )}
+
+            {/* Standard Pagination Controls Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-space-md py-3 bg-surface-container font-caption text-caption text-text-secondary border-t border-surface-container-high/40">
+              <div className="flex items-center gap-2">
+                <span>
+                  Showing <span className="font-bold text-text-primary">{totalItems === 0 ? 0 : startIndex + 1}</span> to{' '}
+                  <span className="font-bold text-text-primary">{Math.min(endIndex, totalItems)}</span> of{' '}
+                  <span className="font-bold text-text-primary">{totalItems}</span> overdue loans
+                </span>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  <span>Rows:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    aria-label="Overdue loans per page"
+                    className="bg-surface-container-low border border-outline/10 text-text-primary font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                  >
+                    {pageSizeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => prevPage()}
+                  disabled={!canPrevPage}
+                  className="p-1.5 rounded-lg border border-outline/10 text-text-primary hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  type="button"
+                  title="Previous page"
+                >
+                  <span className="material-symbols-outlined text-lg">chevron_left</span>
+                </button>
+                <span className="px-3 font-bold text-text-primary">
+                  Page {currentPage} of {Math.max(1, totalPages)}
+                </span>
+                <button
+                  onClick={() => nextPage()}
+                  disabled={!canNextPage}
+                  className="p-1.5 rounded-lg border border-outline/10 text-text-primary hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  type="button"
+                  title="Next page"
+                >
+                  <span className="material-symbols-outlined text-lg">chevron_right</span>
+                </button>
               </div>
             </div>
           </div>
@@ -874,20 +1059,18 @@ export const OverdueFines: FC = () => {
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <label className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-container-lowest cursor-pointer shadow-xs hover:bg-surface-bright transition-colors">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={smsGatewayChecked}
-                        onChange={(e) => setSmsGatewayChecked(e.target.checked)}
-                        className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer"
+                        onChange={(checked) => setSmsGatewayChecked(checked)}
+                        aria-label="SMS Gateway delivery channel"
                       />
                       <span className="font-caption text-caption font-semibold text-text-primary">SMS Gateway</span>
                     </label>
                     <label className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-container-lowest cursor-pointer shadow-xs hover:bg-surface-bright transition-colors">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={portalChecked}
-                        onChange={(e) => setPortalChecked(e.target.checked)}
-                        className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer"
+                        onChange={(checked) => setPortalChecked(checked)}
+                        aria-label="Student Portal delivery channel"
                       />
                       <span className="font-caption text-caption font-semibold text-text-primary">Student Portal</span>
                     </label>

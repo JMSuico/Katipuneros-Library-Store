@@ -9,7 +9,8 @@ import { apiRequest } from '../apiClient';
 export interface PhysicalInventoryItem {
   id: string;
   barcode: string;
-  rfidTag: string;
+  accessionBarcode?: string;
+  rfidTag?: string;
   title: string;
   edition: string;
   deweyCode: string;
@@ -188,7 +189,7 @@ const DEFAULT_INVENTORY_ITEMS: PhysicalInventoryItem[] = [];
     condition: 'Critical Wear',
     conditionStatus: 'wear',
     status: 'Lost / Discrepancy',
-    custodyDetails: 'RFID sweep discrepancy detected',
+    custodyDetails: 'Physical audit discrepancy detected',
     acquiredDate: 'Oct 2021',
     isAuditRequired: true,
   },

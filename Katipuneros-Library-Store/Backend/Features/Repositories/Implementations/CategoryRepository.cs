@@ -37,6 +37,12 @@ public class CategoryRepository : ICategoryRepository
     public Task DeleteAsync(Category category) =>
         Task.FromResult(_context.Categories.Remove(category));
 
+    public Task DeleteRangeAsync(IEnumerable<Category> categories)
+    {
+        _context.Categories.RemoveRange(categories);
+        return Task.CompletedTask;
+    }
+
     public async Task<bool> SaveChangesAsync() =>
         await _context.SaveChangesAsync() > 0;
 }
