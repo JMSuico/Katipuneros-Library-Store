@@ -13,6 +13,7 @@ public interface IReservationRepository
     Task<Reservation?> GetByIdAsync(Guid id);
     Task<List<Reservation>> GetActiveByPatronIdAsync(Guid patronId);
     Task<List<Reservation>> GetPendingQueueByBookIdAsync(Guid bookId);
+    Task<List<Reservation>> GetActiveByBookIdAsync(Guid bookId);
     Task<List<Reservation>> GetAllPendingAsync();
     Task<List<Reservation>> GetAllWithDetailsAsync(string? status = null, string? query = null);
     Task<List<Reservation>> GetByIdsAsync(IEnumerable<Guid> ids);

@@ -37,6 +37,11 @@ public class ReservationRepository : IReservationRepository
             .OrderBy(r => r.QueuePosition)
             .ToListAsync();
 
+    public async Task<List<Reservation>> GetActiveByBookIdAsync(Guid bookId) =>
+        await _context.Reservations
+            .Where(r => r.BookId == bookId && (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.StagedInLocker))
+            .ToListAsync();
+
     public async Task<List<Reservation>> GetAllPendingAsync() =>
         await _context.Reservations
             .Include(r => r.Book)

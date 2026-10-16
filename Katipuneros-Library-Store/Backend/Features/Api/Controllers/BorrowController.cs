@@ -35,7 +35,9 @@ public class BorrowController : ControllerBase
                     : (Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var pid) ? pid : Guid.Empty),
                 request.BookBarcodes,
                 request.DueDate ?? DateTime.UtcNow.AddDays(14),
-                Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null
+                Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null,
+                request.PickupPin,
+                request.ReservationId
             ) switch
             {
                 (true, var transactions, _) => Ok(ApiResponse<object>.Ok(transactions, $"Successfully checked out {transactions.Count} volumes.")),

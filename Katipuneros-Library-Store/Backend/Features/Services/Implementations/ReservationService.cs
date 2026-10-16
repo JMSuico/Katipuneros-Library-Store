@@ -172,7 +172,9 @@ public class ReservationService : IReservationService
             {
                 reservation.Status = ReservationStatus.StagedInLocker;
                 reservation.LockerBay = string.IsNullOrWhiteSpace(reservation.LockerBay) ? "Bay 01 Counter" : reservation.LockerBay;
-                reservation.LockerPin = string.IsNullOrWhiteSpace(reservation.LockerPin) ? Random.Shared.Next(1000, 9999).ToString() : reservation.LockerPin;
+                reservation.LockerPin = string.IsNullOrWhiteSpace(reservation.LockerPin)
+                    ? await GenerateUniqueLockerPinAsync(reservation.BookId)
+                    : reservation.LockerPin;
                 reservation.ExpiryDate = DateTime.UtcNow.AddHours(48);
                 if (priority) reservation.QueuePosition = 1;
             }
@@ -193,6 +195,25 @@ public class ReservationService : IReservationService
         {
             _triageLock.Release();
         }
+    }
+
+    public async Task<string> GenerateUniqueLockerPinAsync(Guid bookId)
+    {
+        var activeReservations = await _reservationRepository.GetActiveByBookIdAsync(bookId);
+        var usedPins = activeReservations
+            .Where(r => !string.IsNullOrWhiteSpace(r.LockerPin))
+            .Select(r => r.LockerPin!.Trim())
+            .ToHashSet();
+
+        string pin;
+        int attempts = 0;
+        do
+        {
+            pin = Random.Shared.Next(1000, 10000).ToString();
+            attempts++;
+        } while (usedPins.Contains(pin) && attempts < 1000);
+
+        return pin;
     }
 
     public async Task<(bool Success, string? Error)> UpdateStatusAsync(Guid reservationId, string newStatus, string? notes)
@@ -219,6 +240,7 @@ public class ReservationService : IReservationService
             return (false, 0, "No matching reservation records found.");
 
         int count = 0;
+        var assignedBatchPins = new HashSet<string>();
         foreach (var r in reservations)
         {
             switch (action.ToLowerInvariant())
@@ -227,7 +249,13 @@ public class ReservationService : IReservationService
                 case "approve":
                     r.Status = ReservationStatus.StagedInLocker;
                     r.LockerBay = string.IsNullOrWhiteSpace(lockerBay) ? "Bay 01 Counter" : lockerBay;
-                    r.LockerPin = Random.Shared.Next(1000, 9999).ToString();
+                    string pin;
+                    do
+                    {
+                        pin = await GenerateUniqueLockerPinAsync(r.BookId);
+                    } while (assignedBatchPins.Contains($"{r.BookId}:{pin}"));
+                    assignedBatchPins.Add($"{r.BookId}:{pin}");
+                    r.LockerPin = pin;
                     r.ExpiryDate = DateTime.UtcNow.AddHours(48);
                     count++;
                     break;

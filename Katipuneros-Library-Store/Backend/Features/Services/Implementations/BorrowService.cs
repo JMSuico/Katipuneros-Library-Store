@@ -21,6 +21,7 @@ public class BorrowService : IBorrowService
     private readonly IBookCopyRepository _bookCopyRepository;
     private readonly IUserRepository _userRepository;
     private readonly IFineRepository _fineRepository;
+    private readonly IReservationRepository _reservationRepository;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
 
@@ -30,10 +31,11 @@ public class BorrowService : IBorrowService
         IBookCopyRepository bookCopyRepository,
         IUserRepository userRepository,
         IFineRepository fineRepository,
+        IReservationRepository reservationRepository,
         IConfiguration configuration,
         IEmailService emailService) =>
-        (_borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _configuration, _emailService) =
-        (borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, configuration, emailService);
+        (_borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _reservationRepository, _configuration, _emailService) =
+        (borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, reservationRepository, configuration, emailService);
 
     public async Task<List<BorrowTransaction>> GetPatronActiveLoansAsync(Guid patronId) =>
         await _borrowRepository.GetActiveByPatronIdAsync(patronId);
@@ -44,7 +46,13 @@ public class BorrowService : IBorrowService
     public async Task<List<BorrowTransaction>> GetAuditLedgerAsync(TransactionStatus? status = null) =>
         await _borrowRepository.GetAllLedgerAsync(status);
 
-    public async Task<(bool Success, List<BorrowTransaction> Transactions, string? Error)> CheckoutAsync(Guid patronId, List<string> bookBarcodes, DateTime dueDate, Guid? cashierId)
+    public async Task<(bool Success, List<BorrowTransaction> Transactions, string? Error)> CheckoutAsync(
+        Guid patronId,
+        List<string> bookBarcodes,
+        DateTime dueDate,
+        Guid? cashierId,
+        string? pickupPin = null,
+        Guid? reservationId = null)
     {
         var patron = await _userRepository.GetByIdAsync(patronId);
         if (patron == null || !patron.IsActive)
@@ -56,7 +64,35 @@ public class BorrowService : IBorrowService
         if (activeLoans.Count + bookBarcodes.Count > maxAllowed)
             return (false, new List<BorrowTransaction>(), $"Loan quota exceeded. Patrons can have at most {maxAllowed} active loans concurrently (currently active: {activeLoans.Count}).");
 
+        // Validate explicit reservation hold if provided
+        Reservation? explicitReservation = null;
+        if (reservationId.HasValue && reservationId.Value != Guid.Empty)
+        {
+            explicitReservation = await _reservationRepository.GetByIdAsync(reservationId.Value);
+            if (explicitReservation == null || explicitReservation.PatronId != patronId)
+            {
+                return (false, new List<BorrowTransaction>(), "Reservation hold not found for this patron.");
+            }
+
+            if (string.IsNullOrWhiteSpace(pickupPin) ||
+                !string.Equals(pickupPin.Trim(), explicitReservation.LockerPin?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, new List<BorrowTransaction>(), "Invalid 4-digit Pickup PIN for this reservation hold.");
+            }
+        }
+
+        // Retrieve active holds for this patron to validate holds for checked out books
+        var patronReservations = await _reservationRepository.GetActiveByPatronIdAsync(patronId);
+        var activeHolds = patronReservations
+            .Where(r => r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.StagedInLocker)
+            .ToList();
+
         var created = new List<BorrowTransaction>();
+        var reservationsToFulfill = new List<Reservation>();
+        if (explicitReservation != null)
+        {
+            reservationsToFulfill.Add(explicitReservation);
+        }
 
         foreach (var barcode in bookBarcodes)
         {
@@ -75,6 +111,25 @@ public class BorrowService : IBorrowService
 
             if (book == null)
                 return (false, new List<BorrowTransaction>(), $"Book barcode or copy identifier '{barcode}' not found in registry.");
+
+            // Check if there is an active reservation for this book
+            var matchedHold = (explicitReservation != null && explicitReservation.BookId == book.Id)
+                ? explicitReservation
+                : activeHolds.FirstOrDefault(r => r.BookId == book.Id);
+
+            if (matchedHold != null)
+            {
+                if (string.IsNullOrWhiteSpace(pickupPin) ||
+                    !string.Equals(pickupPin.Trim(), matchedHold.LockerPin?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return (false, new List<BorrowTransaction>(), "Invalid 4-digit Pickup PIN for this reservation hold.");
+                }
+
+                if (!reservationsToFulfill.Any(r => r.Id == matchedHold.Id))
+                {
+                    reservationsToFulfill.Add(matchedHold);
+                }
+            }
 
             if (book.AvailableCopies <= 0)
                 return (false, new List<BorrowTransaction>(), $"No physical copies of '{book.Title}' are currently available on shelf.");
@@ -103,7 +158,7 @@ public class BorrowService : IBorrowService
                 DueDate = dueDate > DateTime.UtcNow ? dueDate : DateTime.UtcNow.AddDays(14),
                 Status = TransactionStatus.Active,
                 RenewalCount = 0,
-                GatePassCode = $"GP-{Random.Shared.Next(100000, 999999)}",
+                GatePassCode = $"KP-TXN-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
                 Patron = patron,
                 Book = book
             };
@@ -112,9 +167,21 @@ public class BorrowService : IBorrowService
             created.Add(transaction);
         }
 
+        // Transition reservation status to Fulfilled upon successful checkout
+        foreach (var reservation in reservationsToFulfill)
+        {
+            reservation.Status = ReservationStatus.Fulfilled;
+            reservation.FulfilledDate = DateTime.UtcNow;
+            await _reservationRepository.UpdateAsync(reservation);
+        }
+
         await _bookCopyRepository.SaveChangesAsync();
         await _borrowRepository.SaveChangesAsync();
         await _bookRepository.SaveChangesAsync();
+        if (reservationsToFulfill.Count > 0)
+        {
+            await _reservationRepository.SaveChangesAsync();
+        }
 
         foreach (var loan in created)
         {
@@ -218,6 +285,10 @@ public class BorrowService : IBorrowService
         activeLoan.ReturnDate = DateTime.UtcNow;
         activeLoan.Status = isLost ? TransactionStatus.Lost : TransactionStatus.Returned;
         activeLoan.ConditionNotes = InputSanitizer.SanitizeText(conditionStr);
+        if (string.IsNullOrWhiteSpace(activeLoan.GatePassCode))
+        {
+            activeLoan.GatePassCode = $"KP-TXN-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        }
         if (copy != null) activeLoan.BookCopyId = copy.Id;
 
         // Only restore available copies if the book is physically available (not damaged or lost)
@@ -360,7 +431,7 @@ public class BorrowService : IBorrowService
             DueDate = DateTime.UtcNow.AddDays(extensionDays),
             Status = TransactionStatus.Active,
             RenewalCount = 1,
-            GatePassCode = $"GP-{Random.Shared.Next(100000, 999999)}",
+            GatePassCode = $"KP-TXN-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
             ConditionNotes = $"FAST-LANE OVERRIDE: {request.Justification} (Authorized interval: {request.ExtensionInterval})"
         };
 
