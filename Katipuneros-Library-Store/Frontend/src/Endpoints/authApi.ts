@@ -85,7 +85,11 @@ export interface CreateCashierRequest {
 const STORED_USER_KEY = 'katipuneros_user_data';
 
 export const isCurrentPortAdmin = (): boolean =>
-  typeof window !== 'undefined' && window.location.port === '5174';
+  typeof window !== 'undefined' && (
+    window.location.port === '5174' ||
+    window.location.pathname.startsWith('/admin') ||
+    Boolean(import.meta.env?.PROD)
+  );
 
 export const getStoredUser = (): AuthUser | null => {
   try {
@@ -144,22 +148,22 @@ export const loginUser = async (
   });
 
   if (res.success && res.data?.token) {
-    // Check Admin separation: Port 5173 cannot log in as Admin
+    // Check Admin separation: Public customer portal login cannot authenticate Admin accounts
     if (res.data.role === 'Admin' && !isCurrentPortAdmin()) {
       clearAuthSession();
       return {
         success: false,
         message:
-          'Admin access is restricted to the dedicated Admin terminal at http://127.0.0.1:5174/admin. Public portal login is not permitted.',
+          'Admin access is restricted to the Administrator Portal at /admin/login. Public customer portal login is not permitted.',
       };
     }
 
-    // Check Admin separation: Port 5174 can ONLY log in as Admin
+    // Check Admin separation: Administrator portal is restricted to Administrators only
     if (isCurrentPortAdmin() && res.data.role !== 'Admin') {
       clearAuthSession();
       return {
         success: false,
-        message: `Access Denied: The Admin Terminal at Port 5174 is restricted to Chief Administrators only. Account [${res.data.email}] has role '${res.data.role}'.`,
+        message: `Access Denied: The Administrator Portal is restricted to Chief Administrators only. Account [${res.data.email}] has role '${res.data.role}'.`,
       };
     }
 

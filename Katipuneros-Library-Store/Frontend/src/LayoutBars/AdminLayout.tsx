@@ -6,12 +6,21 @@
 // DO NOT put business logic here.
 
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import AdminTopBar from './AdminTopBar';
+import { getAuthToken } from '../Endpoints/apiClient';
+import { getStoredUser } from '../Endpoints/authApi';
 
 const AdminLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const token = getAuthToken();
+  const user = getStoredUser();
+
+  if (!token || user?.role !== 'Admin') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="bg-surface-container-low font-body text-body text-on-surface antialiased min-h-screen">

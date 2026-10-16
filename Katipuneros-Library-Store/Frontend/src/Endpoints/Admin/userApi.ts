@@ -60,7 +60,11 @@ export const getAdminUsersList = async (role?: number): Promise<AdminUserRecord[
   const url = role !== undefined ? `/users?role=${role}` : '/users';
   const res = await apiRequest<RawBackendUser[]>(url);
 
-  return res.success && Array.isArray(res.data)
+  if (!res.success) {
+    throw new Error(res.message || 'Failed to retrieve user accounts from server.');
+  }
+
+  return Array.isArray(res.data)
     ? res.data.map((u) => {
         const rawName = (u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User').trim();
         return {

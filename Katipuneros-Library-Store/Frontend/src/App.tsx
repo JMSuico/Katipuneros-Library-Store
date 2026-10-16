@@ -126,6 +126,7 @@ function App() {
           {/* Public & Desk Authentication */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cashier/login" element={<CashierLoginPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 
           {/* Customer Panel */}

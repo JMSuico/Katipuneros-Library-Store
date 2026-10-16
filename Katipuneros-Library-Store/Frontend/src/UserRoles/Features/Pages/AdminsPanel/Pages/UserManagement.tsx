@@ -182,10 +182,12 @@ const UserManagement: FC = () => {
   // 1. Data states
   const [users, setPatrons] = useState<UserItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch real-time users from backend
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const records = await getAdminUsersList();
       if (records && Array.isArray(records) && records.length > 0) {
@@ -230,8 +232,9 @@ const UserManagement: FC = () => {
         // Real-time empty state: database has no users, leave empty!
         setPatrons([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[UserManagement] Real-time data fetch notice:', err);
+      setFetchError(err?.message || 'Failed to retrieve user accounts from server.');
       setPatrons([]);
     } finally {
       setIsLoading(false);
@@ -1236,6 +1239,22 @@ const UserManagement: FC = () => {
                         </div>
                       </td>
                     </tr>
+                  ) : fetchError ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-text-secondary">
+                        <span className="material-symbols-outlined text-4xl mb-2 text-error">error</span>
+                        <p className="font-small text-small font-semibold text-error mb-1">{fetchError}</p>
+                        <p className="font-caption text-caption text-text-secondary mb-4">Please verify your administrator session or network connection.</p>
+                        <button
+                          type="button"
+                          onClick={() => loadUsers()}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-on-primary font-caption text-caption font-semibold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">refresh</span>
+                          Retry Loading Accounts
+                        </button>
+                      </td>
+                    </tr>
                   ) : paginatedItems.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-text-secondary">
@@ -1546,6 +1565,20 @@ const UserManagement: FC = () => {
                     <span className="font-small text-small font-semibold text-text-primary">Loading user accounts from database...</span>
                     <span className="font-caption text-caption text-text-secondary">Retrieving institutional directory and credential clearances</span>
                   </div>
+                </div>
+              ) : fetchError ? (
+                <div className="col-span-full py-12 text-center text-text-secondary bg-surface-container-lowest rounded-xl">
+                  <span className="material-symbols-outlined text-4xl mb-2 text-error">error</span>
+                  <p className="font-small text-small font-semibold text-error mb-1">{fetchError}</p>
+                  <p className="font-caption text-caption text-text-secondary mb-4">Please verify your administrator session or network connection.</p>
+                  <button
+                    type="button"
+                    onClick={() => loadUsers()}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-on-primary font-caption text-caption font-semibold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">refresh</span>
+                    Retry Loading Accounts
+                  </button>
                 </div>
               ) : paginatedItems.length === 0 ? (
                 <div className="col-span-full py-12 text-center text-text-secondary bg-surface-container-lowest rounded-xl">

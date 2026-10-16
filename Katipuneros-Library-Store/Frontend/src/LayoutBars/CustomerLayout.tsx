@@ -4,10 +4,16 @@
 // Governs generous padding and centering across all 6 Customer modules.
 // DO NOT put business logic here.
 
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import CustomerHeader from './CustomerHeader';
+import { getAuthToken } from '../Endpoints/apiClient';
 
 const CustomerLayout: React.FC = () => {
+  const token = getAuthToken();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
   return (
     <div className="bg-surface-container-low font-body text-text-primary min-h-screen">
       <CustomerHeader />
