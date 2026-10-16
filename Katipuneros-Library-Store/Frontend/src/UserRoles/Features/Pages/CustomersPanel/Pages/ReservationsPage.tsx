@@ -10,6 +10,7 @@ import {
 } from '../../../../../Endpoints/Customer/reservationApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import { generateUserSlipPng } from '../../../../../Shared/Utils/generateUserSlipPng';
 
 type TabType = 'all' | 'pending' | 'ready' | 'completed' | 'cancelled';
 
@@ -32,6 +33,12 @@ const isCancelledOrExpired = (status: number | string) =>
   status === 5 ||
   String(status).toLowerCase() === 'cancelled' ||
   String(status).toLowerCase() === 'expired';
+
+const cleanLockerBay = (bay?: string): string => {
+  if (!bay) return 'Bay 01 Counter';
+  const clean = bay.replace(/^counter\s+bay\s+/i, '').replace(/^bay\s+/i, '').trim();
+  return clean ? `Bay ${clean}` : 'Bay 01 Counter';
+};
 
 const ReservationsPage: FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
@@ -387,7 +394,7 @@ const ReservationsPage: FC = () => {
                       </span>
                     </div>
                     <span className="font-caption text-caption bg-secondary-container/50 text-on-secondary-container px-space-sm py-1 rounded-full">
-                      {topReadyReservation.lockerBay ? `Bay ${topReadyReservation.lockerBay}` : 'Circulation Desk'}
+                      {cleanLockerBay(topReadyReservation.lockerBay)}
                     </span>
                   </div>
 
@@ -459,7 +466,7 @@ const ReservationsPage: FC = () => {
                         <div className="bg-surface-container-low p-space-xs rounded-lg">
                           <span className="font-caption text-caption text-text-secondary block">Assigned Bay</span>
                           <span className="font-small text-small text-text-primary font-medium">
-                            {topReadyReservation.lockerBay ? `Counter Bay ${topReadyReservation.lockerBay}` : 'Bay A-01'}
+                            {cleanLockerBay(topReadyReservation.lockerBay)}
                           </span>
                         </div>
                       </div>
@@ -469,35 +476,12 @@ const ReservationsPage: FC = () => {
                   {/* Rapid Front Desk Scanner Strip & Actions */}
                   <div className="mt-space-md pt-space-md flex flex-col md:flex-row items-center justify-between gap-space-md bg-surface-container-low/60 -mx-space-lg -mb-space-lg p-space-lg rounded-b-xl">
                     <div className="flex items-center gap-space-md w-full md:w-auto">
-                      <div className="p-2 bg-surface-container-lowest rounded-lg shadow-sm flex items-center justify-center shrink-0">
-                        <svg className="w-32 h-10 text-text-primary" fill="currentColor" viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg">
-                          <rect height="40" width="3" x="0" y="0"></rect>
-                          <rect height="40" width="2" x="5" y="0"></rect>
-                          <rect height="40" width="5" x="9" y="0"></rect>
-                          <rect height="40" width="2" x="16" y="0"></rect>
-                          <rect height="40" width="4" x="20" y="0"></rect>
-                          <rect height="40" width="2" x="26" y="0"></rect>
-                          <rect height="40" width="6" x="30" y="0"></rect>
-                          <rect height="40" width="2" x="38" y="0"></rect>
-                          <rect height="40" width="3" x="42" y="0"></rect>
-                          <rect height="40" width="5" x="47" y="0"></rect>
-                          <rect height="40" width="2" x="54" y="0"></rect>
-                          <rect height="40" width="4" x="58" y="0"></rect>
-                          <rect height="40" width="3" x="64" y="0"></rect>
-                          <rect height="40" width="6" x="69" y="0"></rect>
-                          <rect height="40" width="2" x="77" y="0"></rect>
-                          <rect height="40" width="4" x="81" y="0"></rect>
-                          <rect height="40" width="2" x="87" y="0"></rect>
-                          <rect height="40" width="5" x="91" y="0"></rect>
-                          <rect height="40" width="3" x="98" y="0"></rect>
-                          <rect height="40" width="4" x="103" y="0"></rect>
-                          <rect height="40" width="2" x="109" y="0"></rect>
-                          <rect height="40" width="4" x="113" y="0"></rect>
-                        </svg>
+                      <div className="w-12 h-12 bg-surface-container-lowest rounded-xl shadow-sm flex items-center justify-center shrink-0 border border-outline/10 text-primary">
+                        <span className="material-symbols-outlined text-3xl">qr_code_2</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="font-caption text-caption text-text-secondary">Express Verification Code</span>
-                        <span className="font-small text-small text-text-primary font-medium tracking-mono">
+                        <span className="font-small text-small text-text-primary font-bold font-mono tracking-wider">
                           SCAN-BAY-{topReadyReservation.id.slice(0, 6).toUpperCase()}
                         </span>
                       </div>
@@ -505,9 +489,15 @@ const ReservationsPage: FC = () => {
                     <div className="flex items-center gap-space-xs w-full md:w-auto justify-end">
                       <button
                         className="px-space-md py-space-xs bg-surface-container-lowest text-text-primary hover:bg-surface-container rounded-full shadow-sm font-small text-small transition-colors flex items-center gap-1 cursor-pointer"
-                        onClick={() =>
-                          addToast(`Pickup slip #${topReadyReservation.id.slice(0, 8)} ready at circulation bay.`, 'info')
-                        }
+                        onClick={async () => {
+                          try {
+                            await generateUserSlipPng(topReadyReservation);
+                            addToast(`Downloaded official pickup slip for #${topReadyReservation.id.slice(0, 8)}`, 'success');
+                          } catch (err) {
+                            console.error('Failed to generate pickup slip:', err);
+                            addToast('Failed to download pickup slip.', 'error');
+                          }
+                        }}
                         type="button"
                       >
                         <span className="material-symbols-outlined text-base">download</span>
@@ -534,7 +524,7 @@ const ReservationsPage: FC = () => {
                   </div>
                   <h3 className="font-headline-3 text-headline-3 text-text-primary">No Holds Ready for Pickup</h3>
                   <p className="font-body-medium text-body-medium text-text-secondary max-w-md">
-                    When your requested books are verified and staged at the circulation bay, your express barcode and pickup directions will appear here.
+                    When your requested books are verified and staged at the circulation bay, your ExpressCode and pickup directions will appear here.
                   </p>
                 </div>
               )}
@@ -786,7 +776,7 @@ const ReservationsPage: FC = () => {
                             </td>
                             <td className="py-space-md px-space-md text-text-primary">
                               <span>
-                                {item.lockerBay ? `Bay ${item.lockerBay}` : item.pickupBranch || 'Main Circulation Desk'}
+                                {item.lockerBay ? cleanLockerBay(item.lockerBay) : item.pickupBranch || 'Main Circulation Desk'}
                               </span>
                             </td>
                             <td className="py-space-md px-space-md">
@@ -1038,7 +1028,7 @@ const ReservationsPage: FC = () => {
                   <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
                     <span className="font-medium text-text-primary">1. Proceed to Circulation Bay</span>
                     <span>
-                      Staged Counter Bay: <strong className="font-mono text-emerald-950 bg-emerald-100 px-2 py-0.5 rounded">{selectedPickup?.lockerBay ? `Counter Bay ${selectedPickup.lockerBay}` : 'Bay 01 Counter'}</strong>
+                      Staged Counter Bay: <strong className="font-mono text-emerald-950 bg-emerald-100 px-2 py-0.5 rounded">{cleanLockerBay(selectedPickup?.lockerBay)}</strong>
                     </span>
                   </div>
                   {selectedPickup?.lockerPin && (
@@ -1047,7 +1037,7 @@ const ReservationsPage: FC = () => {
                       <span className="text-xl font-mono font-bold text-emerald-900 tracking-wider">
                         {selectedPickup.lockerPin}
                       </span>
-                      <span className="text-xs text-emerald-700">Present this 4-digit PIN or your student barcode to the desk cashier.</span>
+                      <span className="text-xs text-emerald-700">Present this 4-digit PIN, your ExpressCode, or your student QR code to the desk cashier.</span>
                     </div>
                   )}
                   <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
@@ -1059,7 +1049,25 @@ const ReservationsPage: FC = () => {
                 </div>
               )}
 
-              <div className="flex justify-end pt-space-xs">
+              <div className="flex items-center justify-end gap-space-sm pt-space-xs">
+                {selectedPickup && (
+                  <button
+                    className="px-space-md py-space-sm rounded-full bg-surface-container text-text-primary hover:bg-surface-container-high font-small text-small font-medium shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                    onClick={async () => {
+                      try {
+                        await generateUserSlipPng(selectedPickup);
+                        addToast(`Downloaded official pickup slip for #${selectedPickup.id.slice(0, 8)}`, 'success');
+                      } catch (err) {
+                        console.error('Failed to generate pickup slip:', err);
+                        addToast('Failed to download pickup slip.', 'error');
+                      }
+                    }}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined text-base">download</span>
+                    <span>Download User Slip</span>
+                  </button>
+                )}
                 <button
                   className="px-space-xl py-space-sm rounded-full bg-primary-container text-on-primary-container hover:opacity-90 font-small text-small font-medium shadow-sm transition-colors cursor-pointer"
                   onClick={() => setPickupModalOpen(false)}

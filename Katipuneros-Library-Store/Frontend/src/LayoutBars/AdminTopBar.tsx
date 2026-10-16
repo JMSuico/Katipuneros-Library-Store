@@ -11,6 +11,7 @@ import { useDebounce } from '../Hooks/useDebounce';
 import { useNotification } from '../Hooks/useNotification';
 import { SearchBar } from '../Shared/SearchBar';
 import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
+import { listenCirculationNotifications } from '../Shared/Utils/notificationBus';
 
 const DEFAULT_ADMIN_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ';
 
@@ -36,7 +37,17 @@ const AdminTopBar: React.FC<AdminTopBarProps> = ({
     markAsRead,
     markAllAsRead,
     clearAll,
+    refresh,
   } = useNotification('Admin');
+
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Admin')) {
+        refresh();
+      }
+    });
+    return () => unsubscribe();
+  }, [refresh]);
 
   // Standby header search input with debouncing
   const [headerSearch, setHeaderSearch] = useState('');

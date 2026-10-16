@@ -9,6 +9,8 @@ export interface CashierCheckoutRequest {
   patronId: string;
   bookBarcodes: string[];
   dueDate?: string;
+  pickupPin?: string;
+  reservationId?: string;
 }
 
 export interface ReturnBookRequest {
@@ -26,6 +28,8 @@ export const processCashierCheckout = async (req: CashierCheckoutRequest) =>
       patronId: req.patronId,
       bookBarcodes: req.bookBarcodes,
       dueDate: req.dueDate ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      pickupPin: req.pickupPin,
+      reservationId: req.reservationId,
     }),
   });
 

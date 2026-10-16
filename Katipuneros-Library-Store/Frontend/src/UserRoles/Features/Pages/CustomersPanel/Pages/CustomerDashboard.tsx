@@ -34,6 +34,10 @@ import {
   AuthUser,
 } from '../../../../../Endpoints/authApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import {
+  listenCirculationNotifications,
+  CirculationNotificationEvent,
+} from '../../../../../Shared/Utils/notificationBus';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400';
 
@@ -55,6 +59,8 @@ const CustomerDashboard: FC = () => {
   const [recommendationPage, setRecommendationPage] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [reservingBookId, setReservingBookId] = useState<string | null>(null);
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
+  const [latestCirculationAlert, setLatestCirculationAlert] = useState<CirculationNotificationEvent | null>(null);
 
   // Load all data on mount
   const loadDashboardData = useCallback(async () => {
@@ -101,6 +107,29 @@ const CustomerDashboard: FC = () => {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  // Real-time synchronization of customer circulation notifications
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event: CirculationNotificationEvent) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Customer')) {
+        setUnreadNotifCount((prev) => prev + 1);
+        setLatestCirculationAlert(event);
+
+        const toastMsg =
+          event.message ||
+          (event.type === 'borrow_confirmed'
+            ? `Loan confirmed for "${event.title}". Ref: ${event.reference}`
+            : `Return processed for "${event.title}". Ref: ${event.reference}`);
+
+        addToast(toastMsg, event.type === 'borrow_confirmed' ? 'info' : 'success');
+
+        // Dynamically re-sync active circulation metrics and loans
+        loadDashboardData();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [addToast, loadDashboardData]);
 
   // Derived KPI Metrics
   const greeting = useMemo(() => {
@@ -292,7 +321,40 @@ const CustomerDashboard: FC = () => {
                 <div className="flex items-center gap-space-xs text-secondary font-caption text-caption uppercase tracking-wider">
                   <span className="inline-block w-2 h-2 rounded-full bg-action-green animate-pulse" />
                   <span>Katipuneros Stacks • Circulation Terminal 04</span>
+                  {unreadNotifCount > 0 && (
+                    <span className="ml-2 inline-flex items-center gap-1 bg-primary text-on-primary text-caption font-bold px-2.5 py-0.5 rounded-full animate-pulse shadow-sm">
+                      <span className="material-symbols-outlined text-[13px]">notifications_active</span>
+                      {unreadNotifCount} New Alert{unreadNotifCount > 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
+                {latestCirculationAlert && (
+                  <div className="flex items-center justify-between gap-3 p-3.5 bg-soft-blue/90 border border-primary/20 rounded-2xl shadow-sm animate-fade-in">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-base">
+                          {latestCirculationAlert.type === 'borrow_confirmed' ? 'book_2' : 'assignment_turned_in'}
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-bold text-text-primary">
+                          {latestCirculationAlert.type === 'borrow_confirmed' ? 'Loan Verified: ' : 'Return Confirmed: '}
+                        </span>
+                        <span className="text-text-secondary">{latestCirculationAlert.title}</span>
+                        <span className="ml-2 font-mono text-xs text-primary font-bold">({latestCirculationAlert.reference})</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setLatestCirculationAlert(null);
+                        setUnreadNotifCount(0);
+                      }}
+                      className="text-xs text-text-secondary hover:text-primary font-medium cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
                 <div className="flex flex-col gap-space-xs">
                   <h1 className="font-display-hero text-display-hero text-text-primary tracking-tight">
                     {greeting},{' '}

@@ -12,7 +12,7 @@ namespace Backend.Features.Services.Interfaces;
 
 public interface IBorrowService
 {
-    Task<(bool Success, List<BorrowTransaction> Transactions, string? Error)> CheckoutAsync(Guid patronId, List<string> bookBarcodes, DateTime dueDate, Guid? cashierId);
+    Task<(bool Success, List<BorrowTransaction> Transactions, string? Error)> CheckoutAsync(Guid patronId, List<string> bookBarcodes, DateTime dueDate, Guid? cashierId, string? pickupPin = null, Guid? reservationId = null);
     Task<(bool Success, BorrowTransaction? Transaction, string? Error)> RenewLoanAsync(Guid loanId, Guid patronId);
     Task<(bool Success, BorrowTransaction? Transaction, decimal AssessedFine, string? Error)> ReturnBookAsync(string barcode, string? condition, decimal? damageFee, Guid? cashierId, Guid? bookCopyId = null);
     Task<List<BorrowTransaction>> GetPatronActiveLoansAsync(Guid patronId);

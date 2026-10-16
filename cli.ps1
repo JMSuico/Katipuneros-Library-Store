@@ -2,12 +2,14 @@
 .SYNOPSIS
     Katipuneros Library Store - Root Administrative CLI Governance Console
 .DESCRIPTION
-    Manages root protected superuser administrators and patron accounts.
+    Manages root protected superuser administrators, cashiers, and patron accounts.
     Accounts managed through this CLI are cryptographically protected from Web UI deletion or suspension.
 .EXAMPLE
     .\cli.ps1 listusers
     .\cli.ps1 createsuperuseradmin superadmin MySecurePass123! superadmin@katipuneros.edu.ph Andres Bonifacio "System Administration"
+    .\cli.ps1 createcashiersuperuseradmin cashadmin CashierPass123! cashadmin@katipuneros.edu.ph Melchora Aquino "Library Circulation Desk"
     .\cli.ps1 createcustomersuperuseradmin custadmin CustPass123! custadmin@katipuneros.edu.ph Emilio Aguinaldo "Academic Governance"
+    .\cli.ps1 resetpassword cashadmin NewSecret123!
     .\cli.ps1 edituser customadmin1 email newadmin@katipuneros.edu.ph
     .\cli.ps1 deleteuser customadmin1
     .\cli.ps1 deleteallcliusers
@@ -119,7 +121,14 @@ function Show-TableFromUsersJson($rawOutput) {
         $date = ($u.CreatedAt).PadRight($colDate).Substring(0, $colDate)
 
         $row = "| $card | $uname | $name | $email | $role | $status | $date |"
-        Write-Host $row -ForegroundColor White
+        
+        $roleColor = switch ($u.Role) {
+            "Admin"    { "Magenta" }
+            "Cashier"  { "Yellow" }
+            "Customer" { "Green" }
+            Default    { "White" }
+        }
+        Write-Host $row -ForegroundColor $roleColor
     }
     Write-Host $sep -ForegroundColor DarkGray
     Write-Host ""
@@ -144,6 +153,20 @@ function Invoke-CreateSuperAdmin($uname, $pwd, $mail, $fn, $ln, $dept) {
     Invoke-ListUsers
 }
 
+function Invoke-CreateCashierSuperAdmin($uname, $pwd, $mail, $fn, $ln, $dept) {
+    if (-not $uname -or -not $pwd -or -not $mail) {
+        Write-Host "[!] Missing required arguments: <username> <password> <email>" -ForegroundColor Red
+        return
+    }
+    if (-not $fn) { $fn = "Cashier" }
+    if (-not $ln) { $ln = "Officer" }
+    if (-not $dept) { $dept = "Library Circulation & Desk" }
+    Write-Host "[*] Registering Protected Cashier Superuser '$uname'..." -ForegroundColor Cyan
+    & dotnet run --project "$BackendDir" --no-build -- adduser "$uname" "$pwd" "$mail" "Cashier" "$fn" "$ln" "$dept"
+    Write-Host ""
+    Invoke-ListUsers
+}
+
 function Invoke-CreateCustomerSuperAdmin($uname, $pwd, $mail, $fn, $ln, $dept) {
     if (-not $uname -or -not $pwd -or -not $mail) {
         Write-Host "[!] Missing required arguments: <username> <password> <email>" -ForegroundColor Red
@@ -153,6 +176,16 @@ function Invoke-CreateCustomerSuperAdmin($uname, $pwd, $mail, $fn, $ln, $dept) {
     & dotnet run --project "$BackendDir" --no-build -- createcustomersuperuseradmin "$uname" "$pwd" "$mail" "$fn" "$ln" "$dept"
     Write-Host ""
     Invoke-ListUsers
+}
+
+function Invoke-ResetPassword($id, $newPassword) {
+    if (-not $id -or -not $newPassword) {
+        Write-Host "[!] Missing required arguments: <identifier> <newPassword>" -ForegroundColor Red
+        return
+    }
+    Write-Host "[*] Resetting password for user '$id'..." -ForegroundColor Cyan
+    & dotnet run --project "$BackendDir" --no-build -- resetpassword "$id" "$newPassword"
+    Write-Host ""
 }
 
 function Invoke-EditUser($id, $fld, $val) {
@@ -197,13 +230,15 @@ function Show-InteractiveMenu {
         Write-Host "Select an administrative operation:" -ForegroundColor Cyan
         Write-Host "  [1] List all CLI-created protected users (listusers)"
         Write-Host "  [2] Create Superuser Admin (createsuperuseradmin)"
-        Write-Host "  [3] Create Customer Superuser (createcustomersuperuseradmin)"
-        Write-Host "  [4] Edit a CLI user (edituser)"
-        Write-Host "  [5] Delete a single CLI user (deleteuser)"
-        Write-Host "  [6] Delete ALL CLI users (deleteallcliusers)"
-        Write-Host "  [7] Exit"
+        Write-Host "  [3] Create Cashier Superuser (createcashiersuperuseradmin)"
+        Write-Host "  [4] Create Customer Superuser (createcustomersuperuseradmin)"
+        Write-Host "  [5] Reset User Password (resetpassword)"
+        Write-Host "  [6] Edit a CLI user (edituser)"
+        Write-Host "  [7] Delete a single CLI user (deleteuser)"
+        Write-Host "  [8] Delete ALL CLI users (deleteallcliusers)"
+        Write-Host "  [9] Exit"
         Write-Host ""
-        $choice = Read-Host "Enter option (1-7)"
+        $choice = Read-Host "Enter option (1-9)"
 
         switch ($choice) {
             "1" {
@@ -225,6 +260,18 @@ function Show-InteractiveMenu {
                 $u = Read-Host "Username"
                 $p = Read-Host "Password"
                 $e = Read-Host "Email"
+                $fn = Read-Host "First Name (Default: Cashier)"
+                if (-not $fn) { $fn = "Cashier" }
+                $ln = Read-Host "Last Name (Default: Officer)"
+                if (-not $ln) { $ln = "Officer" }
+                $d = Read-Host "Department (Default: Library Circulation Desk)"
+                if (-not $d) { $d = "Library Circulation Desk" }
+                Invoke-CreateCashierSuperAdmin $u $p $e $fn $ln $d
+            }
+            "4" {
+                $u = Read-Host "Username"
+                $p = Read-Host "Password"
+                $e = Read-Host "Email"
                 $fn = Read-Host "First Name (Default: Customer)"
                 if (-not $fn) { $fn = "Customer" }
                 $ln = Read-Host "Last Name (Default: Superuser)"
@@ -233,20 +280,25 @@ function Show-InteractiveMenu {
                 if (-not $d) { $d = "Academic Research & Governance" }
                 Invoke-CreateCustomerSuperAdmin $u $p $e $fn $ln $d
             }
-            "4" {
+            "5" {
+                $id = Read-Host "User identifier (Username, Email, or Library Card #)"
+                $pwd = Read-Host "New Password"
+                Invoke-ResetPassword $id $pwd
+            }
+            "6" {
                 $id = Read-Host "User identifier (Username, Email, or Library Card #)"
                 $fld = Read-Host "Field to edit (name, email, department, role, password)"
                 $val = Read-Host "New value"
                 Invoke-EditUser $id $fld $val
             }
-            "5" {
+            "7" {
                 $id = Read-Host "User identifier to delete (Username, Email, or Library Card #)"
                 Invoke-DeleteUser $id
             }
-            "6" {
+            "8" {
                 Invoke-DeleteAllUsers
             }
-            "7" {
+            "9" {
                 Write-Host "Exiting CLI tool. Goodbye!" -ForegroundColor Cyan
                 return
             }
@@ -270,8 +322,14 @@ if (-not $Command) {
         "createsuperuseradmin" {
             Invoke-CreateSuperAdmin $Arg1 $Arg2 $Arg3 $Arg4 $Arg5 $Arg6
         }
+        "createcashiersuperuseradmin" {
+            Invoke-CreateCashierSuperAdmin $Arg1 $Arg2 $Arg3 $Arg4 $Arg5 $Arg6
+        }
         "createcustomersuperuseradmin" {
             Invoke-CreateCustomerSuperAdmin $Arg1 $Arg2 $Arg3 $Arg4 $Arg5 $Arg6
+        }
+        "resetpassword" {
+            Invoke-ResetPassword $Arg1 $Arg2
         }
         "edituser" {
             Invoke-EditUser $Arg1 $Arg2 $Arg3
@@ -284,7 +342,7 @@ if (-not $Command) {
         }
         default {
             Write-Host "[!] Unknown command: $Command" -ForegroundColor Red
-            Write-Host "Supported commands: listusers, createsuperuseradmin, createcustomersuperuseradmin, edituser, deleteuser, deleteallcliusers" -ForegroundColor Gray
+            Write-Host "Supported commands: listusers, createsuperuseradmin, createcashiersuperuseradmin, createcustomersuperuseradmin, resetpassword, edituser, deleteuser, deleteallcliusers" -ForegroundColor Gray
         }
     }
 }

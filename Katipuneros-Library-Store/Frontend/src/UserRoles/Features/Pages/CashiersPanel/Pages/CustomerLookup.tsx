@@ -73,13 +73,18 @@ export const CustomerLookup: FC = () => {
       })
       .filter((u) => {
         if (!debouncedSearch.trim()) return true;
-        const q = debouncedSearch.toLowerCase();
+        const q = debouncedSearch.toLowerCase().trim();
+        const cleanExpress = q.startsWith('scan-bay-') ? q.replace('scan-bay-', '') : '';
+        const cleanPass = q.startsWith('pass-') ? q.replace('pass-', '') : '';
         return (
           u.fullName?.toLowerCase().includes(q) ||
           u.name?.toLowerCase().includes(q) ||
           u.email?.toLowerCase().includes(q) ||
           u.libraryCardNumber?.toLowerCase().includes(q) ||
-          u.department?.toLowerCase().includes(q)
+          u.department?.toLowerCase().includes(q) ||
+          u.id.toLowerCase().includes(q) ||
+          (cleanPass && u.libraryCardNumber?.toLowerCase().includes(cleanPass)) ||
+          (cleanExpress && u.id.toLowerCase().includes(cleanExpress))
         );
       });
 
@@ -246,7 +251,7 @@ export const CustomerLookup: FC = () => {
               <SearchBar
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search by patron name, library card, email, or dept..."
+                placeholder="Scan QR Code, ExpressCode, or Accession Number..."
               />
             </div>
 

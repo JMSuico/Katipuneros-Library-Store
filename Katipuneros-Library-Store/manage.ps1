@@ -2,22 +2,28 @@
 # Katipuneros Library Store -- Unified Dev & Ops Master Controller
 # Works across any Windows laptop without needing Visual Studio IDE.
 # Usage:
-#   .\manage.ps1             (Launches interactive menu)
-#   .\manage.ps1 start       (Starts Backend :5000, Patron :5173, Admin :5174, Cashier :5175)
-#   .\manage.ps1 status      (Probes live health matrix of all 4 service ports)
-#   .\manage.ps1 refresh     (Hard refresh: cleans caches, rebuilds & restarts all 4)
-#   .\manage.ps1 stop        (Stops all running services on ports 5000, 5173, 5174, 5175)
-#   .\manage.ps1 migrate     (Interactive EF Core migration & DB update)
-#   .\manage.ps1 test        (Build checks, API tests & SHA-256 chain verification)
+#   .\manage.ps1                          (Launches interactive menu)
+#   .\manage.ps1 start                    (Starts Backend :5000, Patron :5173, Admin :5174, Cashier :5175)
+#   .\manage.ps1 status                   (Probes live health matrix of all 4 service ports)
+#   .\manage.ps1 refresh                  (Hard refresh: cleans caches, rebuilds & restarts all 4)
+#   .\manage.ps1 stop                     (Stops all running services on ports 5000, 5173, 5174, 5175)
+#   .\manage.ps1 migrate                  (Interactive EF Core migration & DB update)
+#   .\manage.ps1 test                     (Build checks, API tests & SHA-256 chain verification)
+#   .\manage.ps1 createcashiersuperuseradmin <user> <pass> <email> [fn] [ln] [dept]
+#   .\manage.ps1 resetpassword <identifier> <newpass>
 # ==============================================================================
 
 param (
-    [string]$Action = ""
+    [Parameter(Position=0)]
+    [string]$Action = "",
+
+    [Parameter(Position=1, ValueFromRemainingArguments=$true)]
+    [string[]]$CmdArgs = @()
 )
 
 $ErrorActionPreference = "Stop"
 
-# Resolve root directory
+# Resolve root and inner directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (Test-Path (Join-Path $ScriptDir "Katipuneros-Library-Store")) {
     $RootDir = Join-Path $ScriptDir "Katipuneros-Library-Store"
@@ -27,6 +33,8 @@ if (Test-Path (Join-Path $ScriptDir "Katipuneros-Library-Store")) {
 
 $BackendDir = Join-Path $RootDir "Backend"
 $FrontendDir = Join-Path $RootDir "Frontend"
+
+$AllArgs = if ($CmdArgs -and $CmdArgs.Count -gt 0) { $CmdArgs } else { $args }
 
 function Write-Header {
     param([string]$Title)
@@ -69,6 +77,18 @@ function Check-Prerequisites {
     }
 
     return $true
+}
+
+function Invoke-TscValidation {
+    $tscLocal = Join-Path $FrontendDir "node_modules\.bin\tsc.cmd"
+    if (Test-Path $tscLocal) {
+        & $tscLocal -b
+    } elseif (Get-Command tsc -ErrorAction SilentlyContinue) {
+        & tsc -b
+    } else {
+        & npx --yes tsc -b
+    }
+    return $LASTEXITCODE
 }
 
 function Stop-AllServices {
@@ -283,16 +303,11 @@ function Hard-Refresh {
     Pop-Location
     Write-Host "  [OK] .NET clean completed." -ForegroundColor Green
 
-    # 4. Verify Frontend TypeScript Compilation
+    # 4. Verify Frontend TypeScript Compilation with resilient tsc detection
     Write-Host "[*] Validating TypeScript compilation (tsc -b)..." -ForegroundColor Gray
     Push-Location $FrontendDir
-    $tscPath = Join-Path $FrontendDir "node_modules\.bin\tsc.cmd"
-    if (Test-Path $tscPath) {
-        & $tscPath -b
-    } else {
-        & npx --yes tsc -b
-    }
-    if ($LASTEXITCODE -ne 0) {
+    $tscCode = Invoke-TscValidation
+    if ($tscCode -ne 0) {
         Write-Host "  [ERROR] TypeScript build failed. Please fix compile errors before refreshing." -ForegroundColor Red
         Pop-Location
         return
@@ -374,16 +389,11 @@ function Run-HealthTests {
     }
     Pop-Location
 
-    # 2. Check Frontend Typecheck
+    # 2. Check Frontend Typecheck with resilient tsc detection
     Write-Host "[2/5] Checking Frontend TypeScript..." -ForegroundColor Gray
     Push-Location $FrontendDir
-    $tscPath = Join-Path $FrontendDir "node_modules\.bin\tsc.cmd"
-    if (Test-Path $tscPath) {
-        & $tscPath -b
-    } else {
-        & npx --yes tsc -b
-    }
-    if ($LASTEXITCODE -eq 0) {
+    $tscCode = Invoke-TscValidation
+    if ($tscCode -eq 0) {
         Write-Host "  [OK] Frontend TypeScript compiles with 0 errors." -ForegroundColor Green
     }
     Pop-Location
@@ -453,6 +463,23 @@ function New-SuperAdminPrompt {
     Pop-Location
 }
 
+function New-CashierSuperAdminPrompt {
+    Write-Header "CREATE CASHIER SUPERUSER CLI"
+    $username = Read-Host "Enter Username"
+    $password = Read-Host "Enter Password"
+    $email = Read-Host "Enter Email"
+    $firstName = Read-Host "Enter First Name (Default: Cashier)"
+    if ([string]::IsNullOrWhiteSpace($firstName)) { $firstName = "Cashier" }
+    $lastName = Read-Host "Enter Last Name (Default: Officer)"
+    if ([string]::IsNullOrWhiteSpace($lastName)) { $lastName = "Officer" }
+    $department = Read-Host "Enter Department (Default: Library Circulation Desk)"
+    if ([string]::IsNullOrWhiteSpace($department)) { $department = "Library Circulation Desk" }
+    
+    Push-Location $BackendDir
+    & dotnet run -- createcashiersuperuseradmin $username $password $email $firstName $lastName $department
+    Pop-Location
+}
+
 function New-CustomSuperAdminPrompt {
     Write-Header "CREATE CUSTOM SUPERADMIN CLI"
     $username = Read-Host "Enter Username"
@@ -467,6 +494,19 @@ function New-CustomSuperAdminPrompt {
     
     Push-Location $BackendDir
     & dotnet run -- createcustomsuperadmin $username $password $email $firstName $lastName $department
+    Pop-Location
+}
+
+function New-ResetPasswordPrompt {
+    Write-Header "RESET USER PASSWORD CLI"
+    $identifier = Read-Host "Enter Username, Email, or Library Card Number"
+    $newPassword = Read-Host "Enter New Password"
+    if ([string]::IsNullOrWhiteSpace($identifier) -or [string]::IsNullOrWhiteSpace($newPassword)) {
+        Write-Host "[!] Identifier and New Password are required." -ForegroundColor Red
+        return
+    }
+    Push-Location $BackendDir
+    & dotnet run -- resetpassword $identifier $newPassword
     Pop-Location
 }
 
@@ -505,39 +545,97 @@ switch ($Action.ToLower()) {
     }
     "test"    { Run-HealthTests; exit }
     "createsuperadmin" { 
-        if ($args.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 createsuperadmin <username> <password> <email>" -ForegroundColor Red
+        if ($AllArgs.Count -lt 3) {
+            Write-Host "Usage: .\manage.ps1 createsuperadmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
             exit 1
         }
+        $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Super" }
+        $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Admin" }
+        $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "System Administration" }
         Push-Location $BackendDir
-        & dotnet run -- createsuperadmin $args[0] $args[1] $args[2]
+        & dotnet run -- createsuperadmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
         Pop-Location
         exit 
     }
+    "createsuperuseradmin" {
+        if ($AllArgs.Count -lt 3) {
+            Write-Host "Usage: .\manage.ps1 createsuperuseradmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
+            exit 1
+        }
+        $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Super" }
+        $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Admin" }
+        $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "System Administration" }
+        Push-Location $BackendDir
+        & dotnet run -- createsuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        Pop-Location
+        exit
+    }
     "createcustomsuperadmin" {
-        if ($args.Count -lt 3) {
+        if ($AllArgs.Count -lt 3) {
             Write-Host "Usage: .\manage.ps1 createcustomsuperadmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
             exit 1
         }
-        $fName = if ($args.Count -gt 3) { $args[3] } else { "Custom" }
-        $lName = if ($args.Count -gt 4) { $args[4] } else { "SuperAdmin" }
-        $dept = if ($args.Count -gt 5) { $args[5] } else { "System Administration" }
+        $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Custom" }
+        $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "SuperAdmin" }
+        $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "System Administration" }
         Push-Location $BackendDir
-        & dotnet run -- createcustomsuperadmin $args[0] $args[1] $args[2] $fName $lName $dept
+        & dotnet run -- createcustomsuperadmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        Pop-Location
+        exit
+    }
+    "createcashiersuperuseradmin" {
+        if ($AllArgs.Count -lt 3) {
+            Write-Host "Usage: .\manage.ps1 createcashiersuperuseradmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
+            exit 1
+        }
+        $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Cashier" }
+        $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Officer" }
+        $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "Library Circulation Desk" }
+        Push-Location $BackendDir
+        & dotnet run -- createcashiersuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        Pop-Location
+        exit
+    }
+    "createcustomersuperuseradmin" {
+        if ($AllArgs.Count -lt 3) {
+            Write-Host "Usage: .\manage.ps1 createcustomersuperuseradmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
+            exit 1
+        }
+        $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Customer" }
+        $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Superuser" }
+        $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "Academic Research & Governance" }
+        Push-Location $BackendDir
+        & dotnet run -- createcustomersuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        Pop-Location
+        exit
+    }
+    "resetpassword" {
+        if ($AllArgs.Count -lt 2) {
+            Write-Host "Usage: .\manage.ps1 resetpassword <identifier> <newPassword>" -ForegroundColor Red
+            exit 1
+        }
+        Push-Location $BackendDir
+        & dotnet run -- resetpassword $AllArgs[0] $AllArgs[1]
         Pop-Location
         exit
     }
     "adduser" {
-        if ($args.Count -lt 3) {
+        if ($AllArgs.Count -lt 3) {
             Write-Host "Usage: .\manage.ps1 adduser <username> <password> <email> [role] [firstName] [lastName] [department]" -ForegroundColor Red
             exit 1
         }
-        $role = if ($args.Count -gt 3) { $args[3] } else { "Customer" }
-        $fName = if ($args.Count -gt 4) { $args[4] } else { "New" }
-        $lName = if ($args.Count -gt 5) { $args[5] } else { "User" }
-        $dept = if ($args.Count -gt 6) { $args[6] } else { "General" }
+        $role = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Customer" }
+        $fName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "New" }
+        $lName = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "User" }
+        $dept = if ($AllArgs.Count -gt 6) { $AllArgs[6] } else { "General" }
         Push-Location $BackendDir
-        & dotnet run -- adduser $args[0] $args[1] $args[2] $role $fName $lName $dept
+        & dotnet run -- adduser $AllArgs[0] $AllArgs[1] $AllArgs[2] $role $fName $lName $dept
+        Pop-Location
+        exit
+    }
+    "listusers" {
+        Push-Location $BackendDir
+        & dotnet run -- listcliusers
         Pop-Location
         exit
     }
@@ -551,20 +649,22 @@ do {
     Write-Host "   Single command runner for any team member's Windows machine        " -ForegroundColor Gray
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  [1] Start Fullstack Dev      -> Backend :5000 + Patron :5173 + Admin :5174 + Cashier :5175" -ForegroundColor White
-    Write-Host "  [2] Live Status Matrix       -> Probes ports 5000, 5173, 5174, 5175 and HTTP health" -ForegroundColor White
-    Write-Host "  [3] Hard Refresh & Rebuild   -> Purge caches, re-compile & restart all 4 services" -ForegroundColor White
-    Write-Host "  [4] Stop All Services        -> Free ports 5000, 5173, 5174, and 5175" -ForegroundColor White
-    Write-Host "  [5] Database Migrations      -> Add EF Core migration & update SQL Server" -ForegroundColor White
-    Write-Host "  [6] Health Check & Tests     -> Build validation & SHA-256 audit verification" -ForegroundColor White
-    Write-Host "  [7] Create SuperAdmin CLI    -> Terminal prompt for createsuperadmin" -ForegroundColor White
-    Write-Host "  [8] Create Custom Admin CLI  -> Terminal prompt for createcustomsuperadmin" -ForegroundColor White
-    Write-Host "  [9] Add User CLI             -> Terminal prompt to add Patron/Cashier/Admin" -ForegroundColor White
-    Write-Host "  [10] SSMS 19 DB Initialize   -> Create/Update DB via EF Core (InventoryLibrary)" -ForegroundColor White
+    Write-Host "  [1] Start Fullstack Dev        -> Backend :5000 + Patron :5173 + Admin :5174 + Cashier :5175" -ForegroundColor White
+    Write-Host "  [2] Live Status Matrix         -> Probes ports 5000, 5173, 5174, 5175 and HTTP health" -ForegroundColor White
+    Write-Host "  [3] Hard Refresh & Rebuild     -> Purge caches, re-compile & restart all 4 services" -ForegroundColor White
+    Write-Host "  [4] Stop All Services          -> Free ports 5000, 5173, 5174, and 5175" -ForegroundColor White
+    Write-Host "  [5] Database Migrations        -> Add EF Core migration & update SQL Server" -ForegroundColor White
+    Write-Host "  [6] Health Check & Tests       -> Build validation & SHA-256 audit verification" -ForegroundColor White
+    Write-Host "  [7] Create SuperAdmin CLI      -> Terminal prompt for createsuperadmin" -ForegroundColor White
+    Write-Host "  [8] Create Cashier Superuser   -> Terminal prompt for createcashiersuperuseradmin" -ForegroundColor White
+    Write-Host "  [9] Create Custom Admin CLI    -> Terminal prompt for createcustomsuperadmin" -ForegroundColor White
+    Write-Host "  [10] Reset User Password CLI   -> Terminal prompt for resetpassword" -ForegroundColor White
+    Write-Host "  [11] Add User CLI              -> Terminal prompt to add Patron/Cashier/Admin" -ForegroundColor White
+    Write-Host "  [12] SSMS 19 DB Initialize     -> Create/Update DB via EF Core (InventoryLibrary)" -ForegroundColor White
     Write-Host ""
     Write-Host "  [0] Exit" -ForegroundColor DarkGray
     Write-Host "======================================================================" -ForegroundColor Cyan
-    $sel = Read-Host "Select an option [0-10]"
+    $sel = Read-Host "Select an option [0-12]"
 
     switch ($sel) {
         "1"  { Start-AllServices; Read-Host "`nPress Enter to return to menu..." }
@@ -574,9 +674,11 @@ do {
         "5"  { Run-DatabaseMigrations; Read-Host "`nPress Enter to return to menu..." }
         "6"  { Run-HealthTests; Read-Host "`nPress Enter to return to menu..." }
         "7"  { New-SuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
-        "8"  { New-CustomSuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
-        "9"  { New-UserCliPrompt; Read-Host "`nPress Enter to return to menu..." }
-        "10" { 
+        "8"  { New-CashierSuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "9"  { New-CustomSuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "10" { New-ResetPasswordPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "11" { New-UserCliPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "12" { 
             Write-Host "[*] Executing EF Core database update (InventoryLibrary)..." -ForegroundColor Cyan
             Push-Location $RootDir
             & dotnet ef database update --project Backend

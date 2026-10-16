@@ -42,6 +42,10 @@ import {
   getDispatchTransactions,
   getDispatchTemplates,
 } from '../../../../../Endpoints/Admin/notificationApi';
+import {
+  listenCirculationNotifications,
+  CirculationNotificationEvent,
+} from '../../../../../Shared/Utils/notificationBus';
 
 type TabType = 'tab-alerts' | 'tab-announcements' | 'tab-dispatch-queue' | 'tab-templates';
 type ViewMode = 'table' | 'card';
@@ -210,6 +214,35 @@ const Notifications: FC = () => {
     fetchAllData();
     fetchAnnouncementsList();
   }, [fetchAllData, fetchAnnouncementsList]));
+
+  // Real-time synchronization of admin circulation alerts
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event: CirculationNotificationEvent) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Admin')) {
+        const newAlert: AdminSystemAlert = {
+          id: event.id || `notif-admin-${Date.now()}`,
+          type: event.type === 'borrow_confirmed' ? 'deficit' : 'system',
+          title:
+            event.type === 'borrow_confirmed'
+              ? `Circulation Loan: ${event.title}`
+              : `Circulation Return: ${event.title}`,
+          category: 'Circulation',
+          tag: event.reference || 'SYSTEM',
+          triggeredAgo: 'Just now',
+          description:
+            event.message ||
+            `Patron ${event.patronName} (Ref: ${event.reference}) transaction completed.`,
+          severity: 'info',
+          isResolved: false,
+        };
+
+        setSystemAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
+        toast.info(`Circulation Alert: ${newAlert.title}`);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [toast]);
 
   // 15s Auto-sync timer & Next Batch Run decrementer
   useEffect(() => {

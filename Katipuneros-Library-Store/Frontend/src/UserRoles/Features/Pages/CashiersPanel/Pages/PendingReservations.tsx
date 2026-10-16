@@ -55,7 +55,7 @@ export const PendingReservations: FC = () => {
 
   // Rejection Modal
   const [rejectModalItem, setRejectModalItem] = useState<BackendReservation | null>(null);
-  const [rejectReason, setRejectReason] = useState<string>('Physical copy damaged during pull / unreadable barcode');
+  const [rejectReason, setRejectReason] = useState<string>('Physical copy damaged during pull / unreadable QR code');
   const [staffNotes, setStaffNotes] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -168,7 +168,7 @@ export const PendingReservations: FC = () => {
   const handleOpenRejectModal = (r: BackendReservation, predefinedReason?: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setRejectModalItem(r);
-    setRejectReason(predefinedReason || 'Physical copy damaged during pull / unreadable barcode');
+    setRejectReason(predefinedReason || 'Physical copy damaged during pull / unreadable QR code');
     setStaffNotes('');
   };
 
@@ -245,13 +245,18 @@ export const PendingReservations: FC = () => {
       })
       .filter((r) => {
         if (!debouncedSearchQuery.trim()) return true;
-        const q = debouncedSearchQuery.toLowerCase();
+        const q = debouncedSearchQuery.toLowerCase().trim();
+        const cleanExpress = q.startsWith('scan-bay-') ? q.replace('scan-bay-', '') : '';
+        const cleanPass = q.startsWith('pass-') ? q.replace('pass-', '') : '';
         return (
           r.patronName?.toLowerCase().includes(q) ||
           r.bookTitle?.toLowerCase().includes(q) ||
           r.patronLibraryId?.toLowerCase().includes(q) ||
           r.bookCallNumber?.toLowerCase().includes(q) ||
-          r.id.toLowerCase().includes(q)
+          r.id.toLowerCase().includes(q) ||
+          (cleanExpress && r.id.toLowerCase().includes(cleanExpress)) ||
+          (cleanPass && r.patronLibraryId?.toLowerCase().includes(cleanPass)) ||
+          (r.lockerBay && r.lockerBay.toLowerCase().includes(q))
         );
       })
       .sort((a, b) => {
@@ -527,7 +532,7 @@ export const PendingReservations: FC = () => {
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <div className="flex-1 w-full">
               <SearchBar
-                placeholder="Filter holds by patron, book title, card ID, or ref..."
+                placeholder="Scan QR Code, ExpressCode, or Accession Number..."
                 value={searchQuery}
                 onChange={(v) => setSearchQuery(v)}
                 shortcutKey=""
@@ -1199,7 +1204,7 @@ export const PendingReservations: FC = () => {
                       </button>
                       <div className="grid grid-cols-2 gap-2">
                         <button
-                          onClick={() => handleOpenRejectModal(activeReservation, 'Physical copy damaged during pull / unreadable barcode')}
+                          onClick={() => handleOpenRejectModal(activeReservation, 'Physical copy damaged during pull / unreadable QR code')}
                           disabled={isProcessing}
                           className="py-2.5 px-3 bg-surface-container hover:bg-error-container text-status-danger hover:text-on-error-container font-caption text-caption font-bold rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
                           type="button"
@@ -1274,8 +1279,8 @@ export const PendingReservations: FC = () => {
                 onChange={(e) => setRejectReason(e.target.value)}
                 className="w-full p-2.5 bg-surface-container rounded-xl text-small font-small outline-none focus:bg-surface-bright text-text-primary"
               >
-                <option value="Physical copy damaged during pull / unreadable barcode">
-                  Physical copy damaged during pull / unreadable barcode
+                <option value="Physical copy damaged during pull / unreadable QR code">
+                  Physical copy damaged during pull / unreadable QR code
                 </option>
                 <option value="Item misplaced in stacks / Inventory reconciliation required">
                   Item misplaced in stacks / Inventory reconciliation required

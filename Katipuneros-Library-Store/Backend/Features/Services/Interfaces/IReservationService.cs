@@ -28,5 +28,6 @@ public interface IReservationService
     Task<(bool Success, string? Message, string? Error)> NotifyPatronAsync(Guid reservationId, string channel, string? customMessage);
     Task<LockerDiagnosticsResponse> GetLockerDiagnosticsAsync();
     Task<byte[]> ExportReservationsAsync(ExportReservationsQuery query);
+    Task<string> GenerateUniqueLockerPinAsync(Guid bookId);
 }
 

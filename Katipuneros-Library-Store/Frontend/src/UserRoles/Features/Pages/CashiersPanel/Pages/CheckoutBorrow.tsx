@@ -4,17 +4,32 @@
 // Strictly adheres to real-time data mandate: zero hardcoded mock values, clean empty states when N=0.
 // Universal lambda syntax (=>), zero browser alert().
 
-import { FC, useState, useEffect, useCallback, useMemo } from 'react';
+import { FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { processCashierCheckout } from '../../../../../Endpoints/Cashier/transactionApi';
 import { getAdminUsersList, AdminUserRecord } from '../../../../../Endpoints/Admin/userApi';
 import { getCatalogBooks, BackendBook } from '../../../../../Endpoints/booksApi';
 import { getAdminReservations, BackendReservation } from '../../../../../Endpoints/Admin/reservationsApi';
+import { scanBookCopy } from '../../../../../Endpoints/Admin/bookCopiesApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
+
+// Native browser BarcodeDetector (Chromium / Edge / Android). Typed locally, no external dependency.
+interface DetectedBarcode {
+  rawValue: string;
+}
+interface BarcodeDetectorLike {
+  detect: (source: CanvasImageSource) => Promise<DetectedBarcode[]>;
+}
+type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => BarcodeDetectorLike;
+
+const getBarcodeDetectorCtor = (): BarcodeDetectorCtor | null =>
+  typeof window !== 'undefined'
+    ? (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector ?? null
+    : null;
 
 export const CheckoutBorrow: FC = () => {
   const location = useLocation();
@@ -39,6 +54,29 @@ export const CheckoutBorrow: FC = () => {
   // Holds / Reservations for Hold Release mode
   const [allReservations, setAllReservations] = useState<BackendReservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState<boolean>(false);
+
+  // Handover Verification Modal & Multi-Driver Camera Scanner State
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState<boolean>(false);
+  const [handoverReservation, setHandoverReservation] = useState<BackendReservation | null>(null);
+  const [pinDigits, setPinDigits] = useState<string[]>(['', '', '', '']);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [manualCodeInput, setManualCodeInput] = useState<string>('');
+
+  // Verified Hold Details for checkout submission & custom event
+  const [verifiedPickupPin, setVerifiedPickupPin] = useState<string | undefined>(undefined);
+  const [verifiedReservationId, setVerifiedReservationId] = useState<string | undefined>(undefined);
+  const [verifiedBay, setVerifiedBay] = useState<string | undefined>(undefined);
+
+  // Camera & PIN Input Refs
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<number | null>(null);
+  const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Staged Books State
   const [bookBarcodeQuery, setBookBarcodeQuery] = useState<string>('');
@@ -81,8 +119,14 @@ export const CheckoutBorrow: FC = () => {
   const loadReservations = useCallback(async () => {
     setIsLoadingReservations(true);
     try {
-      const res = await getAdminReservations('Pending');
-      setAllReservations(res);
+      const res = await getAdminReservations();
+      const activeHolds = res.filter(
+        (r) =>
+          r.status === 'Pending' ||
+          r.status === 'StagedInLocker' ||
+          r.status === 'Approved'
+      );
+      setAllReservations(activeHolds.length > 0 ? activeHolds : res);
     } catch {
       // Non-fatal if reservation service unavailable
     } finally {
@@ -154,18 +198,394 @@ export const CheckoutBorrow: FC = () => {
     addToast(`Patron ${patron.fullName || patron.name} selected.`, 'info');
   };
 
+  // Camera Devices Enumeration
+  const getCameraDevices = useCallback(async () => {
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setCameraDevices(videoInputs);
+      if (videoInputs.length > 0 && !selectedCameraId) {
+        setSelectedCameraId(videoInputs[0].deviceId);
+      }
+    } catch {
+      // Ignore enumeration errors
+    }
+  }, [selectedCameraId]);
+
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  // Open Handover Verification Modal (Option 2: Manual Search & PIN Entry)
+  const openHandoverModal = useCallback((res: BackendReservation) => {
+    setHandoverReservation(res);
+    setPinDigits(['', '', '', '']);
+    setPinError(null);
+    setIsCameraActive(false);
+
+    const patronMatch = allUsers.find(
+      (u) =>
+        u.id.toLowerCase() === res.patronId?.toLowerCase() ||
+        u.libraryCardNumber?.toLowerCase() === res.patronLibraryId?.toLowerCase()
+    );
+    if (patronMatch && !selectedPatron) {
+      setSelectedPatron(patronMatch);
+    }
+
+    setIsHandoverModalOpen(true);
+    setTimeout(() => {
+      pinInputRefs.current[0]?.focus();
+    }, 150);
+  }, [allUsers, selectedPatron]);
+
+  // Stage directly from Hold Reservation (routes to Handover Verification Modal)
+  const handleStageReservationHold = useCallback((res: BackendReservation) => {
+    openHandoverModal(res);
+  }, [openHandoverModal]);
+
+  // Optical Code Resolution (Option 1: Optical Camera Scanner / QR / ExpressCode)
+  const handleScannedCode = useCallback(
+    async (rawCode: string) => {
+      const code = rawCode.trim();
+      if (!code) return;
+
+      const lower = code.toLowerCase();
+      const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
+
+      // 1. Try matching active hold reservations
+      let matchedRes = allReservations.find(
+        (r) =>
+          r.id.toLowerCase() === lower ||
+          (expressId && r.id.toLowerCase().includes(expressId)) ||
+          `scan-bay-${r.id.slice(0, 6).toLowerCase()}` === lower
+      );
+
+      if (!matchedRes) {
+        try {
+          const latest = await getAdminReservations();
+          setAllReservations(latest);
+          matchedRes = latest.find(
+            (r) =>
+              r.id.toLowerCase() === lower ||
+              (expressId && r.id.toLowerCase().includes(expressId)) ||
+              `scan-bay-${r.id.slice(0, 6).toLowerCase()}` === lower
+          );
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (matchedRes) {
+        stopCamera();
+        setIsCameraActive(false);
+        setHandoverReservation(matchedRes);
+        setIsHandoverModalOpen(true);
+        setPinError(null);
+        setPinDigits(['', '', '', '']);
+
+        const patronMatch = allUsers.find(
+          (u) =>
+            u.id.toLowerCase() === matchedRes!.patronId?.toLowerCase() ||
+            u.libraryCardNumber?.toLowerCase() === matchedRes!.patronLibraryId?.toLowerCase()
+        );
+        if (patronMatch) {
+          setSelectedPatron(patronMatch);
+        }
+
+        addToast(
+          `Hold volume identified for ${matchedRes.patronName} - "${matchedRes.bookTitle}". Please enter 4-digit PIN.`,
+          'info'
+        );
+        setTimeout(() => {
+          pinInputRefs.current[0]?.focus();
+        }, 200);
+        return;
+      }
+
+      // 2. Check if code matches a patron ID / card
+      const patronMatch = allUsers.find(
+        (u) =>
+          u.libraryCardNumber?.toLowerCase() === lower ||
+          u.id.toLowerCase() === lower ||
+          u.email.toLowerCase() === lower
+      );
+      if (patronMatch) {
+        setSelectedPatron(patronMatch);
+        const patronRes = allReservations.find(
+          (r) =>
+            r.patronId?.toLowerCase() === patronMatch.id.toLowerCase() ||
+            r.patronLibraryId?.toLowerCase() === patronMatch.libraryCardNumber?.toLowerCase()
+        );
+        if (patronRes) {
+          stopCamera();
+          setIsCameraActive(false);
+          setHandoverReservation(patronRes);
+          setIsHandoverModalOpen(true);
+          setPinError(null);
+          setPinDigits(['', '', '', '']);
+          addToast(`Patron ${patronMatch.fullName || patronMatch.name} identified with active hold.`, 'info');
+          setTimeout(() => {
+            pinInputRefs.current[0]?.focus();
+          }, 200);
+        } else {
+          addToast(
+            `Patron ${patronMatch.fullName || patronMatch.name} identified, but has no active holds waiting.`,
+            'warning'
+          );
+        }
+        return;
+      }
+
+      // 3. Check if code matches a book copy
+      try {
+        const copyScanRes = await scanBookCopy(code);
+        if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
+          stopCamera();
+          setIsCameraActive(false);
+          setIsHandoverModalOpen(false);
+          setBookBarcodeQuery(copyScanRes.data.copy.accessionNumber);
+          addToast(`Book copy ${copyScanRes.data.copy.accessionNumber} scanned into staging bar.`, 'success');
+          return;
+        }
+      } catch {
+        // Fallback
+      }
+
+      addToast(`Scanned code "${code}" does not match an active hold reservation.`, 'warning');
+    },
+    [allReservations, allUsers, stopCamera, addToast]
+  );
+
+  const startCamera = useCallback(
+    async (deviceId?: string) => {
+      setIsCameraStarting(true);
+      setCameraError(null);
+      try {
+        stopCamera();
+
+        const constraints: MediaStreamConstraints = {
+          video: deviceId
+            ? { deviceId: { exact: deviceId } }
+            : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+
+        await getCameraDevices();
+
+        const Ctor = getBarcodeDetectorCtor();
+        if (Ctor) {
+          const detector = new Ctor({
+            formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
+          });
+          scanIntervalRef.current = window.setInterval(async () => {
+            if (!videoRef.current || videoRef.current.readyState < 2) return;
+            try {
+              const barcodes = await detector.detect(videoRef.current);
+              if (barcodes.length > 0 && barcodes[0].rawValue) {
+                const code = barcodes[0].rawValue;
+                handleScannedCode(code);
+              }
+            } catch {
+              // Frame detection error ignored
+            }
+          }, 350);
+        }
+      } catch (err: unknown) {
+        const errorMsg =
+          err instanceof Error
+            ? err.message
+            : 'Unable to access camera. Please verify device permissions or connect a USB webcam.';
+        setCameraError(errorMsg);
+      } finally {
+        setIsCameraStarting(false);
+      }
+    },
+    [getCameraDevices, stopCamera, handleScannedCode]
+  );
+
+  const handleOpenCameraScanner = () => {
+    setIsHandoverModalOpen(true);
+    setIsCameraActive(true);
+  };
+
+  const handleCloseHandoverModal = () => {
+    stopCamera();
+    setIsCameraActive(false);
+    setIsHandoverModalOpen(false);
+    setPinError(null);
+  };
+
+  // Synchronize live camera stream with modal visibility & mode
+  useEffect(() => {
+    if (isHandoverModalOpen && isCameraActive) {
+      startCamera(selectedCameraId);
+    } else {
+      stopCamera();
+    }
+  }, [isHandoverModalOpen, isCameraActive, selectedCameraId, startCamera, stopCamera]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
+
+  // 4-Digit Monospace PIN Inputs Handlers
+  const handlePinDigitChange = (index: number, val: string) => {
+    const cleaned = val.replace(/\D/g, '');
+    if (!cleaned) {
+      setPinDigits((prev) => {
+        const next = [...prev];
+        next[index] = '';
+        return next;
+      });
+      return;
+    }
+
+    const digit = cleaned.slice(-1);
+    setPinDigits((prev) => {
+      const next = [...prev];
+      next[index] = digit;
+      return next;
+    });
+    setPinError(null);
+
+    // Auto-advance focus to next input
+    if (index < 3) {
+      pinInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePinKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !pinDigits[index] && index > 0) {
+      pinInputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleConfirmPinVerification();
+    }
+  };
+
+  const handlePinPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (!pasted) return;
+    const nextDigits = ['', '', '', ''];
+    for (let i = 0; i < pasted.length; i++) {
+      nextDigits[i] = pasted[i];
+    }
+    setPinDigits(nextDigits);
+    setPinError(null);
+    const focusTarget = Math.min(pasted.length, 3);
+    pinInputRefs.current[focusTarget]?.focus();
+  };
+
+  // Validate 4-digit PIN and stage book
+  const handleConfirmPinVerification = async () => {
+    if (!handoverReservation) {
+      addToast('No hold reservation selected for verification.', 'warning');
+      return;
+    }
+
+    const enteredPin = pinDigits.join('');
+    if (enteredPin.length < 4) {
+      setPinError('Please enter all 4 digits of the patron pickup PIN.');
+      return;
+    }
+
+    const expectedPin = handoverReservation.lockerPin?.trim();
+    if (expectedPin && expectedPin !== enteredPin) {
+      setPinError(`Incorrect PIN (${enteredPin}). The pickup PIN does not match this hold.`);
+      addToast('Verification failed: Invalid 4-digit pickup PIN.', 'error');
+      return;
+    }
+
+    // PIN validated! Store verified pickupPin, reservationId, and bay
+    setVerifiedPickupPin(enteredPin);
+    setVerifiedReservationId(handoverReservation.id);
+    setVerifiedBay(handoverReservation.lockerBay ? `Bay ${handoverReservation.lockerBay}` : 'Bay 01 Counter');
+
+    // Auto-select patron if not already selected
+    const patronMatch = allUsers.find(
+      (u) =>
+        u.id.toLowerCase() === handoverReservation.patronId?.toLowerCase() ||
+        u.libraryCardNumber?.toLowerCase() === handoverReservation.patronLibraryId?.toLowerCase()
+    );
+    if (patronMatch) {
+      setSelectedPatron(patronMatch);
+    }
+
+    // Fetch and stage the held volume
+    try {
+      const books = await getCatalogBooks(undefined, handoverReservation.bookTitle);
+      const matched = books.find(
+        (b) =>
+          b.id.toLowerCase() === handoverReservation.bookId.toLowerCase() ||
+          b.title?.toLowerCase() === handoverReservation.bookTitle.toLowerCase()
+      );
+      if (matched) {
+        setStagedBooks((prev) => {
+          if (prev.some((b) => b.id === matched.id)) return prev;
+          return [...prev, matched];
+        });
+      }
+    } catch {
+      // Graceful fallback
+    }
+
+    stopCamera();
+    setIsCameraActive(false);
+    setIsHandoverModalOpen(false);
+    setPinError(null);
+
+    addToast(
+      `Handover verified! "${handoverReservation.bookTitle}" staged with verified PIN for ${handoverReservation.patronName}.`,
+      'success'
+    );
+  };
+
   const handlePatronSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const query = patronSearchInput.trim().toLowerCase();
     if (!query) return;
 
     setIsSearchingPatron(true);
+    const cleanExpress = query.startsWith('scan-bay-') ? query.replace('scan-bay-', '') : '';
+    const cleanPass = query.startsWith('pass-') ? query.replace('pass-', '') : '';
+
+    if (cleanExpress) {
+      const resMatch = allReservations.find((r) => r.id.toLowerCase().includes(cleanExpress));
+      if (resMatch) {
+        openHandoverModal(resMatch);
+        setIsSearchingPatron(false);
+        return;
+      }
+    }
+
     const matched = allUsers.find(
       (u) =>
         u.fullName?.toLowerCase().includes(query) ||
         u.email?.toLowerCase().includes(query) ||
         u.libraryCardNumber?.toLowerCase() === query ||
-        u.id.toLowerCase() === query
+        u.id.toLowerCase() === query ||
+        (cleanPass && u.libraryCardNumber?.toLowerCase().includes(cleanPass)) ||
+        (cleanExpress && u.id.toLowerCase().includes(cleanExpress))
     );
 
     if (matched) {
@@ -185,13 +605,52 @@ export const CheckoutBorrow: FC = () => {
 
     setIsStagingBook(true);
     try {
+      const lower = query.toLowerCase();
+      const cleanExpress = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
+
+      // 1. If ExpressCode is scanned in book stage bar, route directly to Handover Verification Modal
+      if (cleanExpress) {
+        const matchedRes = allReservations.find((r) => r.id.toLowerCase().includes(cleanExpress));
+        if (matchedRes) {
+          openHandoverModal(matchedRes);
+          setBookBarcodeQuery('');
+          setIsStagingBook(false);
+          return;
+        }
+      }
+
+      // 2. Try resolving accession numbers (e.g. KLS-XXXX-CX, KP-ACC-...) or QR code data via scanBookCopy
+      try {
+        const copyScanRes = await scanBookCopy(query);
+        if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
+          const bookId = copyScanRes.data.copy.bookId;
+          const catalogBooks = await getCatalogBooks();
+          const matchedBook = catalogBooks.find((b) => b.id.toLowerCase() === bookId.toLowerCase());
+          if (matchedBook) {
+            if (stagedBooks.some((b) => b.id === matchedBook.id)) {
+              addToast(`Book "${matchedBook.title}" is already staged.`, 'warning');
+            } else {
+              setStagedBooks((prev) => [...prev, matchedBook]);
+              setBookBarcodeQuery('');
+              addToast(`"${matchedBook.title}" (Accession: ${copyScanRes.data.copy.accessionNumber}) staged successfully.`, 'success');
+            }
+            setIsStagingBook(false);
+            return;
+          }
+        }
+      } catch {
+        // Fall back to direct catalog query
+      }
+
+      // 3. Fallback to direct catalog books query
       const books = await getCatalogBooks(undefined, query);
       const matched = books.find(
         (b) =>
-          b.isbnBarcode?.toLowerCase() === query.toLowerCase() ||
-          b.isbn?.toLowerCase() === query.toLowerCase() ||
-          b.title?.toLowerCase().includes(query.toLowerCase()) ||
-          b.id.toLowerCase() === query.toLowerCase()
+          b.isbnBarcode?.toLowerCase() === lower ||
+          b.isbn?.toLowerCase() === lower ||
+          b.title?.toLowerCase().includes(lower) ||
+          b.id.toLowerCase() === lower ||
+          (b.isbnBarcode && (lower.includes(b.isbnBarcode.toLowerCase()) || b.isbnBarcode.toLowerCase().includes(lower)))
       );
 
       if (matched) {
@@ -205,43 +664,12 @@ export const CheckoutBorrow: FC = () => {
           addToast(`"${matched.title}" staged successfully.`, 'success');
         }
       } else {
-        addToast(`No book found matching barcode/ISBN: ${query}`, 'warning');
+        addToast(`No book found matching code: ${query}`, 'warning');
       }
     } catch {
       addToast('Error querying book catalog.', 'error');
     } finally {
       setIsStagingBook(false);
-    }
-  };
-
-  // Stage directly from Hold Reservation
-  const handleStageReservationHold = async (res: BackendReservation) => {
-    // 1. Select the patron if not selected
-    const patronMatch = allUsers.find(
-      (u) =>
-        u.id.toLowerCase() === res.patronId?.toLowerCase() ||
-        u.libraryCardNumber?.toLowerCase() === res.patronLibraryId?.toLowerCase()
-    );
-    if (patronMatch && !selectedPatron) {
-      setSelectedPatron(patronMatch);
-    }
-
-    // 2. Fetch and stage the book
-    try {
-      const books = await getCatalogBooks(undefined, res.bookTitle);
-      const matched = books.find((b) => b.id === res.bookId || b.title?.toLowerCase() === res.bookTitle?.toLowerCase());
-      if (matched) {
-        if (stagedBooks.some((b) => b.id === matched.id)) {
-          addToast(`"${matched.title}" is already staged.`, 'warning');
-        } else {
-          setStagedBooks((prev) => [...prev, matched]);
-          addToast(`Hold release: "${matched.title}" staged for ${res.patronName}.`, 'success');
-        }
-      } else {
-        addToast(`Could not find catalog record for "${res.bookTitle}".`, 'error');
-      }
-    } catch {
-      addToast('Failed to pull held book from catalog.', 'error');
     }
   };
 
@@ -258,7 +686,7 @@ export const CheckoutBorrow: FC = () => {
     return d;
   }, [effectiveDays]);
 
-  // Complete Checkout
+  // Complete Checkout with PIN & Reservation verification and custom event dispatch
   const handleCompleteCheckout = async () => {
     if (!selectedPatron) {
       addToast('Please scan or select a patron first.', 'warning');
@@ -276,18 +704,55 @@ export const CheckoutBorrow: FC = () => {
         patronId: selectedPatron.id,
         bookBarcodes: barcodes,
         dueDate: calculatedDueDate.toISOString(),
+        pickupPin: verifiedPickupPin,
+        reservationId: verifiedReservationId,
       });
 
-      if ((res as { success?: boolean }).success !== false) {
+      const resData = res as {
+        success?: boolean;
+        message?: string;
+        reference?: string;
+        transactionReference?: string;
+        data?: { reference?: string; gatePassCode?: string; id?: string };
+      };
+
+      if (resData.success !== false) {
+        const refCode =
+          resData.reference ||
+          resData.transactionReference ||
+          resData.data?.reference ||
+          resData.data?.gatePassCode ||
+          `KP-TXN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
+
+        const primaryTitle = stagedBooks[0]?.title || 'Library Asset';
+        const patronName = selectedPatron.fullName || selectedPatron.name || 'Patron';
+        const bay = verifiedBay || 'Bay 01 Counter';
+
         addToast(
-          `Checkout successful! ${stagedBooks.length} volume(s) issued to ${selectedPatron.fullName || selectedPatron.name}.`,
+          `Checkout successful! ${stagedBooks.length} volume(s) issued to ${patronName} (Ref: ${refCode}).`,
           'success'
         );
+
+        // Dispatch circulation-borrow-confirmed custom event with details (reference, patronName, title, bay)
+        window.dispatchEvent(
+          new CustomEvent('circulation-borrow-confirmed', {
+            detail: {
+              reference: refCode,
+              patronName,
+              title: primaryTitle,
+              bay,
+            },
+          })
+        );
+
         setStagedBooks([]);
         setSelectedPatron(null);
+        setVerifiedPickupPin(undefined);
+        setVerifiedReservationId(undefined);
+        setVerifiedBay(undefined);
         window.dispatchEvent(new CustomEvent('cashier-refresh-kpis'));
       } else {
-        addToast((res as { message?: string }).message || 'Checkout failed.', 'error');
+        addToast(resData.message || 'Checkout failed.', 'error');
       }
     } catch {
       addToast('Network error during checkout processing.', 'error');
@@ -409,6 +874,17 @@ export const CheckoutBorrow: FC = () => {
               </button>
             </div>
 
+            {/* Open Camera Scanner Button */}
+            <button
+              onClick={handleOpenCameraScanner}
+              type="button"
+              className="px-4 py-2.5 rounded-full bg-primary hover:bg-primary-container text-on-primary font-small text-small font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer shadow-sm"
+              title="Open Camera Scanner for QR Pass or ExpressCode"
+            >
+              <span className="material-symbols-outlined text-base">photo_camera</span>
+              <span>Open Camera Scanner</span>
+            </button>
+
             {/* Scanner Status Pill */}
             <div className="flex items-center gap-2 bg-surface-container-lowest px-4 py-2.5 rounded-full shadow-sm">
               <span className="relative flex h-3 w-3">
@@ -417,7 +893,7 @@ export const CheckoutBorrow: FC = () => {
               </span>
               <div className="flex flex-col leading-none">
                 <span className="font-caption text-caption font-bold text-text-primary">
-                  ⚡ Accession Scanner Ready
+                  ⚡ QR &amp; ExpressCode Scanner Ready
                 </span>
                 <span className="font-caption text-caption text-text-secondary text-[10px]">
                   Circulation Input Active
@@ -465,11 +941,19 @@ export const CheckoutBorrow: FC = () => {
                   <div>
                     <h2 className="font-headline-4 text-headline-4 text-text-primary">User Identification &amp; Eligibility</h2>
                     <span className="font-caption text-caption text-text-secondary">
-                      Scan patron barcode card or browse directory
+                      Scan patron QR pass, library card, or browse directory
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleOpenCameraScanner}
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-caption text-caption font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    <span>Camera Scan</span>
+                  </button>
                   <button
                     onClick={() => setIsPatronModalOpen(true)}
                     type="button"
@@ -491,7 +975,7 @@ export const CheckoutBorrow: FC = () => {
               <form onSubmit={handlePatronSearchSubmit} className="relative flex items-center gap-2">
                 <div className="flex-1">
                   <SearchBar
-                    placeholder="Scan User Card Barcode or Enter Name / Email (e.g., KP-88192)..."
+                    placeholder="Scan QR Code, ExpressCode, or Accession Number..."
                     value={patronSearchInput}
                     onChange={(v) => setPatronSearchInput(v)}
                     shortcutKey=""
@@ -584,7 +1068,7 @@ export const CheckoutBorrow: FC = () => {
               ) : (
                 <div className="p-6 bg-surface-container-low/40 rounded-xl flex items-center justify-center text-center">
                   <span className="font-caption text-caption text-text-secondary">
-                    No patron selected yet. Scan library card, search above, or click &quot;Browse Patrons&quot; to verify eligibility.
+                    No patron selected yet. Scan QR pass, library card, search above, or click &quot;Browse Patrons&quot; to verify eligibility.
                   </span>
                 </div>
               )}
@@ -639,12 +1123,12 @@ export const CheckoutBorrow: FC = () => {
                           Expires: {new Date(res.expiryDate).toLocaleDateString()}
                         </span>
                         <button
-                          onClick={() => handleStageReservationHold(res)}
+                          onClick={() => openHandoverModal(res)}
                           type="button"
-                          className="px-3 py-1 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                          className="px-3 py-1 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
-                          <span>Stage Hold Volume</span>
+                          <span className="material-symbols-outlined text-sm">verified_user</span>
+                          <span>Verify &amp; Stage Hold</span>
                         </button>
                       </div>
                     </div>
@@ -662,10 +1146,10 @@ export const CheckoutBorrow: FC = () => {
                   </span>
                   <div>
                     <h2 className="font-headline-4 text-headline-4 text-text-primary">
-                      Book Asset Barcode Scanning &amp; Staging
+                      Book Asset QR &amp; Accession Staging
                     </h2>
                     <span className="font-caption text-caption text-text-secondary">
-                      Scan book barcode on flyleaf sticker or match against catalog
+                      Scan QR code, ExpressCode, or accession number on book or match against catalog
                     </span>
                   </div>
                 </div>
@@ -691,7 +1175,7 @@ export const CheckoutBorrow: FC = () => {
               <form onSubmit={handleStageBook} className="relative flex items-center gap-2">
                 <div className="flex-1">
                   <SearchBar
-                    placeholder="Scan Physical Book Barcode, ISBN, or Title..."
+                    placeholder="Scan QR Code, ExpressCode, or Accession Number..."
                     value={bookBarcodeQuery}
                     onChange={(v) => setBookBarcodeQuery(v)}
                     shortcutKey=""
@@ -717,7 +1201,7 @@ export const CheckoutBorrow: FC = () => {
                     Staging Area Empty
                   </p>
                   <p className="font-caption text-caption text-text-secondary max-w-sm mt-1">
-                    Scan or enter physical book spine barcodes to stage them for checkout.
+                    Scan or enter QR codes, ExpressCodes, or accession numbers to stage them for checkout.
                   </p>
                 </div>
               ) : (
@@ -733,7 +1217,7 @@ export const CheckoutBorrow: FC = () => {
                           <th className="py-3 px-4">Asset Details</th>
                           <th className="py-3 px-4">Author</th>
                           <th className="py-3 px-4">Dewey Call No.</th>
-                          <th className="py-3 px-4">Asset Barcode</th>
+                          <th className="py-3 px-4">Accession / QR Code</th>
                           <th className="py-3 px-4">Stacks Bay</th>
                           <th className="py-3 px-4">Custody Status</th>
                           <th className="py-3 px-4 text-right">Action</th>
@@ -849,7 +1333,7 @@ export const CheckoutBorrow: FC = () => {
                                 </span>
                               </div>
                               <div className="bg-surface-container-lowest p-1.5 rounded-lg">
-                                <span className="block text-text-secondary text-[10px]">Asset Barcode</span>
+                                <span className="block text-text-secondary text-[10px]">Accession / QR Code</span>
                                 <span className="font-bold text-text-primary font-mono truncate block text-xs">
                                   {book.isbnBarcode || book.isbn}
                                 </span>
@@ -1174,7 +1658,7 @@ export const CheckoutBorrow: FC = () => {
                 <thead>
                   <tr className="border-b border-surface-container bg-surface-container-low/60 text-caption font-caption text-text-secondary font-bold uppercase tracking-wider">
                     <th className="py-2.5 px-4">Patron Name</th>
-                    <th className="py-2.5 px-4">Card Barcode</th>
+                    <th className="py-2.5 px-4">Patron QR / Card ID</th>
                     <th className="py-2.5 px-4">Email</th>
                     <th className="py-2.5 px-4">Role / Department</th>
                     <th className="py-2.5 px-4">Status</th>
@@ -1265,6 +1749,310 @@ export const CheckoutBorrow: FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* HANDOVER VERIFICATION MODAL */}
+      {isHandoverModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-outline/20 space-y-5 max-h-[92vh] flex flex-col overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-surface-container">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-sm">
+                  <span className="material-symbols-outlined text-xl">
+                    {isCameraActive ? 'photo_camera' : 'lock_open'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-headline-4 text-headline-4 text-text-primary">
+                    Physical Asset Handover &amp; Verification
+                  </h3>
+                  <p className="font-caption text-caption text-text-secondary">
+                    Dual-Mode Verification: Live Optical Camera Scanner &amp; 4-Digit Pickup PIN
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseHandoverModal}
+                className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                title="Close Modal"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Mode Switch Tabs inside Modal */}
+            <div className="flex items-center gap-2 p-1 bg-surface-container rounded-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCameraActive(false);
+                  stopCamera();
+                }}
+                className={`flex-1 py-2 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  !isCameraActive
+                    ? 'bg-surface-container-lowest text-primary shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">pin</span>
+                <span>Option 2: 4-Digit PIN Entry</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCameraActive(true);
+                  startCamera(selectedCameraId);
+                }}
+                className={`flex-1 py-2 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  isCameraActive
+                    ? 'bg-surface-container-lowest text-primary shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">photo_camera</span>
+                <span>Option 1: Optical Camera Scanner</span>
+              </button>
+            </div>
+
+            {/* MODE CONTENT */}
+            {isCameraActive ? (
+              /* OPTION 1: OPTICAL CAMERA SCANNER */
+              <div className="flex flex-col space-y-4">
+                {/* Camera Hardware Selector */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-surface-container-low rounded-xl">
+                  <div className="flex items-center gap-2 text-text-secondary font-caption text-caption">
+                    <span className="material-symbols-outlined text-base text-primary">videocam</span>
+                    <span className="font-bold text-text-primary">Camera Device / Driver:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedCameraId}
+                      onChange={(e) => {
+                        setSelectedCameraId(e.target.value);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-outline/20 text-text-primary font-caption text-caption outline-none cursor-pointer"
+                    >
+                      {cameraDevices.length === 0 ? (
+                        <option value="">Default Web / USB Camera</option>
+                      ) : (
+                        cameraDevices.map((d, idx) => (
+                          <option key={d.deviceId || idx} value={d.deviceId}>
+                            {d.label || `Camera ${idx + 1} (${d.deviceId.slice(0, 8)}...)`}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        getCameraDevices();
+                        startCamera(selectedCameraId);
+                      }}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                      title="Refresh camera devices"
+                    >
+                      <span className="material-symbols-outlined text-base">refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Video Feed Preview */}
+                <div className="relative w-full h-64 sm:h-72 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-outline/20">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Optical Reticle / Scan Line Overlay */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-action-green/80 rounded-2xl relative shadow-2xl flex items-center justify-center">
+                      {/* Corner Accents */}
+                      <span className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-action-green"></span>
+                      <span className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-action-green"></span>
+                      <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-action-green"></span>
+                      <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-action-green"></span>
+
+                      {/* Animated Laser Scanning Line */}
+                      <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-action-green to-transparent animate-pulse shadow-[0_0_8px_#22c55e]"></div>
+
+                      <span className="absolute bottom-2 text-[10px] uppercase font-bold tracking-wider text-action-green bg-black/60 px-2 py-0.5 rounded-full">
+                        SCAN-BAY / QR Reticle
+                      </span>
+                    </div>
+                  </div>
+
+                  {isCameraStarting && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center gap-2 text-on-primary font-caption">
+                      <span className="animate-spin material-symbols-outlined text-xl">progress_activity</span>
+                      <span>Initializing video driver...</span>
+                    </div>
+                  )}
+                </div>
+
+                {cameraError ? (
+                  <div className="p-3 bg-status-danger/10 border border-status-danger/30 rounded-xl flex items-center gap-2 text-status-danger font-caption text-caption">
+                    <span className="material-symbols-outlined text-base">error</span>
+                    <span>{cameraError}</span>
+                  </div>
+                ) : (
+                  <p className="font-caption text-caption text-text-secondary text-center">
+                    Point camera at patron&#39;s QR Pass or ExpressCode on user slip (<code>SCAN-BAY-XXXXXX</code>).
+                  </p>
+                )}
+
+                {/* Handheld Barcode Reader / Manual Fast Input */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (manualCodeInput.trim()) {
+                      handleScannedCode(manualCodeInput);
+                      setManualCodeInput('');
+                    }
+                  }}
+                  className="flex items-center gap-2 pt-2 border-t border-surface-container"
+                >
+                  <input
+                    type="text"
+                    value={manualCodeInput}
+                    onChange={(e) => setManualCodeInput(e.target.value)}
+                    placeholder="Or type/paste ExpressCode (e.g. SCAN-BAY-XXXXXX)..."
+                    className="flex-1 px-3 py-2 rounded-xl bg-surface-container text-text-primary font-mono text-caption outline-none border border-outline/20 focus:border-primary"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!manualCodeInput.trim()}
+                    className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    Resolve Code
+                  </button>
+                </form>
+              </div>
+            ) : (
+              /* OPTION 2: 4-DIGIT PIN ENTRY & VERIFICATION */
+              <div className="flex flex-col space-y-4">
+                {/* Hold Details Summary Card */}
+                {handoverReservation ? (
+                  <div className="p-4 bg-surface-container-low rounded-xl border border-outline/10 flex flex-col space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block mb-1">
+                          Hold Volume Target
+                        </span>
+                        <h4 className="font-body-large text-body-large font-bold text-text-primary">
+                          {handoverReservation.bookTitle}
+                        </h4>
+                        <p className="font-caption text-caption text-text-secondary">
+                          Author: {handoverReservation.bookAuthor} • Call: {handoverReservation.bookCallNumber || 'N/A'}
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg text-caption font-mono font-bold bg-primary/10 text-primary">
+                        SCAN-BAY-{handoverReservation.id.slice(0, 6).toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-container font-caption text-caption">
+                      <div>
+                        <span className="text-text-secondary block">Patron:</span>
+                        <strong className="text-text-primary">
+                          {handoverReservation.patronName} ({handoverReservation.patronLibraryId})
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-text-secondary block">Staged Bay:</span>
+                        <strong className="text-action-green">
+                          {handoverReservation.lockerBay ? `Bay ${handoverReservation.lockerBay}` : 'Bay 01 Counter'}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-surface-container-low rounded-xl border border-dashed border-outline/20 text-center">
+                    <p className="font-caption text-caption text-text-secondary">
+                      No hold selected yet. Use Option 1 to scan QR/ExpressCode or pick a held volume from the queue.
+                    </p>
+                  </div>
+                )}
+
+                {/* 4-Digit Monospace PIN Inputs */}
+                <div className="flex flex-col items-center justify-center space-y-3 py-2">
+                  <label className="font-caption text-caption font-bold text-text-primary uppercase tracking-wider text-center">
+                    Enter Patron 4-Digit Pickup PIN
+                  </label>
+                  <p className="font-caption text-caption text-text-secondary text-center max-w-sm">
+                    Enter the 4-digit security code issued on the patron&#39;s pickup slip to authorize physical custody release.
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    {pinDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => {
+                          pinInputRefs.current[idx] = el;
+                        }}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handlePinDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handlePinKeyDown(idx, e)}
+                        onPaste={handlePinPaste}
+                        className="w-14 h-16 sm:w-16 sm:h-20 text-center font-mono text-2xl sm:text-3xl font-bold bg-surface-container-high border-2 border-outline/20 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-text-primary"
+                        autoFocus={idx === 0}
+                      />
+                    ))}
+                  </div>
+
+                  {pinError && (
+                    <div className="p-2.5 rounded-lg bg-status-danger/10 border border-status-danger/30 text-status-danger text-caption font-bold flex items-center gap-1.5 animate-in fade-in">
+                      <span className="material-symbols-outlined text-base">error</span>
+                      <span>{pinError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between pt-3 border-t border-surface-container gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCameraActive(true);
+                      startCamera(selectedCameraId);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-caption text-caption font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    <span>Use Camera Instead</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCloseHandoverModal}
+                      className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-secondary font-caption text-caption transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pinDigits.join('').length < 4 || !handoverReservation}
+                      onClick={handleConfirmPinVerification}
+                      className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40 shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-base">verified</span>
+                      <span>Verify &amp; Confirm Handover</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

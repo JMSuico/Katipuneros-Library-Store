@@ -10,6 +10,7 @@ import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../End
 import { useDebounce } from '../Hooks/useDebounce';
 import { useNotification } from '../Hooks/useNotification';
 import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
+import { listenCirculationNotifications } from '../Shared/Utils/notificationBus';
 
 export interface CashierTopBarProps {
   sidebarOpen?: boolean;
@@ -40,7 +41,17 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
     markAsRead,
     markAllAsRead,
     clearAll,
+    refresh,
   } = useNotification('Cashier');
+
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Cashier')) {
+        refresh();
+      }
+    });
+    return () => unsubscribe();
+  }, [refresh]);
 
   const [searchVal, setSearchVal] = useState('');
   const debouncedSearch = useDebounce(searchVal, 350);
