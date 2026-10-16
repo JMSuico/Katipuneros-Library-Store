@@ -4,23 +4,15 @@
 // Extracted from LandingPage/code.html footer element.
 // DO NOT put business logic or API calls here.
 
-const LOGO_URL = 'https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4';
+import React from 'react';
+import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
 
 const Footer: React.FC = () => {
   return (
     <footer className="w-full bg-[#164E63] text-white py-space-2xl px-gutter">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-space-lg text-center md:text-left">
         {/* Logo + Brand */}
-        <div className="flex items-center gap-space-sm">
-          <img
-            alt="Katipuneros Library Store logo"
-            className="h-8 w-auto object-contain brightness-0 invert"
-            src={LOGO_URL}
-          />
-          <span className="font-headline-4 text-headline-4 text-white font-semibold tracking-tight">
-            Katipuneros Library Store
-          </span>
-        </div>
+        <KatipunanLogo variant="footer" showSubtitle={false} />
 
         {/* Copyright */}
         <p className="font-small text-small text-white/70">

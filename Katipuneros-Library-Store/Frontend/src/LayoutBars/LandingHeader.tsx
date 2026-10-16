@@ -5,8 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-
-const LOGO_URL = 'https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4';
+import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
 
 interface NavItem {
   label: string;
@@ -72,20 +71,11 @@ const LandingHeader: React.FC = () => {
     <header className="fixed top-0 inset-x-0 z-50 pointer-events-none py-4 px-gutter">
       <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto h-16 px-space-lg rounded-full bg-white/75 backdrop-blur-[18px] border border-white/80 shadow-[0_4px_24px_rgba(24,50,61,0.08)]">
         {/* Logo + Brand Name */}
-        <a
-          href="/#home"
-          onClick={(e) => handleNavClick(e, NAV_ITEMS[0])}
-          className="flex items-center gap-space-sm cursor-pointer"
-        >
-          <img
-            alt="Katipuneros Library Store logo"
-            className="h-8 w-auto object-contain"
-            src={LOGO_URL}
-          />
-          <span className="font-headline-4 text-headline-4 text-text-primary tracking-tight font-semibold">
-            Katipuneros Library Store
-          </span>
-        </a>
+        <KatipunanLogo
+          variant="landing"
+          to="/#home"
+          onClick={(e) => handleNavClick(e as unknown as React.MouseEvent<HTMLAnchorElement>, NAV_ITEMS[0])}
+        />
 
         {/* Navigation Links with Active Pill ScrollSpy */}
         <nav className="hidden md:flex items-center gap-1 bg-surface-container-low/60 p-1 rounded-full border border-outline-variant/15">

@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { logoutUser } from '../Endpoints/authApi';
 import { getCashierDashboardKpis } from '../Endpoints/Cashier/cashierApi';
+import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
 
 interface NavItemConfig {
   path: string;
@@ -129,33 +130,11 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({
             isOpen ? 'px-4 gap-3' : 'justify-center px-2'
           }`}
         >
-          <div className="relative w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 overflow-visible">
-            <span className="material-symbols-outlined text-[20px] text-white">
-              local_library
-            </span>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-8 w-auto object-contain brightness-0 invert absolute inset-0 m-auto"
-              src="https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <span
-              className="material-symbols-outlined text-[12px] text-action-green absolute -bottom-1 -right-1 bg-[#123B5D] rounded-full p-0.5 border border-white/20 shadow-sm"
-              title="Active Cashier Session"
-            >
-              login
-            </span>
-          </div>
-          {isOpen && (
-            <div className="flex flex-col min-w-0 leading-tight">
-              <span className="font-headline-4 text-[14px] font-bold text-white leading-tight truncate">Katipuneros</span>
-              <span className="font-caption text-[10.5px] text-[#D9EEF5]/80 leading-tight truncate">Cashier Terminal • Desk 01</span>
-              <span className="font-caption text-[10px] text-white/60 uppercase tracking-wider leading-tight truncate">Library Store</span>
-            </div>
-          )}
+          <KatipunanLogo
+            variant="cashier"
+            collapsed={!isOpen}
+            to="/cashier/checkout"
+          />
         </div>
 
         {/* Scrollable Middle Modules Navigation (only this region scrolls) */}

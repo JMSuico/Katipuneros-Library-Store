@@ -45,6 +45,8 @@ export function usePagesGlobalRefresh(
     }
   }, [checkHealthOnReconnect]);
 
+  const lastVisibilityRefreshRef = useRef<number>(Date.now());
+
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
@@ -56,7 +58,10 @@ export function usePagesGlobalRefresh(
     };
 
     const handleVisibilityChange = async () => {
-      if (syncOnVisibility && document.visibilityState === 'visible') {
+      const now = Date.now();
+      // Throttle visibility refreshes: require at least 10 seconds between automatic tab-switch syncs
+      if (syncOnVisibility && document.visibilityState === 'visible' && (now - lastVisibilityRefreshRef.current > 10000)) {
+        lastVisibilityRefreshRef.current = now;
         await executeRefresh();
       }
     };

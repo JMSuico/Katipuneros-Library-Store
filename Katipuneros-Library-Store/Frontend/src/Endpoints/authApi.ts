@@ -325,13 +325,39 @@ export const uploadProfilePicture = async (
   };
 };
 
-export const fetchCurrentProfile = async (): Promise<AuthUser | null> => {
-  const res = await apiRequest<AuthUser>('/auth/me');
-  if (res.success && res.data) {
-    updateStoredUser(res.data);
-    return res.data;
+let lastProfileFetchTime = 0;
+let inflightProfilePromise: Promise<AuthUser | null> | null = null;
+
+export const fetchCurrentProfile = async (force = false): Promise<AuthUser | null> => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('katipuneros_token') : null;
+  if (!token) return null;
+
+  const now = Date.now();
+  if (!force && (now - lastProfileFetchTime < 5000)) {
+    return getStoredUser();
   }
-  return getStoredUser();
+
+  if (inflightProfilePromise) {
+    return inflightProfilePromise;
+  }
+
+  inflightProfilePromise = (async () => {
+    try {
+      const res = await apiRequest<AuthUser>('/auth/me');
+      lastProfileFetchTime = Date.now();
+      if (res.success && res.data) {
+        updateStoredUser(res.data);
+        return res.data;
+      }
+      return getStoredUser();
+    } catch {
+      return getStoredUser();
+    } finally {
+      inflightProfilePromise = null;
+    }
+  })();
+
+  return inflightProfilePromise;
 };
 
 
