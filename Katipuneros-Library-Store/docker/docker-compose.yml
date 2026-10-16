@@ -41,7 +41,7 @@ services:
           echo 'Waiting for Primary DB to be ready...';
           sleep 2;
         done;
-        if [ ! -s /var/lib/postgresql/data/standby.signal ]; then
+        if [ ! -f /var/lib/postgresql/data/standby.signal ]; then
           echo 'Cloning from primary via pg_basebackup...';
           rm -rf /var/lib/postgresql/data/*;
           PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v;
