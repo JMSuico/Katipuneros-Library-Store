@@ -4,12 +4,13 @@
 // Strictly adheres to real-time data mandate: zero hardcoded mock values, clean empty states when N=0.
 // Universal lambda syntax (=>), zero browser alert().
 
-import { FC, useState, useEffect, useCallback, useMemo } from 'react';
+import { FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { processBookReturn } from '../../../../../Endpoints/Cashier/transactionApi';
 import { getAdminBorrowings, BackendBorrowing } from '../../../../../Endpoints/Admin/borrowingsApi';
 import { getCashierDashboardKpis, CashierDashboardKpis } from '../../../../../Endpoints/Cashier/cashierApi';
+import { scanBookCopy, BookCopyDto } from '../../../../../Endpoints/Admin/bookCopiesApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
@@ -24,8 +25,20 @@ export const ReturnsFines: FC = () => {
   const [scannerInput, setScannerInput] = useState<string>('');
   const debouncedScannerInput = useDebounce(scannerInput, 300);
   const [selectedLoan, setSelectedLoan] = useState<BackendBorrowing | null>(null);
+  const [scannedCopy, setScannedCopy] = useState<BookCopyDto | null>(null);
   const [isAfterHoursCounterSlot, setIsAfterHoursCounterSlot] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+  // Camera Barcode/QR Scanner State
+  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
+  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<number | null>(null);
 
   // Active Loans List Filters & Controls
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -72,48 +85,193 @@ export const ReturnsFines: FC = () => {
     };
   }, [loadData]);
 
+  // Camera Devices Enumeration
+  const getCameraDevices = useCallback(async () => {
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setCameraDevices(videoInputs);
+      if (videoInputs.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoInputs[0].deviceId);
+      }
+    } catch {
+      // Ignore enumeration errors
+    }
+  }, [selectedDeviceId]);
+
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  const handleCodeLookup = useCallback(
+    async (rawCode: string) => {
+      const code = rawCode.trim();
+      if (!code) return;
+
+      setScannerInput(code);
+      setIsProcessing(true);
+      try {
+        const res = await scanBookCopy(code);
+        if (res.success && res.data) {
+          const copy = res.data.copy;
+          setScannedCopy(copy);
+
+          if (res.data.activeLoan) {
+            const loanDto = res.data.activeLoan;
+            const existing = activeLoans.find((l) => l.id === loanDto.transactionId);
+            if (existing) {
+              setSelectedLoan(existing);
+            } else {
+              setSelectedLoan({
+                id: loanDto.transactionId,
+                loanCode: loanDto.gatePassCode || `LN-${loanDto.transactionId.slice(0, 6).toUpperCase()}`,
+                patronId: loanDto.patronId,
+                patronName: loanDto.patronName,
+                patronLibraryId: loanDto.patronLibraryId,
+                patronRole: 'Patron',
+                patronAvatar: loanDto.patronAvatar,
+                bookId: copy.bookId,
+                bookTitle: copy.bookTitle,
+                bookBarcode: copy.accessionNumber,
+                bookCallNumber: copy.deweyCode,
+                bookCoverImage: copy.coverImage,
+                borrowDate: loanDto.borrowDate,
+                dueDate: loanDto.dueDate,
+                daysRemaining: -loanDto.overdueDays,
+                renewalCount: 0,
+                maxRenewals: 2,
+                status: loanDto.isOverdue ? 'Overdue' : 'Active',
+                assessedFine: loanDto.estimatedOverdueFine,
+                notes: copy.conditionNotes,
+              });
+            }
+            addToast(`Scanned Copy ${copy.accessionNumber}: Active loan loaded for "${copy.bookTitle}".`, 'success');
+          } else {
+            setSelectedLoan(null);
+            addToast(
+              `Physical copy ${copy.accessionNumber} verified (${copy.status}). No active circulation loan pending.`,
+              'info'
+            );
+          }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      } catch {
+        // Fallback to local match in activeLoans
+      } finally {
+        setIsProcessing(false);
+      }
+
+      const lower = code.toLowerCase();
+      const matched = activeLoans.find(
+        (l) =>
+          l.bookBarcode?.toLowerCase() === lower ||
+          l.loanCode?.toLowerCase() === lower ||
+          l.bookTitle?.toLowerCase().includes(lower) ||
+          l.patronLibraryId?.toLowerCase() === lower ||
+          l.patronName?.toLowerCase().includes(lower)
+      );
+
+      if (matched) {
+        setSelectedLoan(matched);
+        setScannedCopy(null);
+        addToast(`Loan record loaded for "${matched.bookTitle}".`, 'success');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        addToast(`No active borrowing record or physical book copy found matching "${code}".`, 'warning');
+      }
+    },
+    [activeLoans, addToast]
+  );
+
+  const startCamera = useCallback(
+    async (deviceId?: string) => {
+      setIsCameraStarting(true);
+      setCameraError(null);
+      try {
+        stopCamera();
+
+        const constraints: MediaStreamConstraints = {
+          video: deviceId
+            ? { deviceId: { exact: deviceId } }
+            : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+
+        await getCameraDevices();
+
+        // Check for BarcodeDetector API
+        if ('BarcodeDetector' in window) {
+          const barcodeDetector = new (window as any).BarcodeDetector({
+            formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
+          });
+          scanIntervalRef.current = window.setInterval(async () => {
+            if (!videoRef.current || videoRef.current.readyState < 2) return;
+            try {
+              const barcodes = await barcodeDetector.detect(videoRef.current);
+              if (barcodes.length > 0 && barcodes[0].rawValue) {
+                const code = barcodes[0].rawValue;
+                stopCamera();
+                setIsCameraOpen(false);
+                handleCodeLookup(code);
+              }
+            } catch {
+              // Frame detection error ignored
+            }
+          }, 350);
+        }
+      } catch (err: any) {
+        setCameraError(err.message || 'Unable to access camera. Please verify device permissions or connect a USB webcam.');
+      } finally {
+        setIsCameraStarting(false);
+      }
+    },
+    [getCameraDevices, stopCamera, handleCodeLookup]
+  );
+
+  useEffect(() => {
+    if (isCameraOpen) {
+      startCamera(selectedDeviceId);
+    } else {
+      stopCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isCameraOpen, selectedDeviceId, startCamera, stopCamera]);
+
   // Check URL barcode query param
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const bc = params.get('barcode');
     if (bc) {
-      setScannerInput(bc);
-      const match = activeLoans.find(
-        (l) =>
-          l.bookBarcode?.toLowerCase() === bc.toLowerCase() ||
-          l.loanCode?.toLowerCase() === bc.toLowerCase()
-      );
-      if (match) {
-        setSelectedLoan(match);
-      }
+      handleCodeLookup(bc);
     }
-  }, [location.search, activeLoans]);
+  }, [location.search, handleCodeLookup]);
 
   const handleScanSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const code = scannerInput.trim().toLowerCase();
-    if (!code) return;
-
-    const matched = activeLoans.find(
-      (l) =>
-        l.bookBarcode?.toLowerCase() === code ||
-        l.loanCode?.toLowerCase() === code ||
-        l.bookTitle?.toLowerCase().includes(code) ||
-        l.patronLibraryId?.toLowerCase() === code ||
-        l.patronName?.toLowerCase().includes(code)
-    );
-
-    if (matched) {
-      setSelectedLoan(matched);
-      addToast(`Loan record loaded for "${matched.bookTitle}".`, 'success');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      addToast(`No active borrowing record found matching "${scannerInput}".`, 'warning');
-    }
+    if (!scannerInput.trim()) return;
+    handleCodeLookup(scannerInput.trim());
   };
 
   const handleSelectLoanForReturn = (loan: BackendBorrowing) => {
     setSelectedLoan(loan);
+    setScannedCopy(null);
     setScannerInput(loan.bookBarcode);
     addToast(`Selected "${loan.bookTitle}" for condition audit & check-in.`, 'info');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -164,18 +322,22 @@ export const ReturnsFines: FC = () => {
           : 'Declared lost by patron';
 
       const res = await processBookReturn({
-        barcode: selectedLoan.bookBarcode,
+        barcode: scannedCopy?.accessionNumber || selectedLoan.bookBarcode,
+        bookCopyId: scannedCopy?.id,
+        condition: condition === 'good' ? 'Good' : condition === 'wear' ? 'Minor Wear' : condition === 'damage' ? 'Damaged' : 'Lost',
         conditionNotes: notes,
         damageFee: conditionSurcharge,
       });
 
       if ((res as { success?: boolean }).success !== false) {
         addToast(
-          `Book "${selectedLoan.bookTitle}" returned successfully! Total settled: ₱${totalFineDue.toFixed(2)}.`,
+          `Book "${selectedLoan.bookTitle}" ${scannedCopy ? `(${scannedCopy.accessionNumber}) ` : ''}returned successfully! Total settled: ₱${totalFineDue.toFixed(2)}.`,
           'success'
         );
         setSelectedLoan(null);
+        setScannedCopy(null);
         setScannerInput('');
+        setCondition('good');
         window.dispatchEvent(new CustomEvent('cashier-refresh-kpis'));
         await loadData();
       } else {
@@ -198,6 +360,7 @@ export const ReturnsFines: FC = () => {
 
   const handleClearCounter = () => {
     setSelectedLoan(null);
+    setScannedCopy(null);
     setScannerInput('');
     setCondition('good');
     addToast('Desk counter cleared. Ready for next intake.', 'info');
@@ -331,6 +494,14 @@ export const ReturnsFines: FC = () => {
               <span className="material-symbols-outlined text-base">barcode_scanner</span>
               <span>Intake Scan</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setIsCameraOpen(true)}
+              className="px-4 py-2.5 bg-soft-blue text-primary hover:bg-soft-blue/80 font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm border border-primary/20"
+            >
+              <span className="material-symbols-outlined text-base">photo_camera</span>
+              <span className="hidden sm:inline">Camera QR</span>
+            </button>
           </form>
 
           {/* Drop-Box Toggle */}
@@ -453,6 +624,24 @@ export const ReturnsFines: FC = () => {
                         <span className="font-bold text-text-primary">Stacks Status:</span> Cataloged
                       </div>
                     </div>
+                    {scannedCopy && (
+                      <div className="mt-3 p-2.5 rounded-lg bg-soft-blue/40 border border-primary/20 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-primary text-xl">qr_code_2</span>
+                          <div className="flex flex-col">
+                            <span className="font-caption text-caption font-bold text-primary">
+                              Physical Copy #{scannedCopy.copyNumber} • Accession: {scannedCopy.accessionNumber}
+                            </span>
+                            <span className="text-[11px] text-text-secondary">
+                              Shelf Bay: {scannedCopy.bayLocation || 'General Stacks'} • Prior Condition: {scannedCopy.condition}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-action-green/20 text-action-green">
+                          {scannedCopy.status}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1030,6 +1219,146 @@ export const ReturnsFines: FC = () => {
           )}
         </section>
       </div>
+
+      {/* Live Camera Barcode & QR Scanner Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline/10 overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-2xl">qr_code_scanner</span>
+                <div>
+                  <h3 className="font-headline-4 text-headline-4 text-text-primary">Camera QR &amp; Barcode Scanner</h3>
+                  <p className="font-caption text-caption text-text-secondary">Position the book's physical QR sticker inside the reticle</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stopCamera();
+                  setIsCameraOpen(false);
+                }}
+                className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Camera Device Switcher */}
+            {cameraDevices.length > 1 && (
+              <div className="px-4 py-2 bg-surface-container-lowest border-b border-surface-container flex items-center gap-2">
+                <span className="material-symbols-outlined text-text-secondary text-sm">videocam</span>
+                <span className="font-caption text-caption text-text-secondary font-semibold">Camera Source:</span>
+                <select
+                  value={selectedDeviceId}
+                  onChange={(e) => setSelectedDeviceId(e.target.value)}
+                  className="flex-1 h-8 px-2 rounded-lg bg-surface-container text-text-primary font-caption text-caption outline-none cursor-pointer border border-outline/10"
+                >
+                  {cameraDevices.map((dev, idx) => (
+                    <option key={dev.deviceId || idx} value={dev.deviceId}>
+                      {dev.label || `Camera ${idx + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Video Viewfinder Container */}
+            <div className="relative bg-black flex items-center justify-center overflow-hidden aspect-video">
+              {isCameraStarting && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-white bg-black/70 gap-2">
+                  <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
+                  <span className="font-caption text-caption font-bold">Activating Camera Stream...</span>
+                </div>
+              )}
+
+              {cameraError ? (
+                <div className="p-6 text-center text-on-error-container max-w-sm">
+                  <span className="material-symbols-outlined text-4xl text-status-danger mb-2">videocam_off</span>
+                  <p className="font-body-medium font-bold text-white mb-1">Camera Access Issue</p>
+                  <p className="font-caption text-caption text-text-secondary mb-3">{cameraError}</p>
+                  <button
+                    type="button"
+                    onClick={() => startCamera(selectedDeviceId)}
+                    className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-caption text-caption font-bold"
+                  >
+                    Retry Camera
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Holographic Scanner Overlay Frame */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="relative w-56 h-56 border-2 border-primary border-dashed rounded-2xl shadow-[0_0_20px_rgba(30,58,138,0.5)] flex items-center justify-center">
+                      <div className="w-full h-0.5 bg-primary absolute top-1/2 left-0 animate-pulse shadow-[0_0_10px_#2563eb]"></div>
+                      <span className="absolute bottom-2 text-[10px] uppercase font-bold tracking-wider text-white bg-black/60 px-2 py-0.5 rounded">
+                        Aim at Physical QR Code
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Quick Manual Code Fallback & Modal Footer */}
+            <div className="p-4 bg-surface-container-low border-t border-surface-container flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Or type/paste Accession Number (e.g. KP-ACC-0042-C1)..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const val = (e.target as HTMLInputElement).value.trim();
+                      if (val) {
+                        stopCamera();
+                        setIsCameraOpen(false);
+                        handleCodeLookup(val);
+                      }
+                    }
+                  }}
+                  className="flex-1 h-9 px-3 rounded-xl bg-surface-container-lowest text-text-primary font-caption text-caption outline-none border border-outline/20 focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const input = (e.currentTarget.previousElementSibling as HTMLInputElement)?.value.trim();
+                    if (input) {
+                      stopCamera();
+                      setIsCameraOpen(false);
+                      handleCodeLookup(input);
+                    }
+                  }}
+                  className="px-3 py-2 bg-primary text-on-primary font-caption text-caption font-bold rounded-xl cursor-pointer"
+                >
+                  Verify
+                </button>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-text-secondary px-1">
+                <span>Compatible with laptop webcams, USB cameras, and 2D barcode imagers</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopCamera();
+                    setIsCameraOpen(false);
+                  }}
+                  className="text-text-primary hover:underline font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Notifications Toast Container */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">

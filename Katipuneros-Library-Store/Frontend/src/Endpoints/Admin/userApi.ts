@@ -3,7 +3,7 @@
 // Dispatches requests to /api/users on .NET 10 Web API.
 // DO NOT put business logic or UI rendering here.
 
-import { apiRequest } from '../apiClient';
+import { apiRequest, getApiBaseUrl, getAuthToken } from '../apiClient';
 
 export interface AdminUserRecord {
   id: string;
@@ -12,6 +12,7 @@ export interface AdminUserRecord {
   firstName?: string;
   middleName?: string;
   lastName?: string;
+  surname?: string;
   username?: string;
   email: string;
   role: 'Admin' | 'Cashier' | 'Customer';
@@ -19,11 +20,18 @@ export interface AdminUserRecord {
   libraryCardNumber?: string;
   department?: string;
   phoneNumber?: string;
+  phone?: string;
   currentAddress?: string;
+  address?: string;
+  permanentAddress?: string;
+  employmentStatus?: string;
+  profilePictureUrl?: string;
+  avatarUrl?: string;
   age?: string;
   isActive: boolean;
   isProtected?: boolean;
   joinedDate: string;
+  createdAt?: string;
 }
 
 interface RawBackendUser {
@@ -39,6 +47,10 @@ interface RawBackendUser {
   department: string;
   phoneNumber?: string;
   currentAddress?: string;
+  permanentAddress?: string;
+  employmentStatus?: string;
+  profilePictureUrl?: string;
+  age?: string;
   isActive: boolean;
   isProtected?: boolean;
   createdAt: string;
@@ -49,25 +61,37 @@ export const getAdminUsersList = async (role?: number): Promise<AdminUserRecord[
   const res = await apiRequest<RawBackendUser[]>(url);
 
   return res.success && Array.isArray(res.data)
-    ? res.data.map((u) => ({
-        id: u.id,
-        name: u.fullName,
-        fullName: u.fullName,
-        firstName: u.firstName,
-        middleName: u.middleName,
-        lastName: u.lastName,
-        username: u.username,
-        email: u.email,
-        role: (u.role === 'Admin' || u.role === 'Cashier' ? u.role : 'Customer') as 'Admin' | 'Cashier' | 'Customer',
-        status: u.isActive ? 'active' : 'suspended',
-        libraryCardNumber: u.libraryCardNumber,
-        department: u.department,
-        phoneNumber: u.phoneNumber,
-        currentAddress: u.currentAddress,
-        isActive: u.isActive,
-        isProtected: u.isProtected ?? false,
-        joinedDate: u.createdAt.slice(0, 10),
-      }))
+    ? res.data.map((u) => {
+        const rawName = (u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User').trim();
+        return {
+          id: u.id || '',
+          name: rawName,
+          fullName: rawName,
+          firstName: u.firstName || '',
+          middleName: u.middleName || '',
+          lastName: u.lastName || '',
+          surname: u.lastName || '',
+          username: u.username || '',
+          email: u.email || '',
+          role: (u.role === 'Admin' || u.role === 'Cashier' ? u.role : 'Customer') as 'Admin' | 'Cashier' | 'Customer',
+          status: (u.isActive ? 'active' : 'suspended') as 'active' | 'suspended',
+          libraryCardNumber: u.libraryCardNumber || `#KP-${u.id ? u.id.slice(0, 5) : 'USER'}`,
+          department: u.department || 'General',
+          phoneNumber: u.phoneNumber || '',
+          phone: u.phoneNumber || '',
+          currentAddress: u.currentAddress || '',
+          address: u.currentAddress || '',
+          permanentAddress: u.permanentAddress || '',
+          employmentStatus: u.employmentStatus || '',
+          profilePictureUrl: u.profilePictureUrl || '',
+          avatarUrl: u.profilePictureUrl || '',
+          age: u.age || '',
+          isActive: u.isActive ?? true,
+          isProtected: u.isProtected ?? false,
+          joinedDate: u.createdAt ? u.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+          createdAt: u.createdAt || new Date().toISOString(),
+        };
+      })
     : [];
 };
 
@@ -95,6 +119,9 @@ export const createAdminUser = async (user: {
   libraryCardNumber?: string;
   phoneNumber?: string;
   currentAddress?: string;
+  permanentAddress?: string;
+  employmentStatus?: string;
+  profilePictureUrl?: string;
   age?: string;
 }) =>
   await apiRequest<object>('/users', {
@@ -109,10 +136,14 @@ export const updateAdminUser = async (
     middleName?: string; 
     lastName: string; 
     username?: string;
-    department?: string;
+    email?: string;
+    department?: string; 
     libraryCardNumber?: string;
     phoneNumber?: string;
     currentAddress?: string;
+    permanentAddress?: string;
+    employmentStatus?: string;
+    profilePictureUrl?: string;
     age?: string;
     password?: string;
     role: number;
@@ -164,8 +195,8 @@ export const exportFilteredUsers = async (query: ExportFilterQuery = {}) => {
   if (query.idContains) params.append('idContains', query.idContains);
   if (query.sortDirection) params.append('sortDirection', query.sortDirection);
 
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-  const response = await fetch(`/api/users/export?${params.toString()}`, {
+  const token = getAuthToken();
+  const response = await fetch(`${getApiBaseUrl()}/users/export?${params.toString()}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!response.ok) throw new Error('Export failed');

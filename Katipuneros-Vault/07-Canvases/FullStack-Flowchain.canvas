@@ -1,0 +1,15 @@
+{
+	"nodes":[
+		{"id":"node-react-ui","type":"text","text":"## 1. React 19 Frontend\n- Customer Portal (Port 5173)\n- Cashier Circulation (Port 5173)\n- Admin Command Center (Port 5174)","x":100,"y":200,"width":280,"height":160},
+		{"id":"node-endpoints","type":"text","text":"## 2. API Endpoints\n- `apiClient.ts` (JWT Bearer)\n- `authApi.ts`, `booksApi.ts`\n- `borrowingsApi.ts`, `fineApi.ts`","x":450,"y":200,"width":280,"height":160},
+		{"id":"node-controllers","type":"text","text":"## 3. ASP.NET Core API\n- `AuthController`, `UsersController`\n- `BooksController`, `BorrowController`\n- `ReservationsController`, `FinesController`","x":800,"y":200,"width":280,"height":160},
+		{"id":"node-services","type":"text","text":"## 4. Service & Cache Layer\n- `UserService`, `BookService`\n- `BorrowService`, `CashierService`\n- Redis Cache-Aside (`katipuneros:*`)","x":800,"y":420,"width":280,"height":160},
+		{"id":"node-database","type":"text","text":"## 5. SQL Server 2022\n- `KatipunerosLibraryDb`\n- EF Core 10 + Dapper\n- `Users`, `Books`, `BorrowRecords`\n- `Reservations`, `FineTransactions`","x":450,"y":420,"width":280,"height":160}
+	],
+	"edges":[
+		{"id":"edge-1","fromNode":"node-react-ui","fromSide":"right","toNode":"node-endpoints","toSide":"left"},
+		{"id":"edge-2","fromNode":"node-endpoints","fromSide":"right","toNode":"node-controllers","toSide":"left"},
+		{"id":"edge-3","fromNode":"node-controllers","fromSide":"bottom","toNode":"node-services","toSide":"top"},
+		{"id":"edge-4","fromNode":"node-services","fromSide":"left","toNode":"node-database","toSide":"right"}
+	]
+}

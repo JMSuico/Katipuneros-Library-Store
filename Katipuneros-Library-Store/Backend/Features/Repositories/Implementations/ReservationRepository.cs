@@ -27,7 +27,7 @@ public class ReservationRepository : IReservationRepository
     public async Task<List<Reservation>> GetActiveByPatronIdAsync(Guid patronId) =>
         await _context.Reservations
             .Include(r => r.Book)
-            .Where(r => r.PatronId == patronId && (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.StagedInLocker))
+            .Where(r => r.PatronId == patronId)
             .OrderByDescending(r => r.ReservationDate)
             .ToListAsync();
 

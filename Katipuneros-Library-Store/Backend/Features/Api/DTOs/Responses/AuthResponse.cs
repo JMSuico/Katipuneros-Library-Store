@@ -23,4 +23,7 @@ public class AuthResponse
     public string? CurrentAddress { get; set; }
     public string? PermanentAddress { get; set; }
     public string? ProfilePictureUrl { get; set; }
+    public string? PhoneNumber { get; set; }
+    public int? Age { get; set; }
+    public string Status { get; set; } = "Approved";
 }

@@ -111,6 +111,25 @@ public class InventoryService : IInventoryService
         {
             book.Description = $"{book.Description ?? ""} [Condition: {condition}] {rationale}".Trim();
         }
+
+        if (status.Equals("Damaged", StringComparison.OrdinalIgnoreCase) ||
+            status.Equals("Lost", StringComparison.OrdinalIgnoreCase) ||
+            status.Equals("Maintenance", StringComparison.OrdinalIgnoreCase))
+        {
+            if (book.AvailableCopies > 0)
+            {
+                book.AvailableCopies--;
+            }
+        }
+        else if (status.Equals("Available", StringComparison.OrdinalIgnoreCase) ||
+                 status.Equals("Good", StringComparison.OrdinalIgnoreCase))
+        {
+            if (book.AvailableCopies < book.TotalCopies)
+            {
+                book.AvailableCopies++;
+            }
+        }
+
         await _bookRepository.UpdateAsync(book);
         var saved = await _bookRepository.SaveChangesAsync();
         return (saved, saved ? null : "Failed to persist status update.");
@@ -132,6 +151,9 @@ public class InventoryService : IInventoryService
     public async Task<(int Count, string? Error)> IngestBarcodesAsync(string bookTitle, string? deweyCode, string bayLocation, List<string> barcodes)
     {
         if (barcodes == null || barcodes.Count == 0) return (0, "No barcodes provided.");
+        var defaultCatId = await _bookRepository.GetDefaultCategoryIdAsync();
+        if (defaultCatId == Guid.Empty) return (0, "No valid catalog category found for barcode ingestion.");
+
         int count = 0;
         foreach (var code in barcodes)
         {
@@ -145,6 +167,7 @@ public class InventoryService : IInventoryService
                 Isbn = clean,
                 IsbnBarcode = clean.Replace("-", "").Trim(),
                 DeweyCode = deweyCode ?? "025.2 ACQ",
+                CategoryId = defaultCatId,
                 BayLocation = InputSanitizer.SanitizeText(bayLocation),
                 TotalCopies = 1,
                 AvailableCopies = 1,

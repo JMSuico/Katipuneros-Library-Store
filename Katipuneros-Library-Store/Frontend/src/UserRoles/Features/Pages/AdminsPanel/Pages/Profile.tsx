@@ -21,9 +21,17 @@ const Profile: FC = () => {
 
   // Edit Profile Modal State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [editFullName, setEditFullName] = useState(currentUser?.fullName || '');
+  const [editFirstName, setEditFirstName] = useState(currentUser?.firstName || '');
+  const [editMiddleName, setEditMiddleName] = useState(currentUser?.middleName || '');
+  const [editLastName, setEditLastName] = useState(currentUser?.lastName || '');
+  const [editUsername, setEditUsername] = useState(currentUser?.username || '');
+  const [editEmail, setEditEmail] = useState(currentUser?.email || '');
   const [editPhone, setEditPhone] = useState(currentUser?.phoneNumber || '');
+  const [editAge, setEditAge] = useState(currentUser?.age ? String(currentUser.age) : '');
   const [editDepartment, setEditDepartment] = useState(currentUser?.department || '');
+  const [editCurrentAddress, setEditCurrentAddress] = useState(currentUser?.currentAddress || '');
+  const [editPermanentAddress, setEditPermanentAddress] = useState(currentUser?.permanentAddress || '');
+  const [editEmploymentStatus, setEditEmploymentStatus] = useState(currentUser?.employmentStatus || '');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -53,6 +61,24 @@ const Profile: FC = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const openEditProfileModal = () => {
+    if (currentUser) {
+      setEditFirstName(currentUser.firstName || '');
+      setEditMiddleName(currentUser.middleName || '');
+      setEditLastName(currentUser.lastName || '');
+      setEditUsername(currentUser.username || '');
+      setEditEmail(currentUser.email || '');
+      setEditPhone(currentUser.phoneNumber || '');
+      setEditAge(currentUser.age ? String(currentUser.age) : '');
+      setEditDepartment(currentUser.department || '');
+      setEditCurrentAddress(currentUser.currentAddress || '');
+      setEditPermanentAddress(currentUser.permanentAddress || '');
+      setEditEmploymentStatus(currentUser.employmentStatus || '');
+    }
+    setEditError(null);
+    setIsEditProfileOpen(true);
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -77,26 +103,46 @@ const Profile: FC = () => {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFullName.trim()) {
-      setEditError('Full Name is required.');
+    const computedFullName = `${editFirstName} ${editMiddleName ? editMiddleName + ' ' : ''}${editLastName}`.trim();
+    if (!computedFullName && !editFirstName.trim()) {
+      setEditError('First name and last name are required.');
       return;
     }
     setEditSaving(true);
     setEditError(null);
     try {
       const res = await updateUserProfile({
-        fullName: editFullName.trim(),
-        phoneNumber: editPhone.trim(),
-        department: editDepartment.trim(),
+        fullName: computedFullName,
+        firstName: editFirstName.trim(),
+        middleName: editMiddleName.trim() || undefined,
+        lastName: editLastName.trim(),
+        username: editUsername.trim() || undefined,
+        email: editEmail.trim() || undefined,
+        phoneNumber: editPhone.trim() || undefined,
+        department: editDepartment.trim() || undefined,
+        currentAddress: editCurrentAddress.trim() || undefined,
+        permanentAddress: editPermanentAddress.trim() || undefined,
+        employmentStatus: editEmploymentStatus.trim() || undefined,
+        age: editAge ? Number(editAge) : undefined,
       });
       setEditSaving(false);
       if (res.success) {
         const updated = updateStoredUser({
-          fullName: editFullName.trim(),
+          fullName: computedFullName,
+          firstName: editFirstName.trim(),
+          middleName: editMiddleName.trim(),
+          lastName: editLastName.trim(),
+          username: editUsername.trim(),
+          email: editEmail.trim(),
           phoneNumber: editPhone.trim(),
           department: editDepartment.trim(),
+          currentAddress: editCurrentAddress.trim(),
+          permanentAddress: editPermanentAddress.trim(),
+          employmentStatus: editEmploymentStatus.trim(),
+          age: editAge ? Number(editAge) : undefined,
         });
         setCurrentUser(updated || null);
+        window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
         setIsEditProfileOpen(false);
         showToast('Administrator profile updated successfully!');
       } else {
@@ -200,13 +246,7 @@ const Profile: FC = () => {
             </div>
             <div className="flex items-center gap-space-sm flex-wrap">
               <button
-                onClick={() => {
-                  setEditFullName(currentUser?.fullName || '');
-                  setEditPhone(currentUser?.phoneNumber || '');
-                  setEditDepartment(currentUser?.department || '');
-                  setEditError(null);
-                  setIsEditProfileOpen(true);
-                }}
+                onClick={openEditProfileModal}
                 className="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-text-primary font-body-medium text-small font-bold shadow-sm transition-all cursor-pointer border border-outline-variant/15"
                 type="button"
               >
@@ -286,11 +326,19 @@ const Profile: FC = () => {
                       </div>
                       <div className="flex items-center gap-space-xs text-text-primary">
                         <span className="material-symbols-outlined text-primary text-[18px]">meeting_room</span>
-                        <span className="font-body text-small truncate">Central Administration Desk</span>
+                        <span className="font-body text-small truncate">{currentUser?.department || 'Central Administration Desk'}</span>
                       </div>
                       <div className="flex items-center gap-space-xs text-text-primary">
-                        <span className="material-symbols-outlined text-primary text-[18px]">schedule</span>
-                        <span className="font-body text-small">Academic Term Operations</span>
+                        <span className="material-symbols-outlined text-primary text-[18px]">badge</span>
+                        <span className="font-body text-small">{currentUser?.employmentStatus || 'Director / Level 4 Administration'}</span>
+                      </div>
+                      <div className="flex items-center gap-space-xs text-text-primary">
+                        <span className="material-symbols-outlined text-primary text-[18px]">location_on</span>
+                        <span className="font-body text-small truncate">{currentUser?.currentAddress || 'Central Library Admin Office'}</span>
+                      </div>
+                      <div className="flex items-center gap-space-xs text-text-primary">
+                        <span className="material-symbols-outlined text-primary text-[18px]">cake</span>
+                        <span className="font-body text-small">{currentUser?.age ? `${currentUser.age} years old` : 'Age not recorded'}</span>
                       </div>
                     </div>
                   </div>
@@ -487,7 +535,7 @@ const Profile: FC = () => {
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
         title="Edit Administrator Profile"
-        maxWidth="max-w-md"
+        maxWidth="max-w-2xl"
         footer={
           <div className="flex items-center justify-end gap-space-sm w-full">
             <button
@@ -519,47 +567,159 @@ const Profile: FC = () => {
           </div>
         }
       >
-        <form id="editProfileForm" onSubmit={handleSaveProfile} className="flex flex-col gap-space-md">
+        <form id="editProfileForm" onSubmit={handleSaveProfile} className="flex flex-col gap-space-md max-h-[75vh] overflow-y-auto pr-1">
           {editError && (
             <div className="p-space-sm rounded-lg bg-error-container text-error font-caption text-caption">
               {editError}
             </div>
           )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                First Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={editFirstName}
+                onChange={(e) => setEditFirstName(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="First name"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Middle Name
+              </label>
+              <input
+                type="text"
+                value={editMiddleName}
+                onChange={(e) => setEditMiddleName(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="Middle name"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="Last name"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Username *
+              </label>
+              <input
+                type="text"
+                required
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="e.g. admin"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Email Address *
+              </label>
+              <input
+                type="email"
+                required
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="admin@katipuneros.edu.ph"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Phone Number
+              </label>
+              <input
+                type="text"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="e.g. +63 912 345 6789"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Age
+              </label>
+              <input
+                type="number"
+                value={editAge}
+                onChange={(e) => setEditAge(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="e.g. 35"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Department / Office
+              </label>
+              <input
+                type="text"
+                value={editDepartment}
+                onChange={(e) => setEditDepartment(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="e.g. Office of the Chief Librarian"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
+                Position / Employment Status
+              </label>
+              <input
+                type="text"
+                value={editEmploymentStatus}
+                onChange={(e) => setEditEmploymentStatus(e.target.value)}
+                className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
+                placeholder="e.g. Full-Time Administrator"
+              />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
-              Full Name *
+              Current Station / Campus Address
             </label>
             <input
               type="text"
-              required
-              value={editFullName}
-              onChange={(e) => setEditFullName(e.target.value)}
+              value={editCurrentAddress}
+              onChange={(e) => setEditCurrentAddress(e.target.value)}
               className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
-              placeholder="e.g. JM Suico"
+              placeholder="e.g. Main Library 4th Floor Administration Wing"
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
-              Phone Number
+              Permanent Residential Address
             </label>
             <input
               type="text"
-              value={editPhone}
-              onChange={(e) => setEditPhone(e.target.value)}
+              value={editPermanentAddress}
+              onChange={(e) => setEditPermanentAddress(e.target.value)}
               className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
-              placeholder="e.g. +63 912 345 6789"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-caption text-caption uppercase tracking-wider font-bold text-text-secondary">
-              Department / Office
-            </label>
-            <input
-              type="text"
-              value={editDepartment}
-              onChange={(e) => setEditDepartment(e.target.value)}
-              className="w-full px-space-md py-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-text-primary text-small focus:outline-none focus:border-primary"
-              placeholder="e.g. Office of the Chief Librarian"
+              placeholder="e.g. Katipunan Avenue, Quezon City"
             />
           </div>
         </form>

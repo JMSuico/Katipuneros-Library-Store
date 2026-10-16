@@ -18,6 +18,7 @@ public interface IBorrowRepository
     Task<int> GetCountByStatusAsync(TransactionStatus status);
     Task<List<BorrowTransaction>> GetAllWithDetailsAsync(string? status = null, string? query = null);
     Task<Backend.Features.Api.DTOs.Responses.BorrowingMetricsResponse> GetBorrowingMetricsAsync();
+    Task<BorrowTransaction?> GetActiveByCopyIdOrBookIdAsync(Guid? copyId, Guid bookId);
     Task AddAsync(BorrowTransaction transaction);
     Task UpdateAsync(BorrowTransaction transaction);
     Task<bool> SaveChangesAsync();

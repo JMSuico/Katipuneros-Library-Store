@@ -1,0 +1,14 @@
+bin/
+obj/
+**/bin/
+**/obj/
+*.log
+**/*.log
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vscode/
+.idea/
+*.user
+*.suo

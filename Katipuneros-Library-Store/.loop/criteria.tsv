@@ -1,6 +1,6 @@
-CRIT-01	customer-auth	powershell -ExecutionPolicy Bypass -File scratch/verify_auth.ps1
-CRIT-02	admin-add-book	powershell -ExecutionPolicy Bypass -File scratch/verify_book_add.ps1
-CRIT-03	customer-reserve	powershell -ExecutionPolicy Bypass -File scratch/verify_reservation.ps1
-CRIT-04	admin-triage	powershell -ExecutionPolicy Bypass -File scratch/verify_triage.ps1
-CRIT-05	book-return	powershell -ExecutionPolicy Bypass -File scratch/verify_returns.ps1
-CRIT-06	patron-wishlist	powershell -ExecutionPolicy Bypass -File scratch/verify_wishlist.ps1
+CRIT-01	crud-books	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_books.ps1
+CRIT-02	crud-categories	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_categories.ps1
+CRIT-03	crud-users	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_users.ps1
+CRIT-04	crud-reservations	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_reservations.ps1
+CRIT-05	crud-borrowings	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_borrowings.ps1
+CRIT-06	crud-inquiries	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_inquiries.ps1

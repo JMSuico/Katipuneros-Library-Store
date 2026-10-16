@@ -29,7 +29,10 @@ PLUGINS DIRECTORY ROSTER & OPERATIONAL RESPONSIBILITIES:
 ├── 15. ghidra                    --> Structural code integrity, control-flow graph validation & decompiled flow audits
 ├── 16. GhidrAssist               --> Intelligent semantic labeling, automated structural verification & AST analysis
 ├── 17. radare2                   --> Smallest coherent fixes, hot-path efficiency & speculative abstraction avoidance
-└── 18. ImHex                     --> Byte/block layout verification, cryptographic SHA-256 seals & Merkle trees
+├── 18. ImHex                     --> Byte/block layout verification, cryptographic SHA-256 seals & Merkle trees
+├── 19. obsidian-skills           --> Obsidian Vault & Markdown (wikilinks, .base databases, .canvas graphs, knap)
+├── 20. agentmemory & OpenViking  --> Persistent agent memory discipline (MEMORY.md, lessons, decisions, projects)
+└── 21. diagram-design            --> High-fidelity publication-grade Mermaid diagrams & architecture maps
 ```
 
 ---
@@ -197,12 +200,47 @@ PLUGINS DIRECTORY ROSTER & OPERATIONAL RESPONSIBILITIES:
 
 ---
 
+### Plugin 18: `obsidian-skills` & `Katipuneros-Vault` (Knowledge Graph & Spec Memory)
+- **Vault Location**: `C:\Users\provu\Desktop\KATIPUNEROS LIBRARY STORE\Katipuneros-Vault`
+- **Obsidian Flavored Markdown**:
+  - Always link cross-cutting components and concepts using `[[Wikilinks]]` and embeds `![[Embeds]]`.
+  - Use GitHub/Obsidian callouts `> [!INFO]`, `> [!WARNING]`, `> [!IMPORTANT]` for architecture rules.
+  - Structure dynamic entity collections using `.base` YAML schemas (`06-Bases/`) and architectural dependency flows using JSON Canvas 1.0 (`07-Canvases/FullStack-Flowchain.canvas`).
+
+---
+
+### Plugin 19: `agentmemory` & `OpenViking` (Persistent Agent Discipline)
+- **Memory Discipline Hierarchy**:
+  - `MEMORY.md`: Core system invariants and active execution context (kept concise under 100 lines).
+  - `lessons.md`: Antipatterns, previous bugs, and prevention measures.
+  - `decisions.md`: Architecture Decision Records (ADRs) explaining technical trade-offs.
+  - `projects.md`: Active milestone status across Customer, Cashier, Admin, and Landing views.
+- **Context Distillation**:
+  - Load only required tiered context into agent sessions to avoid token exhaustion. Ground all assertions in real telemetry and code inspection.
+
+---
+
+### Plugin 20: `diagram-design` (Publication-Grade Visual Modeling)
+- **Mermaid & Flowchart Standards**:
+  - Express full-stack data flows from React 19 UI through Endpoint Clients, ASP.NET Core Controllers, Services, Repositories, and SQL Server using clean, valid `flowchart LR` / `flowchart TD` diagrams.
+  - Always quote labels containing special characters (`["Label (with detail)"]`).
+
+---
+
 ## 3. Mandatory Operational Contract for All Subsequent Tasks
 
 Every future implementation, bugfix, or enhancement in this repository MUST:
-1. Consult this memory cache prior to proposing structural modifications.
-2. Maintain strict zero-data fallbacks ($N=0$ displays `0`, `0.0%`, `₱0.00`, or clean empty states).
-3. Apply `usePagesGlobalRefresh.ts` on all route views for seamless reconnection recovery.
-4. Consume shared UI primitives from global `Frontend/src/Shared/` (`DefaultFloatingModalCard`, `SearchBar`, `Dropdown`, `RadioButton`).
-5. Guarantee universal expression bodies (`=>`) and zero native `alert()` dialogs.
-6. Verify both `dotnet build` and `npm run build` achieve 100% clean builds with zero errors before completion.
+1. **Enforce Universal Profile Edit-Lock-Save**:
+   - In all user profile views (`Customer`, `Cashier`, `Admin`), credentials (`firstName`, `middleName`, `lastName`, `username`, `email`, `phoneNumber`, `currentAddress`, `permanentAddress`, `department`, `employmentStatus`, `age`) MUST be locked (`disabled` / `readOnly`) by default.
+   - Editing is only permitted after clicking **"Edit Profile"**, which transforms the button to **"Save Changes"** alongside **"Cancel"**.
+   - Saving calls `PUT /api/auth/profile`, persists changes to SQL Server `[Users]`, syncs `localStorage` (`katipuneros_user`), updates reactive headers/sidebars, and returns to the locked state.
+2. **Support Base64 & Direct URLs for Avatars & Book Covers**:
+   - `[Users].[ProfilePictureUrl]` and `[Books].[CoverImage]` must be `NVARCHAR(MAX)` in SQL Server and models to safely store base64 data URLs without truncation.
+3. **Normalize API Paths**:
+   - `apiClient.ts` must strip redundant `/api/` prefixes so endpoints never generate `/api/api/...` 404 errors.
+4. **Zero-Mock & Complete Round-Trip Persistence**:
+   - Every UI action (reservations, fines, inventory barcodes, user management, book management, borrowings) must communicate with the .NET 10 Web API and persist in SQL Server.
+5. **Machine Verification Before Completion**:
+   - Both `dotnet build` and `npm run build` / `npx tsc --noEmit` must exit with 0 errors.
+   - Run the E2E verification suite to confirm live SQL Server persistence before declaring completion.
+

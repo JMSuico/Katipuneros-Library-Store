@@ -93,7 +93,7 @@ public class CashierService : ICashierService
             LibraryCardNumber = t.Patron?.LibraryCardNumber ?? "—",
             BookTitle = t.Book?.Title ?? "Untitled Book",
             Barcode = t.Book?.IsbnBarcode ?? t.Book?.Isbn ?? "—",
-            Amount = 0.00m,
+            Amount = t.FineTransactions != null && t.FineTransactions.Count > 0 ? t.FineTransactions.Sum(f => f.Amount) : 0.00m,
             Status = t.Status.ToString(),
             Timestamp = t.ReturnDate ?? t.BorrowDate,
             CashierName = t.Cashier?.FullName ?? "Station Cashier"

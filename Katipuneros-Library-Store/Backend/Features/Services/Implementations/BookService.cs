@@ -28,7 +28,7 @@ public class BookService : IBookService
     public async Task<Book?> GetBookByBarcodeAsync(string barcode) =>
         await _bookRepository.GetByBarcodeAsync(barcode.Trim());
 
-    public async Task<Book> CreateBookAsync(string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid)
+    public async Task<Book> CreateBookAsync(string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid, string? coverImage = null)
     {
         if (categoryId == Guid.Empty)
         {
@@ -48,7 +48,8 @@ public class BookService : IBookService
             BayLocation = InputSanitizer.SanitizeText(bay),
             Description = description != null ? InputSanitizer.SanitizeText(description) : null,
             RfidTag = rfid?.Trim(),
-            IsbnBarcode = isbn.Replace("-", "").Trim()
+            IsbnBarcode = isbn.Replace("-", "").Trim(),
+            CoverImage = !string.IsNullOrWhiteSpace(coverImage) ? coverImage : null
         };
 
         await _bookRepository.AddAsync(book);
@@ -56,12 +57,12 @@ public class BookService : IBookService
         return book;
     }
 
-    public async Task<(bool Success, string? Error)> UpdateBookAsync(Guid id, string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid) =>
+    public async Task<(bool Success, string? Error)> UpdateBookAsync(Guid id, string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid, string? coverImage = null) =>
         await _bookRepository.GetByIdAsync(id) is not { } book
             ? (false, "Book asset not found.")
-            : await PerformBookUpdateAsync(book, title, author, isbn, deweyCode, categoryId, year, totalCopies, bay, description, rfid);
+            : await PerformBookUpdateAsync(book, title, author, isbn, deweyCode, categoryId, year, totalCopies, bay, description, rfid, coverImage);
 
-    private async Task<(bool Success, string? Error)> PerformBookUpdateAsync(Book book, string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid)
+    private async Task<(bool Success, string? Error)> PerformBookUpdateAsync(Book book, string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid, string? coverImage)
     {
         int deltaCopies = totalCopies - book.TotalCopies;
         book.Title = InputSanitizer.SanitizeText(title);
@@ -75,6 +76,7 @@ public class BookService : IBookService
         book.BayLocation = InputSanitizer.SanitizeText(bay);
         if (description != null) book.Description = InputSanitizer.SanitizeText(description);
         if (rfid != null) book.RfidTag = rfid.Trim();
+        if (!string.IsNullOrWhiteSpace(coverImage)) book.CoverImage = coverImage;
 
         await _bookRepository.UpdateAsync(book);
         var saved = await _bookRepository.SaveChangesAsync();

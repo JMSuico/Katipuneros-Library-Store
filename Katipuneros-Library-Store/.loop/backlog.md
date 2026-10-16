@@ -1,6 +1,7 @@
-- [x] customer-auth | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_auth.ps1
-- [x] admin-add-book | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_book_add.ps1
-- [x] customer-reserve | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_reservation.ps1
-- [x] admin-triage | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_triage.ps1
-- [x] book-return | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_returns.ps1
-- [x] patron-wishlist | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_wishlist.ps1
+- [x] crud-books | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_books.ps1
+- [x] crud-categories | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_categories.ps1
+- [x] crud-users | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_users.ps1
+- [x] crud-reservations | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_reservations.ps1
+- [x] crud-borrowings | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_borrowings.ps1
+- [x] crud-inquiries | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_inquiries.ps1
+- [x] crud-all-frontend-endpoints | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_all_frontend_to_backend_endpoints.ps1

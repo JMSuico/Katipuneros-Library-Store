@@ -24,6 +24,7 @@ public class ReservationService : IReservationService
     private readonly IReservationRepository _reservationRepository;
     private readonly IBookRepository _bookRepository;
     private readonly IUserRepository _userRepository;
+    private static readonly SemaphoreSlim _triageLock = new(1, 1);
 
     public ReservationService(
         IReservationRepository reservationRepository,
@@ -108,7 +109,8 @@ public class ReservationService : IReservationService
         if (book == null)
             return (false, null, "Book asset not found.");
 
-        var activeHolds = await _reservationRepository.GetActiveByPatronIdAsync(patronId);
+        var patronHolds = await _reservationRepository.GetActiveByPatronIdAsync(patronId);
+        var activeHolds = patronHolds.Where(h => h.Status == ReservationStatus.Pending || h.Status == ReservationStatus.StagedInLocker).ToList();
         if (activeHolds.Any(h => h.BookId == bookId))
             return (false, null, "You already have an active hold on this catalog title.");
 
@@ -151,25 +153,36 @@ public class ReservationService : IReservationService
 
     public async Task<(bool Success, string? Error)> TriageReservationAsync(Guid reservationId, bool approved, string? reason, bool priority)
     {
-        if (await _reservationRepository.GetByIdAsync(reservationId) is not { } reservation)
-            return (false, "Reservation hold not found.");
-
-        if (approved)
+        await _triageLock.WaitAsync();
+        try
         {
-            reservation.Status = ReservationStatus.StagedInLocker;
-            reservation.LockerBay = string.IsNullOrWhiteSpace(reservation.LockerBay) ? "Bay 01 Counter" : reservation.LockerBay;
-            reservation.LockerPin = string.IsNullOrWhiteSpace(reservation.LockerPin) ? Random.Shared.Next(1000, 9999).ToString() : reservation.LockerPin;
-            reservation.ExpiryDate = DateTime.UtcNow.AddHours(48);
-            if (priority) reservation.QueuePosition = 1;
-        }
-        else
-        {
-            reservation.Status = ReservationStatus.Cancelled;
-        }
+            if (await _reservationRepository.GetByIdAsync(reservationId) is not { } reservation)
+                return (false, "Reservation hold not found.");
 
-        await _reservationRepository.UpdateAsync(reservation);
-        var saved = await _reservationRepository.SaveChangesAsync();
-        return (saved, saved ? null : "Failed to update triage decision.");
+            if (reservation.Status != ReservationStatus.Pending)
+                return (false, $"Reservation has already been processed as {reservation.Status} and cannot be modified again.");
+
+            if (approved)
+            {
+                reservation.Status = ReservationStatus.StagedInLocker;
+                reservation.LockerBay = string.IsNullOrWhiteSpace(reservation.LockerBay) ? "Bay 01 Counter" : reservation.LockerBay;
+                reservation.LockerPin = string.IsNullOrWhiteSpace(reservation.LockerPin) ? Random.Shared.Next(1000, 9999).ToString() : reservation.LockerPin;
+                reservation.ExpiryDate = DateTime.UtcNow.AddHours(48);
+                if (priority) reservation.QueuePosition = 1;
+            }
+            else
+            {
+                reservation.Status = ReservationStatus.Cancelled;
+            }
+
+            await _reservationRepository.UpdateAsync(reservation);
+            var saved = await _reservationRepository.SaveChangesAsync();
+            return (saved, saved ? null : "Failed to update triage decision.");
+        }
+        finally
+        {
+            _triageLock.Release();
+        }
     }
 
     public async Task<(bool Success, string? Error)> UpdateStatusAsync(Guid reservationId, string newStatus, string? notes)

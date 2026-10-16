@@ -1,14 +1,19 @@
-# Verification Contract: Full Circulation, Auth & Wishlist Loop
+# Verification Contract: Full-Stack CRUD End-to-End System
 
 ## Scope
-- Backend API endpoints: `/api/auth/*`, `/api/books/*`, `/api/reservations/*`, `/api/borrowings/*`, `/api/returns/*`
-- Frontend Endpoints & Storage: `apiClient.ts`, `authApi.ts`, `favoriteApi.ts`, `reservationApi.ts`
-- Verification Automation: `scratch/verify_*.ps1`
+- Full-Stack CRUD Data Flow: UI Client / Endpoint -> ASP.NET Core Controllers & Services -> EF Core SQL Server Database Mutation -> API Response Envelope -> Client Data Verification.
+- Modules:
+  1. Books & Inventory (`/api/books`, `[Books]`)
+  2. Categories & Taxonomy (`/api/categories`, `[Categories]`)
+  3. User & Patron Identity (`/api/users`, `/api/auth`, `[Users]`)
+  4. Circulation Holds & Triage (`/api/reservations`, `[Reservations]`)
+  5. Circulation Checkout & Returns (`/api/borrow`, `[BorrowTransactions]`, `[Books]`)
+  6. Contact Desk Inquiries (`/api/contact`, `[ContactInquiries]`)
 
 ## Acceptance Criteria
-1. **CRIT-01 (customer-auth)**: User can register a customer account and immediately sign in using Username, Institutional Email, and Library Card Number returning HTTP 200 with JWT.
-2. **CRIT-02 (admin-add-book)**: Adding a new book via Admin API persists in database and is returned in the public catalog with correct metadata and copy count.
-3. **CRIT-03 (customer-reserve)**: Customer can place a reservation on an available book; reservation record is created with status `Pending` and is listed in the customer's active reservations.
-4. **CRIT-04 (admin-triage)**: Admin can approve a pending reservation (transitions to `StagedInLocker` with locker pin and counter bay) AND decline a pending reservation (transitions to `Cancelled`/`Rejected` and restores copy availability).
-5. **CRIT-05 (book-return)**: Borrowed book can be returned via circulation desk; return transaction status transitions to `Returned` and available book copies count increments back in catalog.
-6. **CRIT-06 (patron-wishlist)**: Patron can add a book to their wishlist / favorites collection, query their saved list, and remove a book from favorites with full state synchronization.
+1. **CRIT-01 (crud-books)**: Create book persists in `[Books]` table; Read returns entity; Update modifies title/bay/copies in DB; Delete removes record and confirms absence.
+2. **CRIT-02 (crud-categories)**: Create category persists in `[Categories]`; Read lists record; Update modifies name/description; Delete removes record from SQL Server.
+3. **CRIT-03 (crud-users)**: Create patron persists in `[Users]` with password hash; Read returns user profile; Update modifies user details; Status toggle deactivates account and blocks subsequent login.
+4. **CRIT-04 (crud-reservations)**: Create hold records in `[Reservations]`; Read returns pending hold; Update via triage transitions status to `StagedInLocker`; Delete/Cancel updates status to `Cancelled` and restores copy.
+5. **CRIT-05 (crud-borrowings)**: Checkout creates active record in `[BorrowTransactions]` and decrements `[Books].AvailableCopies`; Return updates status to `Returned` and increments available copies back.
+6. **CRIT-06 (crud-inquiries)**: Submit contact inquiry inserts sanitized message in database; Admin read query lists inquiry.

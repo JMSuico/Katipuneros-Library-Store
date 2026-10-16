@@ -44,6 +44,8 @@ export interface AuthUser {
   permanentAddress?: string;
   phoneNumber?: string;
   profilePictureUrl?: string;
+  age?: number;
+  status?: string;
 }
 
 export interface AuthResponseData {
@@ -63,6 +65,9 @@ export interface AuthResponseData {
   currentAddress?: string;
   permanentAddress?: string;
   profilePictureUrl?: string;
+  phoneNumber?: string;
+  age?: number;
+  status?: string;
 }
 
 export interface CreateCashierRequest {
@@ -175,6 +180,9 @@ export const loginUser = async (
       currentAddress: res.data.currentAddress,
       permanentAddress: res.data.permanentAddress,
       profilePictureUrl: res.data.profilePictureUrl,
+      phoneNumber: res.data.phoneNumber,
+      age: res.data.age,
+      status: res.data.status,
     };
 
     saveAuthSession(res.data.token, user);
@@ -218,6 +226,9 @@ export const registerUser = async (
       currentAddress: res.data.currentAddress,
       permanentAddress: res.data.permanentAddress,
       profilePictureUrl: res.data.profilePictureUrl,
+      phoneNumber: res.data.phoneNumber || req.phoneNumber,
+      age: res.data.age,
+      status: res.data.status || 'Approved',
     };
     saveAuthSession(res.data.token, user);
     return { success: true, message: res.message || 'User registered successfully.', user, token: res.data.token };
@@ -241,11 +252,14 @@ export interface UpdateProfilePayload {
   middleName?: string;
   lastName?: string;
   fullName: string;
+  username?: string;
+  email?: string;
   employmentStatus?: string;
   currentAddress?: string;
   permanentAddress?: string;
   phoneNumber?: string;
   department?: string;
+  age?: number;
 }
 
 export const updateUserProfile = async (
@@ -262,10 +276,14 @@ export const updateUserProfile = async (
       firstName: payload.firstName,
       middleName: payload.middleName,
       lastName: payload.lastName,
+      username: payload.username,
+      email: payload.email,
       phoneNumber: payload.phoneNumber,
       department: payload.department,
+      employmentStatus: payload.employmentStatus,
       currentAddress: payload.currentAddress,
       permanentAddress: payload.permanentAddress,
+      age: payload.age,
     });
     return {
       success: true,

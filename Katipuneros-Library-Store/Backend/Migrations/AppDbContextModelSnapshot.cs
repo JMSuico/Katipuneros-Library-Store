@@ -108,8 +108,7 @@ namespace Backend.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("CoverImage")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -165,10 +164,71 @@ namespace Backend.Migrations
                     b.ToTable("Books");
                 });
 
+            modelBuilder.Entity("Backend.Features.Data.Models.BookCopy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AccessionNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("AcquiredDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("BayLocation")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("BookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ConditionNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("CopyNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastReturnedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("QrCodeData")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccessionNumber")
+                        .IsUnique();
+
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("QrCodeData");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("BookCopies");
+                });
+
             modelBuilder.Entity("Backend.Features.Data.Models.BorrowTransaction", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BookCopyId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("BookId")
@@ -204,6 +264,8 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BookCopyId");
 
                     b.HasIndex("BookId");
 
@@ -656,8 +718,24 @@ namespace Backend.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("Backend.Features.Data.Models.BookCopy", b =>
+                {
+                    b.HasOne("Backend.Features.Data.Models.Book", "Book")
+                        .WithMany("Copies")
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+                });
+
             modelBuilder.Entity("Backend.Features.Data.Models.BorrowTransaction", b =>
                 {
+                    b.HasOne("Backend.Features.Data.Models.BookCopy", "BookCopy")
+                        .WithMany("BorrowTransactions")
+                        .HasForeignKey("BookCopyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Backend.Features.Data.Models.Book", "Book")
                         .WithMany("BorrowTransactions")
                         .HasForeignKey("BookId")
@@ -675,6 +753,8 @@ namespace Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Book");
+
+                    b.Navigation("BookCopy");
 
                     b.Navigation("Cashier");
 
@@ -732,7 +812,14 @@ namespace Backend.Migrations
                 {
                     b.Navigation("BorrowTransactions");
 
+                    b.Navigation("Copies");
+
                     b.Navigation("Reservations");
+                });
+
+            modelBuilder.Entity("Backend.Features.Data.Models.BookCopy", b =>
+                {
+                    b.Navigation("BorrowTransactions");
                 });
 
             modelBuilder.Entity("Backend.Features.Data.Models.BorrowTransaction", b =>

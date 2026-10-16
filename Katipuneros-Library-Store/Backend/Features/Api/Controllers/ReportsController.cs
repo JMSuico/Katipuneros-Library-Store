@@ -19,9 +19,39 @@ namespace Backend.Features.Api.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly IReportService _reportService;
+    private readonly IUserService _userService;
+    private readonly IBookService _bookService;
+    private readonly IBorrowService _borrowService;
+    private readonly IReservationService _reservationService;
 
-    public ReportsController(IReportService reportService) =>
-        _reportService = reportService;
+    public ReportsController(
+        IReportService reportService,
+        IUserService userService,
+        IBookService bookService,
+        IBorrowService borrowService,
+        IReservationService reservationService) =>
+        (_reportService, _userService, _bookService, _borrowService, _reservationService) =
+        (reportService, userService, bookService, borrowService, reservationService);
+
+    /// <summary> Retrieve executive analytics summary counts for reports dashboard </summary>
+    [HttpGet("/api/admin/metrics")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAdminMetricsSummary()
+    {
+        var users = await _userService.GetAllUsersAsync(null);
+        var books = await _bookService.GetCatalogAsync(null, null, null);
+        var borrowMetrics = await _borrowService.GetMetricsAsync();
+        var resMetrics = await _reservationService.GetMetricsAsync();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            totalUsers = users.Count,
+            totalBooks = books.Count,
+            activeLoans = borrowMetrics.TotalActiveBorrowings,
+            pendingReservations = resMetrics.PendingReview,
+            finesCollected = borrowMetrics.CumulativeFines
+        }));
+    }
 
     /// <summary> Retrieve official report suites and statutory configurations </summary>
     [HttpGet("suites")]

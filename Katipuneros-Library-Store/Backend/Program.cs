@@ -37,6 +37,7 @@ builder.Services.AddScoped<CacheInvalidation>();
 // ==========================================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
+builder.Services.AddScoped<IBookCopyRepository, BookCopyRepository>();
 builder.Services.AddScoped<IBorrowRepository, BorrowRepository>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
@@ -52,6 +53,7 @@ builder.Services.AddScoped<ICashierRepository, CashierRepository>();
 // ==========================================
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddScoped<IBookCopyService, BookCopyService>();
 builder.Services.AddScoped<IBorrowService, BorrowService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IFineService, FineService>();

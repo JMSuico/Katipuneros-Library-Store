@@ -319,8 +319,8 @@ const ReservationsPage: FC = () => {
                 onClick={() => setActiveTab('ready')}
                 type="button"
               >
-                Ready for Pickup{' '}
-                <span className="ml-1 font-caption bg-action-green/30 text-text-primary px-1.5 py-0.2 rounded-full">
+                Approved &amp; Staged{' '}
+                <span className="ml-1 font-caption bg-action-green/30 text-text-primary px-1.5 py-0.2 rounded-full font-bold">
                   {metrics.ready}
                 </span>
               </button>
@@ -344,7 +344,7 @@ const ReservationsPage: FC = () => {
                 onClick={() => setActiveTab('cancelled')}
                 type="button"
               >
-                Cancelled ({metrics.cancelled})
+                Declined / Cancelled ({metrics.cancelled})
               </button>
             </div>
 
@@ -791,27 +791,27 @@ const ReservationsPage: FC = () => {
                             </td>
                             <td className="py-space-md px-space-md">
                               {isItemReady && (
-                                <span className="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-action-green/30 text-text-primary font-caption text-caption">
-                                  <span className="material-symbols-outlined text-xs text-action-green">check_circle</span>
-                                  Ready
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-caption text-caption font-bold shadow-sm whitespace-nowrap">
+                                  <span className="material-symbols-outlined text-xs text-emerald-700">verified</span>
+                                  <span>APPROVED — READY FOR PICKUP</span>
                                 </span>
                               )}
                               {isItemPending && (
-                                <span className="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-status-pending/20 text-text-primary font-caption text-caption">
-                                  <span className="material-symbols-outlined text-xs text-status-pending">hourglass_top</span>
-                                  Pending
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-caption text-caption font-bold shadow-sm whitespace-nowrap">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                  <span>PENDING CASHIER REVIEW</span>
                                 </span>
                               )}
                               {isItemFulfilled && (
-                                <span className="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-status-available/20 text-text-primary font-caption text-caption">
-                                  <span className="material-symbols-outlined text-xs text-status-available">verified</span>
-                                  Fulfilled
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-100 text-sky-900 border border-sky-300 font-caption text-caption font-bold shadow-sm whitespace-nowrap">
+                                  <span className="material-symbols-outlined text-xs text-sky-700">task_alt</span>
+                                  <span>FULFILLED (CHECKED OUT)</span>
                                 </span>
                               )}
                               {isItemCancelled && (
-                                <span className="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-error-container/40 text-status-danger font-caption text-caption">
-                                  <span className="material-symbols-outlined text-xs text-status-danger">cancel</span>
-                                  Cancelled
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 text-rose-900 border border-rose-300 font-caption text-caption font-bold shadow-sm whitespace-nowrap">
+                                  <span className="material-symbols-outlined text-xs text-rose-700">cancel</span>
+                                  <span>DECLINED / CANCELLED</span>
                                 </span>
                               )}
                             </td>
@@ -990,39 +990,74 @@ const ReservationsPage: FC = () => {
               </button>
 
               <div className="flex items-center gap-space-md">
-                <div className="w-12 h-12 rounded-full bg-action-green/30 flex items-center justify-center text-text-primary shrink-0">
-                  <span className="material-symbols-outlined text-2xl">store</span>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                  selectedPickup && isReady(selectedPickup.status)
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : selectedPickup && isCancelledOrExpired(selectedPickup.status)
+                    ? 'bg-rose-100 text-rose-800'
+                    : 'bg-amber-100 text-amber-800'
+                }`}>
+                  <span className="material-symbols-outlined text-2xl">
+                    {selectedPickup && isReady(selectedPickup.status)
+                      ? 'verified'
+                      : selectedPickup && isCancelledOrExpired(selectedPickup.status)
+                      ? 'cancel'
+                      : 'hourglass_top'}
+                  </span>
                 </div>
                 <div>
-                  <h3 className="font-headline-3 text-headline-3 text-text-primary">Pickup Directions</h3>
+                  <h3 className="font-headline-3 text-headline-3 text-text-primary">
+                    {selectedPickup && isReady(selectedPickup.status)
+                      ? '✓ Reservation Approved & Staged'
+                      : selectedPickup && isCancelledOrExpired(selectedPickup.status)
+                      ? '✕ Reservation Declined'
+                      : '⏳ Reservation Pending Staff Review'}
+                  </h3>
                   <span className="font-caption text-caption text-primary uppercase font-semibold">
-                    Katipuneros Central Stacks
+                    {selectedPickup ? `#${selectedPickup.id.slice(0, 8).toUpperCase()}` : ''} • Katipuneros Central Stacks
                   </span>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-space-sm font-small text-small text-text-secondary">
-                <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
-                  <span className="font-medium text-text-primary">1. Proceed to Circulation Bay 01</span>
-                  <span>
-                    Located immediately to the left of the main rotunda entrance. Present your Patron ID or scan your app barcode.
-                  </span>
+              {selectedPickup && isCancelledOrExpired(selectedPickup.status) ? (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-950 space-y-2 text-small">
+                  <p className="font-bold text-rose-900">This reservation was declined by library staff.</p>
+                  <p className="text-text-secondary text-xs leading-relaxed">
+                    The requested physical volume could not be staged (e.g., physical copy damaged, undergoing preservation, or account borrowing quota limit reached). Please visit the circulation desk for alternative editions.
+                  </p>
                 </div>
-                <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
-                  <span className="font-medium text-text-primary">
-                    2. Staged at {selectedPickup?.lockerBay ? `Counter Bay ${selectedPickup.lockerBay}` : 'Bay A-04'}
-                  </span>
-                  <span>
-                    The circulation desk officer will verify your account and release the physical volume. Please inspect condition before departing.
-                  </span>
+              ) : selectedPickup && isPending(selectedPickup.status) ? (
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 space-y-2 text-small">
+                  <p className="font-bold text-amber-900">Your reservation request is awaiting cashier desk sign-off.</p>
+                  <p className="text-text-secondary text-xs leading-relaxed">
+                    Current Queue Position: <strong>#{selectedPickup.queuePosition || 1}</strong>. Once approved by library staff, you will receive your staging counter bay code and pickup PIN here.
+                  </p>
                 </div>
-                <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
-                  <span className="font-medium text-text-primary">3. Return Window: 14 Days</span>
-                  <span>
-                    Your loan period commences once handover is registered. You can renew items online via your Borrowings ledger.
-                  </span>
+              ) : (
+                <div className="flex flex-col gap-space-sm font-small text-small text-text-secondary">
+                  <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
+                    <span className="font-medium text-text-primary">1. Proceed to Circulation Bay</span>
+                    <span>
+                      Staged Counter Bay: <strong className="font-mono text-emerald-950 bg-emerald-100 px-2 py-0.5 rounded">{selectedPickup?.lockerBay ? `Counter Bay ${selectedPickup.lockerBay}` : 'Bay 01 Counter'}</strong>
+                    </span>
+                  </div>
+                  {selectedPickup?.lockerPin && (
+                    <div className="p-space-md rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col gap-1">
+                      <span className="font-medium text-emerald-950">2. Staging Pickup PIN</span>
+                      <span className="text-xl font-mono font-bold text-emerald-900 tracking-wider">
+                        {selectedPickup.lockerPin}
+                      </span>
+                      <span className="text-xs text-emerald-700">Present this 4-digit PIN or your student barcode to the desk cashier.</span>
+                    </div>
+                  )}
+                  <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
+                    <span className="font-medium text-text-primary">3. Retention &amp; Return Window</span>
+                    <span>
+                      48-hour pickup window. 14 days loan period commences upon desk handover.
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex justify-end pt-space-xs">
                 <button

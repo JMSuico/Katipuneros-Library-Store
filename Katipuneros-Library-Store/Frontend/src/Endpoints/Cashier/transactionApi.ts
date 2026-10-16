@@ -13,6 +13,8 @@ export interface CashierCheckoutRequest {
 
 export interface ReturnBookRequest {
   barcode: string;
+  bookCopyId?: string;
+  condition?: string;
   conditionNotes?: string;
   damageFee?: number;
 }

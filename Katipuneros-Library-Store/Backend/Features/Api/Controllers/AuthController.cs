@@ -47,7 +47,10 @@ public class AuthController : ControllerBase
                     EmploymentStatus = user.EmploymentStatus,
                     CurrentAddress = user.CurrentAddress,
                     PermanentAddress = user.PermanentAddress,
-                    ProfilePictureUrl = user.ProfilePictureUrl
+                    ProfilePictureUrl = user.ProfilePictureUrl,
+                    PhoneNumber = user.PhoneNumber,
+                    Age = int.TryParse(user.Age, out var ageVal) ? (int?)ageVal : null,
+                    Status = user.IsActive ? "Approved" : "Pending"
                 }, "Login successful.")),
                 (_, _, var error) => Unauthorized(ApiResponse<object>.Fail(error ?? "Authentication failed."))
             };
@@ -76,7 +79,10 @@ public class AuthController : ControllerBase
                     EmploymentStatus = user.EmploymentStatus,
                     CurrentAddress = user.CurrentAddress,
                     PermanentAddress = user.PermanentAddress,
-                    ProfilePictureUrl = user.ProfilePictureUrl
+                    ProfilePictureUrl = user.ProfilePictureUrl,
+                    PhoneNumber = user.PhoneNumber,
+                    Age = int.TryParse(user.Age, out var regAge) ? (int?)regAge : null,
+                    Status = user.IsActive ? "Approved" : "Pending"
                 }, "Patron account registered successfully.")),
                 (_, _, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Registration failed."))
             };
@@ -90,6 +96,7 @@ public class AuthController : ControllerBase
                 ? Ok(ApiResponse<object>.Ok(new
                 {
                     profile.Id,
+                    UserId = profile.Id,
                     profile.FullName,
                     profile.FirstName,
                     profile.MiddleName,
@@ -104,6 +111,8 @@ public class AuthController : ControllerBase
                     profile.PermanentAddress,
                     profile.ProfilePictureUrl,
                     profile.PhoneNumber,
+                    Age = int.TryParse(profile.Age, out var a) ? (int?)a : null,
+                    Status = profile.IsActive ? "Approved" : "Pending",
                     profile.IsActive,
                     profile.CreatedAt,
                     profile.LastLoginAt
@@ -126,11 +135,11 @@ public class AuthController : ControllerBase
     [HttpPost("profile-picture")]
     [Authorize]
     public async Task<IActionResult> UpdateProfilePicture([FromBody] UpdateProfilePictureRequest request) =>
-        !ModelState.IsValid
+        !ModelState.IsValid || string.IsNullOrWhiteSpace(request.GetPictureData())
             ? BadRequest(ApiResponse<object>.Fail("Invalid picture payload."))
             : !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)
                 ? Unauthorized(ApiResponse<object>.Fail("Invalid user identity token."))
-                : await _userService.UpdateProfilePictureAsync(userId, request.PictureData) switch
+                : await _userService.UpdateProfilePictureAsync(userId, request.GetPictureData()) switch
                 {
                     (true, var url, _) => Ok(ApiResponse<object>.Ok(new { ProfilePictureUrl = url }, "Profile picture updated successfully.")),
                     (false, _, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update profile picture."))

@@ -14,7 +14,7 @@ public interface IBorrowService
 {
     Task<(bool Success, List<BorrowTransaction> Transactions, string? Error)> CheckoutAsync(Guid patronId, List<string> bookBarcodes, DateTime dueDate, Guid? cashierId);
     Task<(bool Success, BorrowTransaction? Transaction, string? Error)> RenewLoanAsync(Guid loanId, Guid patronId);
-    Task<(bool Success, BorrowTransaction? Transaction, decimal AssessedFine, string? Error)> ReturnBookAsync(string barcode, string? condition, decimal? damageFee, Guid? cashierId);
+    Task<(bool Success, BorrowTransaction? Transaction, decimal AssessedFine, string? Error)> ReturnBookAsync(string barcode, string? condition, decimal? damageFee, Guid? cashierId, Guid? bookCopyId = null);
     Task<List<BorrowTransaction>> GetPatronActiveLoansAsync(Guid patronId);
     Task<List<BorrowTransaction>> GetPatronLoanHistoryAsync(Guid patronId);
     Task<List<BorrowTransaction>> GetAuditLedgerAsync(TransactionStatus? status = null);

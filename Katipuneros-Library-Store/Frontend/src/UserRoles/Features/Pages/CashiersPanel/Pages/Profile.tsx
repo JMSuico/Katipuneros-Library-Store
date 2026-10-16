@@ -26,6 +26,12 @@ export const CashierProfile: React.FC = () => {
   // Edit Profile Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+  const [editFirstName, setEditFirstName] = useState<string>('');
+  const [editMiddleName, setEditMiddleName] = useState<string>('');
+  const [editLastName, setEditLastName] = useState<string>('');
+  const [editUsername, setEditUsername] = useState<string>('');
+  const [editEmail, setEditEmail] = useState<string>('');
+  const [editAge, setEditAge] = useState<string>('');
   const [editFullName, setEditFullName] = useState<string>('');
   const [editPhone, setEditPhone] = useState<string>('');
   const [editDepartment, setEditDepartment] = useState<string>('');
@@ -86,6 +92,12 @@ export const CashierProfile: React.FC = () => {
 
   const openEditModal = () => {
     if (currentUser) {
+      setEditFirstName(currentUser.firstName || '');
+      setEditMiddleName(currentUser.middleName || '');
+      setEditLastName(currentUser.lastName || '');
+      setEditUsername(currentUser.username || '');
+      setEditEmail(currentUser.email || '');
+      setEditAge(currentUser.age ? String(currentUser.age) : '');
       setEditFullName(currentUser.fullName || '');
       setEditPhone(currentUser.phoneNumber || '');
       setEditDepartment(currentUser.department || '');
@@ -98,7 +110,8 @@ export const CashierProfile: React.FC = () => {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFullName.trim()) {
+    const computedFullName = `${editFirstName} ${editMiddleName ? editMiddleName + ' ' : ''}${editLastName}`.trim() || editFullName.trim();
+    if (!computedFullName) {
       addToast('Full name is required.', 'warning');
       return;
     }
@@ -106,12 +119,18 @@ export const CashierProfile: React.FC = () => {
     try {
       setIsSavingProfile(true);
       const res = await updateUserProfile({
-        fullName: editFullName.trim(),
+        firstName: editFirstName.trim(),
+        middleName: editMiddleName.trim() || undefined,
+        lastName: editLastName.trim(),
+        fullName: computedFullName,
+        username: editUsername.trim() || undefined,
+        email: editEmail.trim() || undefined,
         phoneNumber: editPhone.trim(),
         department: editDepartment.trim(),
         currentAddress: editCurrentAddress.trim(),
         permanentAddress: editPermanentAddress.trim(),
         employmentStatus: editEmploymentStatus.trim(),
+        age: editAge ? Number(editAge) : undefined,
       });
 
       if (res.success) {
@@ -119,12 +138,18 @@ export const CashierProfile: React.FC = () => {
           prev
             ? {
                 ...prev,
-                fullName: editFullName.trim(),
+                firstName: editFirstName.trim(),
+                middleName: editMiddleName.trim() || undefined,
+                lastName: editLastName.trim(),
+                fullName: computedFullName,
+                username: editUsername.trim() || prev.username,
+                email: editEmail.trim() || prev.email,
                 phoneNumber: editPhone.trim(),
                 department: editDepartment.trim(),
                 currentAddress: editCurrentAddress.trim(),
                 permanentAddress: editPermanentAddress.trim(),
                 employmentStatus: editEmploymentStatus.trim(),
+                age: editAge ? Number(editAge) : prev.age,
               }
             : null
         );
@@ -243,16 +268,59 @@ export const CashierProfile: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSaveProfile} className="flex flex-col gap-space-md">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md max-h-[60vh] overflow-y-auto px-1">
             <div className="flex flex-col gap-1">
-              <label className="font-caption text-caption font-semibold text-text-secondary">Full Name *</label>
+              <label className="font-caption text-caption font-semibold text-text-secondary">First Name *</label>
               <input
                 type="text"
                 required
-                value={editFullName}
-                onChange={(e) => setEditFullName(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Enter operator full name"
+                value={editFirstName}
+                onChange={(e) => setEditFirstName(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="First name"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Middle Name</label>
+              <input
+                type="text"
+                value={editMiddleName}
+                onChange={(e) => setEditMiddleName(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="Middle name"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Last Name *</label>
+              <input
+                type="text"
+                required
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="Last name"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Username *</label>
+              <input
+                type="text"
+                required
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="Username"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Email Address *</label>
+              <input
+                type="email"
+                required
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="operator@university.edu"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -261,18 +329,18 @@ export const CashierProfile: React.FC = () => {
                 type="text"
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
                 placeholder="+63 9XX XXX XXXX"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="font-caption text-caption font-semibold text-text-secondary">Department / Unit</label>
+              <label className="font-caption text-caption font-semibold text-text-secondary">Age</label>
               <input
-                type="text"
-                value={editDepartment}
-                onChange={(e) => setEditDepartment(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Circulation & Stacks Desk 01"
+                type="number"
+                value={editAge}
+                onChange={(e) => setEditAge(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="25"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -281,8 +349,18 @@ export const CashierProfile: React.FC = () => {
                 type="text"
                 value={editEmploymentStatus}
                 onChange={(e) => setEditEmploymentStatus(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
                 placeholder="Staff / Faculty / Librarian"
+              />
+            </div>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Department / Unit</label>
+              <input
+                type="text"
+                value={editDepartment}
+                onChange={(e) => setEditDepartment(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="Circulation & Stacks Desk 01"
               />
             </div>
             <div className="flex flex-col gap-1 sm:col-span-2">
@@ -291,8 +369,18 @@ export const CashierProfile: React.FC = () => {
                 type="text"
                 value={editCurrentAddress}
                 onChange={(e) => setEditCurrentAddress(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
                 placeholder="Katipunan Campus Main Stacks Room 102"
+              />
+            </div>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <label className="font-caption text-caption font-semibold text-text-secondary">Permanent Residential Address</label>
+              <input
+                type="text"
+                value={editPermanentAddress}
+                onChange={(e) => setEditPermanentAddress(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary border border-outline-variant/20"
+                placeholder="123 Katipunan Ave, Quezon City"
               />
             </div>
           </div>

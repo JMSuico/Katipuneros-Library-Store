@@ -48,7 +48,6 @@ public class Book
     [MaxLength(100)]
     public string? IsbnBarcode { get; set; }
 
-    [MaxLength(500)]
     public string? CoverImage { get; set; }
 
     [MaxLength(2000)]
@@ -59,6 +58,7 @@ public class Book
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
+    public ICollection<BookCopy> Copies { get; set; } = new List<BookCopy>();
     public ICollection<BorrowTransaction> BorrowTransactions { get; set; } = new List<BorrowTransaction>();
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 }

@@ -38,6 +38,8 @@ public class CreateBookRequest
     public string? Description { get; set; }
 
     public string? RfidTag { get; set; }
+
+    public string? CoverImage { get; set; }
 }
 
 public class UpdateBookRequest
@@ -71,6 +73,8 @@ public class UpdateBookRequest
     public string? Description { get; set; }
 
     public string? RfidTag { get; set; }
+
+    public string? CoverImage { get; set; }
 }
 
 public class BulkDeleteBooksRequest

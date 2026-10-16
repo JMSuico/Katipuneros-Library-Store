@@ -64,7 +64,12 @@ export const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
   const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith('/api/')
+    ? path.slice(4)
+    : path.startsWith('/')
+      ? path
+      : `/${path}`;
+  const url = `${baseUrl}${normalizedPath}`;
   const token = getAuthToken();
 
   const headers: Record<string, string> = {

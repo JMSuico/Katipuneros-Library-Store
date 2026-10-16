@@ -2,10 +2,53 @@
 // About.tsx -- Public About Us and Institutional Archive Heritage page.
 // Showcases university library history, academic stacks architecture, circulation charters,
 // leadership curators, and zero-hardware accessioning standards.
-import React, { FC } from 'react';
+import React, { FC, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { apiRequest } from '../../../../Endpoints/apiClient';
+
+interface PersonnelItem {
+  id: string;
+  fullName: string;
+  position: string;
+  department?: string;
+  imageUrl?: string;
+}
+
+const DEFAULT_CURATORS = [
+  {
+    fullName: 'Prof. Elena Santos, MLIS',
+    position: 'Chief University Archivist',
+    department: 'Directs archival preservation, rare manuscript accessioning, and academic syllabus acquisitions.',
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
+  },
+  {
+    fullName: 'Markus Villanueva, RL',
+    position: 'Circulation Desk Supervisor',
+    department: 'Supervises counter rapid checkout, return condition grading, Bay staging, and patron loan extensions.',
+    imageUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
+  },
+  {
+    fullName: 'Danielle Reyes, BSIT',
+    position: 'Digital Catalog Systems Lead',
+    department: 'Oversees OPAC search optimization, SHA-256 blockchain verification, and virtual card issuance.',
+    imageUrl: 'https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&q=80&w=300',
+  },
+];
 
 export const About: FC = () => {
+  const [personnel, setPersonnel] = useState<PersonnelItem[]>([]);
+
+  useEffect(() => {
+    apiRequest<PersonnelItem[]>('/personnel')
+      .then((res) => {
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setPersonnel(res.data);
+        }
+      })
+      .catch(() => {
+        // Fallback to defaults
+      });
+  }, []);
   return (
     <div className="w-full pt-24 pb-20 px-gutter bg-gradient-to-b from-surface-container-low/60 via-background to-background">
       <div className="max-w-7xl mx-auto flex flex-col gap-space-3xl">
@@ -194,50 +237,28 @@ export const About: FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-lg">
-            <div className="p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm border border-outline-variant/20 flex flex-col items-center text-center">
-              <div className="w-24 h-24 rounded-full overflow-hidden mb-space-md border-2 border-primary/20 shadow-md">
-                <img
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300"
-                  alt="Prof. Elena Santos"
-                  className="w-full h-full object-cover"
-                />
+            {(personnel.length > 0 ? personnel : DEFAULT_CURATORS).map((item, idx) => (
+              <div
+                key={idx}
+                className="p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm border border-outline-variant/20 flex flex-col items-center text-center"
+              >
+                <div className="w-24 h-24 rounded-full overflow-hidden mb-space-md border-2 border-primary/20 shadow-md">
+                  <img
+                    src={
+                      item.imageUrl ||
+                      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300'
+                    }
+                    alt={item.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <h4 className="font-headline-4 text-headline-4 font-bold text-text-primary">{item.fullName}</h4>
+                <span className="font-caption text-caption text-primary font-semibold">{item.position}</span>
+                <p className="font-small text-small text-text-secondary mt-2">
+                  {item.department || 'Library Curatorial Board and Academic Informatics Staff.'}
+                </p>
               </div>
-              <h4 className="font-headline-4 text-headline-4 font-bold text-text-primary">Prof. Elena Santos, MLIS</h4>
-              <span className="font-caption text-caption text-primary font-semibold">Chief University Archivist</span>
-              <p className="font-small text-small text-text-secondary mt-2">
-                Directs archival preservation, rare manuscript accessioning, and academic syllabus acquisitions.
-              </p>
-            </div>
-
-            <div className="p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm border border-outline-variant/20 flex flex-col items-center text-center">
-              <div className="w-24 h-24 rounded-full overflow-hidden mb-space-md border-2 border-primary/20 shadow-md">
-                <img
-                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300"
-                  alt="Markus Villanueva"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h4 className="font-headline-4 text-headline-4 font-bold text-text-primary">Markus Villanueva, RL</h4>
-              <span className="font-caption text-caption text-primary font-semibold">Circulation Desk Supervisor</span>
-              <p className="font-small text-small text-text-secondary mt-2">
-                Supervises counter rapid checkout, return condition grading, Bay staging, and patron loan extensions.
-              </p>
-            </div>
-
-            <div className="p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm border border-outline-variant/20 flex flex-col items-center text-center">
-              <div className="w-24 h-24 rounded-full overflow-hidden mb-space-md border-2 border-primary/20 shadow-md">
-                <img
-                  src="https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&q=80&w=300"
-                  alt="Danielle Reyes"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h4 className="font-headline-4 text-headline-4 font-bold text-text-primary">Danielle Reyes, BSIT</h4>
-              <span className="font-caption text-caption text-primary font-semibold">Digital Catalog Systems Lead</span>
-              <p className="font-small text-small text-text-secondary mt-2">
-                Oversees OPAC search optimization, SHA-256 blockchain verification, and virtual card issuance.
-              </p>
-            </div>
+            ))}
           </div>
         </section>
 

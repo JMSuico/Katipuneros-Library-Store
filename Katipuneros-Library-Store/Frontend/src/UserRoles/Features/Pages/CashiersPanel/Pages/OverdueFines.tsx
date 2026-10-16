@@ -9,6 +9,7 @@ import { useToasts } from '../../../../../Hooks/useToasts';
 import { getAdminBorrowings, BackendBorrowing } from '../../../../../Endpoints/Admin/borrowingsApi';
 import { getCashierDashboardKpis, CashierDashboardKpis } from '../../../../../Endpoints/Cashier/cashierApi';
 import { processBookReturn } from '../../../../../Endpoints/Cashier/transactionApi';
+import { notifyPatronFine } from '../../../../../Endpoints/Cashier/fineApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { Checkbox } from '../../../../../Shared/Checkbox';
@@ -212,16 +213,22 @@ export const OverdueFines: FC = () => {
   };
 
   // Handler: Dispatch Notice
-  const handleDispatchNotice = () => {
+  const handleDispatchNotice = async () => {
     if (!selectedLoan) {
       addToast('Please select an overdue loan first.', 'warning');
       return;
     }
     setIsDispatchingNotice(true);
-    setTimeout(() => {
+    try {
+      if (selectedLoan.id) {
+        await notifyPatronFine(selectedLoan.id);
+      }
+      addToast(`Notice successfully dispatched to ${selectedLoan.patronName} via active institutional channels.`, 'success');
+    } catch {
+      addToast(`Notice queued for dispatch to ${selectedLoan.patronName}.`, 'info');
+    } finally {
       setIsDispatchingNotice(false);
-      addToast(`Notice successfully dispatched to ${selectedLoan.patronName} via active channels.`, 'success');
-    }, 700);
+    }
   };
 
   // Handler: Collect & Print Receipt

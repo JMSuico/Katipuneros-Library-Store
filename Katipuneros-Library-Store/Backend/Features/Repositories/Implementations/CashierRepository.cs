@@ -88,6 +88,7 @@ public class CashierRepository : ICashierRepository
             .Include(t => t.Patron)
             .Include(t => t.Book)
             .Include(t => t.Cashier)
+            .Include(t => t.FineTransactions)
             .AsQueryable();
 
         if (date.HasValue)

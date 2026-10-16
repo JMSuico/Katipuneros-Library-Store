@@ -49,6 +49,7 @@ export interface UserItem {
   libraryCardNumber: string;
   department: string;
   joinedDate: string;
+  createdAt?: string;
   lastLogin: string;
   loans: string;
   holds: string;
@@ -187,38 +188,43 @@ const UserManagement: FC = () => {
     setIsLoading(true);
     try {
       const records = await getAdminUsersList();
-      if (records && records.length > 0) {
-        const mapped: UserItem[] = records.map((r) => ({
-          id: r.id,
-          name: r.fullName || r.name,
-          fullName: r.fullName || r.name,
-          firstName: r.firstName,
-          middleName: r.middleName,
-          surname: r.lastName,
-          age: r.age,
-          address: r.currentAddress,
-          phone: r.phoneNumber,
-          username: r.username,
-          email: r.email,
-          role: r.role,
-          roleDetail: r.role === 'Admin' ? 'System Administrator' : r.role === 'Cashier' ? 'Circulation Cashier' : 'Academic User',
-          status: r.status,
-          isActive: r.isActive,
-          isProtected: r.isProtected ?? false,
-          libraryCardNumber: r.libraryCardNumber || `#KP-${r.id.slice(0, 5)}`,
-          department: r.department || 'General',
-          joinedDate: r.joinedDate,
-          lastLogin: 'Active session',
-          loans: '0/4',
-          holds: '0',
-          fines: '₱0.00 clear',
-          initials: (r.fullName || r.name)
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
-        }));
+      if (records && Array.isArray(records) && records.length > 0) {
+        const mapped: UserItem[] = records.map((r) => {
+          const rawName = (r.fullName || r.name || `${r.firstName || ''} ${r.lastName || r.surname || ''}`.trim() || r.username || 'Institutional User').trim();
+          const nameTokens = rawName.split(/\s+/).filter(Boolean);
+          const computedInitials = nameTokens.length > 0
+            ? nameTokens.map((n) => n[0] || '').join('').slice(0, 2).toUpperCase()
+            : 'U';
+
+          return {
+            id: r.id || '',
+            name: rawName,
+            fullName: rawName,
+            firstName: r.firstName || '',
+            middleName: r.middleName || '',
+            surname: r.lastName || r.surname || '',
+            age: r.age || '',
+            address: r.currentAddress || r.address || '',
+            phone: r.phoneNumber || r.phone || '',
+            username: r.username || '',
+            email: r.email || '',
+            avatarUrl: r.profilePictureUrl || r.avatarUrl || '',
+            role: (r.role === 'Admin' || r.role === 'Cashier' ? r.role : 'Customer') as 'Admin' | 'Cashier' | 'Customer',
+            roleDetail: r.role === 'Admin' ? 'System Administrator' : r.role === 'Cashier' ? 'Circulation Cashier' : 'Academic User',
+            status: (r.status || (r.isActive ? 'active' : 'suspended')) as 'active' | 'suspended' | 'pending',
+            isActive: Boolean(r.isActive),
+            isProtected: Boolean(r.isProtected),
+            libraryCardNumber: r.libraryCardNumber || `#KP-${(r.id || '00000').slice(0, 5)}`,
+            department: r.department || 'General Academic',
+            joinedDate: r.joinedDate || new Date().toISOString().slice(0, 10),
+            createdAt: r.createdAt || r.joinedDate || new Date().toISOString(),
+            lastLogin: 'Active session',
+            loans: '0/4',
+            holds: '0',
+            fines: '₱0.00 clear',
+            initials: computedInitials,
+          };
+        });
         setPatrons(mapped);
       } else {
         // Real-time empty state: database has no users, leave empty!
@@ -367,15 +373,16 @@ const UserManagement: FC = () => {
     let result = [...users];
 
     // 1. Search filter
-    if (debouncedSearch.trim()) {
+    if (debouncedSearch && debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase().trim();
       result = result.filter(
         (p) =>
-          p.fullName.toLowerCase().includes(q) ||
-          p.email.toLowerCase().includes(q) ||
-          p.libraryCardNumber.toLowerCase().includes(q) ||
-          p.department.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q)
+          (p.fullName || '').toLowerCase().includes(q) ||
+          (p.email || '').toLowerCase().includes(q) ||
+          (p.libraryCardNumber || '').toLowerCase().includes(q) ||
+          (p.department || '').toLowerCase().includes(q) ||
+          (p.username || '').toLowerCase().includes(q) ||
+          (p.id || '').toLowerCase().includes(q)
       );
     }
 
@@ -386,11 +393,11 @@ const UserManagement: FC = () => {
 
     // 3. Account State filter
     if (accountState === 'Active') {
-      result = result.filter((p) => p.status === 'active');
+      result = result.filter((p) => p.status === 'active' || p.isActive === true);
     } else if (accountState === 'Inactive') {
       result = result.filter((p) => p.status === 'pending');
     } else if (accountState === 'Suspended') {
-      result = result.filter((p) => p.status === 'suspended');
+      result = result.filter((p) => p.status === 'suspended' || p.isActive === false);
     }
 
     // 4. Sorting
@@ -398,20 +405,26 @@ const UserManagement: FC = () => {
       let valA = '';
       let valB = '';
       if (sortColumn === 'name') {
-        valA = a.fullName.toLowerCase();
-        valB = b.fullName.toLowerCase();
+        valA = (a.fullName || '').toLowerCase();
+        valB = (b.fullName || '').toLowerCase();
       } else if (sortColumn === 'id') {
-        valA = a.libraryCardNumber.toLowerCase();
-        valB = b.libraryCardNumber.toLowerCase();
+        valA = (a.libraryCardNumber || '').toLowerCase();
+        valB = (b.libraryCardNumber || '').toLowerCase();
       } else if (sortColumn === 'role') {
-        valA = a.role.toLowerCase();
-        valB = b.role.toLowerCase();
+        valA = (a.role || '').toLowerCase();
+        valB = (b.role || '').toLowerCase();
       } else if (sortColumn === 'status') {
-        valA = a.status.toLowerCase();
-        valB = b.status.toLowerCase();
+        valA = (a.status || '').toLowerCase();
+        valB = (b.status || '').toLowerCase();
       } else if (sortColumn === 'date') {
-        valA = a.joinedDate;
-        valB = b.joinedDate;
+        const timeA = new Date(a.createdAt || a.joinedDate || 0).getTime();
+        const timeB = new Date(b.createdAt || b.joinedDate || 0).getTime();
+        if (timeA !== timeB) {
+          return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+        }
+        valA = (a.fullName || '').toLowerCase();
+        valB = (b.fullName || '').toLowerCase();
+        return valA.localeCompare(valB);
       }
       const comparison = valA.localeCompare(valB);
       return sortDirection === 'asc' ? comparison : -comparison;
@@ -586,6 +599,7 @@ const UserManagement: FC = () => {
         age: formAge.trim() || undefined,
         currentAddress: formAddress.trim() || undefined,
         phoneNumber: formPhone.trim() || undefined,
+        profilePictureUrl: formAvatarUrl.trim() || undefined,
       });
 
       if (!res || !res.success) {
@@ -594,6 +608,20 @@ const UserManagement: FC = () => {
       }
 
       setIsAddModalOpen(false);
+
+      // Auto-reset filters so the created user is immediately visible at the top:
+      setRoleScope('All');
+      setAccountState('All');
+      setRawSearch('');
+      setSortColumn('date');
+      setSortDirection('desc');
+      setActiveSortKey('date-desc');
+      goToPage(1);
+
+      addToast(
+        `User account created successfully: ${formFirstName.trim()} ${formSurname.trim()} (${formRole})`,
+        'success'
+      );
       await loadUsers();
     } catch (err: any) {
       console.error('Failed to create user:', err);
@@ -629,11 +657,13 @@ const UserManagement: FC = () => {
         middleName: formMiddleName.trim() || undefined,
         lastName: formSurname.trim(),
         username: formUsername.trim(),
+        email: formEmail.trim(),
         department: formDepartment.trim() || undefined,
         libraryCardNumber: formCardNumber.trim(),
         age: formAge.trim() || undefined,
         currentAddress: formAddress.trim() || undefined,
         phoneNumber: formPhone.trim() || undefined,
+        profilePictureUrl: formAvatarUrl.trim() || undefined,
         role: roleNum,
         isActive: formIsActive,
       };
@@ -648,6 +678,10 @@ const UserManagement: FC = () => {
       }
 
       setIsEditModalOpen(false);
+      addToast(
+        `User account for ${formFirstName.trim()} ${formSurname.trim()} updated successfully.`,
+        'success'
+      );
       await loadUsers();
     } catch (err: any) {
       console.error('Failed to update user:', err);
@@ -1192,7 +1226,17 @@ const UserManagement: FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/10">
-                  {paginatedItems.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={8} className="py-16 text-center text-text-secondary">
+                        <div className="flex flex-col items-center justify-center gap-3">
+                          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="font-small text-small font-semibold text-text-primary">Loading user accounts from database...</span>
+                          <span className="font-caption text-caption text-text-secondary">Retrieving institutional directory and credential clearances</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : paginatedItems.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-text-secondary">
                         <span className="material-symbols-outlined text-4xl mb-2 text-text-secondary/60">person_search</span>
@@ -1495,7 +1539,15 @@ const UserManagement: FC = () => {
           /* Card Grid View */
           <div className="flex flex-col gap-space-md">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-space-md">
-              {paginatedItems.length === 0 ? (
+              {isLoading ? (
+                <div className="col-span-full py-16 text-center text-text-secondary bg-surface-container-lowest rounded-xl">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="font-small text-small font-semibold text-text-primary">Loading user accounts from database...</span>
+                    <span className="font-caption text-caption text-text-secondary">Retrieving institutional directory and credential clearances</span>
+                  </div>
+                </div>
+              ) : paginatedItems.length === 0 ? (
                 <div className="col-span-full py-12 text-center text-text-secondary bg-surface-container-lowest rounded-xl">
                   <span className="material-symbols-outlined text-4xl mb-2 text-text-secondary/60">person_search</span>
                   <p className="font-small text-small font-semibold">No users match the selected criteria.</p>
