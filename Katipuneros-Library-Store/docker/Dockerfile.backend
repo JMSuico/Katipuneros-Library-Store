@@ -1,0 +1,30 @@
+# Stage 1: Build .NET 10 Web API
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+WORKDIR /src
+
+COPY Backend/Backend.csproj Backend/
+RUN dotnet restore Backend/Backend.csproj
+
+COPY Backend/ Backend/
+WORKDIR /src/Backend
+RUN dotnet publish Backend.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 2: Lean Production Runtime Image
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
+WORKDIR /app
+
+# Non-root user for security
+RUN addgroup -S katipuneros && adduser -S katipuneros -G katipuneros
+USER katipuneros
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:5000
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:5000/api/health || exit 1
+
+ENTRYPOINT ["dotnet", "Backend.dll"]

@@ -22,11 +22,51 @@ var builder = WebApplication.CreateBuilder(args);
 // ==========================================
 // 1. Database & Cache Infrastructure
 // ==========================================
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+var primaryConn = builder.Configuration.GetConnectionString("PrimaryConnection")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=localhost;Database=KatipunerosLibraryDb;User Id=InventoryLibrary;Password=InventoryLibrary;TrustServerCertificate=True;MultipleActiveResultSets=true;";
 
+var replicaConn = builder.Configuration.GetConnectionString("ReplicaConnection")
+    ?? primaryConn;
+
+bool isPostgres = primaryConn.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
+                  primaryConn.Contains("Port=", StringComparison.OrdinalIgnoreCase);
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+{
+    if (isPostgres)
+    {
+        options.UseNpgsql(primaryConn);
+    }
+    else
+    {
+        options.UseSqlServer(primaryConn);
+    }
+});
+
+builder.Services.AddDbContext<ReadOnlyAppDbContext>(options =>
+{
+    if (isPostgres)
+    {
+        options.UseNpgsql(replicaConn);
+    }
+    else
+    {
+        options.UseSqlServer(replicaConn);
+    }
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
+
+// Redis Distributed Cache registration
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "Katipuneros_";
+    });
+}
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICacheService, CacheService>();
@@ -70,6 +110,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ICashierService, CashierService>();
+builder.Services.AddSingleton<IEmailService, EmailService>();
 
 // ==========================================
 // 4. JWT Authentication & Authorization
@@ -120,7 +161,7 @@ builder.Services.AddCors(options =>
             {
                 var uri = new Uri(origin);
                 return (uri.Host is "localhost" or "127.0.0.1" or "::1") ||
-                       (uri.Port is 5173 or 5174 or 5000);
+                       (uri.Port is 5173 or 5174 or 5175 or 5000);
             }
             catch
             {
@@ -382,6 +423,7 @@ if (args.Length >= 1 && args[0].Equals("deleteallcliusers", StringComparison.Ord
 if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.OrdinalIgnoreCase) || 
                          args[0].Equals("createsuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("createcustomsuperadmin", StringComparison.OrdinalIgnoreCase) ||
+                         args[0].Equals("createcashiersuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("createcustomersuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("adduser", StringComparison.OrdinalIgnoreCase)))
 {
@@ -411,6 +453,13 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
         lastName = args.Length >= 6 ? args[5] : "Admin";
         department = args.Length >= 7 ? args[6] : "System Administration";
         role = Backend.Features.Data.Enums.UserRole.Admin;
+    }
+    else if (cmd == "createcashiersuperuseradmin")
+    {
+        firstName = args.Length >= 5 ? args[4] : "Cashier";
+        lastName = args.Length >= 6 ? args[5] : "Officer";
+        department = args.Length >= 7 ? args[6] : "Library Circulation Desk";
+        role = Backend.Features.Data.Enums.UserRole.Cashier;
     }
     else if (cmd == "createcustomersuperuseradmin")
     {
