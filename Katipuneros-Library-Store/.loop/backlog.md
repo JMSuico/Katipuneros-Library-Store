@@ -1,7 +1,5 @@
-- [x] crud-books | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_books.ps1
-- [x] crud-categories | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_categories.ps1
-- [x] crud-users | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_users.ps1
-- [x] crud-reservations | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_reservations.ps1
-- [x] crud-borrowings | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_borrowings.ps1
-- [x] crud-inquiries | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_crud_inquiries.ps1
-- [x] crud-all-frontend-endpoints | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_all_frontend_to_backend_endpoints.ps1
+# Backlog
+- [x] CRIT-01: Smoke & Infrastructure Health | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_stream1_smoke_health.ps1
+- [x] CRIT-02: Authentication, Security & RBAC Escalation Prevention | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_stream2_security_rbac.ps1
+- [x] CRIT-03: Full Entity CRUD, DB Constraints & Transaction Integrity | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_stream3_crud_transactions.ps1
+- [x] CRIT-04: Dual Static Build Gates (Frontend & Backend) | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_stream4_build_gates.ps1

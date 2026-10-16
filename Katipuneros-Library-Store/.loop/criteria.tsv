@@ -1,6 +1,4 @@
-CRIT-01	crud-books	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_books.ps1
-CRIT-02	crud-categories	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_categories.ps1
-CRIT-03	crud-users	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_users.ps1
-CRIT-04	crud-reservations	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_reservations.ps1
-CRIT-05	crud-borrowings	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_borrowings.ps1
-CRIT-06	crud-inquiries	powershell -ExecutionPolicy Bypass -File scratch/verify_crud_inquiries.ps1
+CRIT-01	stream1-smoke-health	powershell -ExecutionPolicy Bypass -File scratch/verify_stream1_smoke_health.ps1
+CRIT-02	stream2-security-rbac	powershell -ExecutionPolicy Bypass -File scratch/verify_stream2_security_rbac.ps1
+CRIT-03	stream3-crud-transactions	powershell -ExecutionPolicy Bypass -File scratch/verify_stream3_crud_transactions.ps1
+CRIT-04	stream4-build-gates	powershell -ExecutionPolicy Bypass -File scratch/verify_stream4_build_gates.ps1
