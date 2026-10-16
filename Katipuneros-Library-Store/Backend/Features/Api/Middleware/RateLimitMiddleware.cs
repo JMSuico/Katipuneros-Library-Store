@@ -1,6 +1,6 @@
 // [Layer: Features/Api/Middleware]
-// RateLimitMiddleware.cs -- In-memory sliding window rate limiter per client IP.
-// Protects public-facing endpoints against brute-force and request flooding.
+// RateLimitMiddleware.cs -- Granular sliding window rate limiter per client IP.
+// Protects authentication, reservations, contact desk, and exports against brute-force, scraping, and flooding.
 // DO NOT put business validation logic or database calls here.
 
 using System;
@@ -17,8 +17,13 @@ namespace Backend.Features.Api.Middleware
     {
         private readonly RequestDelegate _next;
         private static readonly ConcurrentDictionary<string, ClientRequestHistory> _clients = new();
-        private const int MaxRequestsPerMinute = 60;
+
+        // Standard production limits (requests per 60-second window)
+        private const int MaxGeneralRequestsPerMinute = 60;
         private const int MaxAuthRequestsPerMinute = 15;
+        private const int MaxContactRequestsPerMinute = 5;
+        private const int MaxReservationRequestsPerMinute = 20;
+        private const int MaxExportRequestsPerMinute = 10;
 
         private class ClientRequestHistory
         {
@@ -26,23 +31,37 @@ namespace Backend.Features.Api.Middleware
             public DateTime WindowStart;
         }
 
-        public RateLimitMiddleware(RequestDelegate next)
-        {
+        public RateLimitMiddleware(RequestDelegate next) =>
             _next = next;
-        }
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
-            var isLoopback = IPAddress.IsLoopback(context.Connection.RemoteIpAddress ?? IPAddress.Loopback) || ip == "unknown";
+            // Never rate-limit CORS preflight OPTIONS requests
+            if (HttpMethods.IsOptions(context.Request.Method))
+            {
+                await _next(context);
+                return;
+            }
 
-            // Stricter rate limits on authentication and public contact form
-            var isSensitiveEndpoint = path.Contains("/api/auth/") || path.Contains("/api/contact");
-            var baseAuthLimit = isLoopback ? 120 : MaxAuthRequestsPerMinute;
-            var baseReqLimit = isLoopback ? 600 : MaxRequestsPerMinute;
-            var limit = isSensitiveEndpoint ? baseAuthLimit : baseReqLimit;
-            var clientKey = $"{ip}:{isSensitiveEndpoint}";
+            var remoteIp = context.Connection.RemoteIpAddress;
+            var ip = remoteIp?.ToString() ?? "unknown";
+            var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+            var host = context.Request.Host.Host;
+
+            // Map IPv4-mapped IPv6 (::ffff:127.0.0.1) back to IPv4 for proper loopback detection
+            var effectiveIp = remoteIp != null && remoteIp.IsIPv4MappedToIPv6 ? remoteIp.MapToIPv4() : remoteIp;
+            var isLoopback = (effectiveIp != null && IPAddress.IsLoopback(effectiveIp)) ||
+                             ip == "unknown" ||
+                             ip == "127.0.0.1" ||
+                             ip == "::1" ||
+                             ip.Contains("127.0.0.1") ||
+                             host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                             host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+
+            // Classify endpoint category to enforce targeted rate limiting
+            var category = GetEndpointCategory(path);
+            var limit = GetEffectiveLimit(category, isLoopback);
+            var clientKey = $"{ip}:{category}";
 
             var now = DateTime.UtcNow;
             var history = _clients.GetOrAdd(clientKey, _ => new ClientRequestHistory
@@ -51,6 +70,7 @@ namespace Backend.Features.Api.Middleware
                 WindowStart = now
             });
 
+            bool isExceeded;
             lock (history)
             {
                 if ((now - history.WindowStart).TotalSeconds > 60)
@@ -63,23 +83,52 @@ namespace Backend.Features.Api.Middleware
                     history.RequestCount++;
                 }
 
-                if (history.RequestCount > limit)
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
-                    context.Response.ContentType = "application/json";
-                    context.Response.Headers["Retry-After"] = "60";
+                int remaining = Math.Max(0, limit - history.RequestCount);
 
-                    var response = ApiResponse<object>.Fail(
-                        "Rate limit exceeded. Please wait 60 seconds before retrying.",
-                        new[] { $"Maximum allowed requests ({limit}/min) exceeded for your IP address." }
-                    );
+                // Set informative rate limit headers
+                context.Response.Headers["X-RateLimit-Limit"] = limit.ToString();
+                context.Response.Headers["X-RateLimit-Remaining"] = remaining.ToString();
 
-                    var json = JsonSerializer.Serialize(response);
-                    return;
-                }
+                isExceeded = history.RequestCount > limit;
+            }
+
+            if (isExceeded)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                context.Response.ContentType = "application/json";
+                context.Response.Headers["Retry-After"] = "60";
+
+                var response = ApiResponse<object>.Fail(
+                    $"Rate limit exceeded for {category}. Please wait 60 seconds before retrying.",
+                    new[] { $"Maximum allowed requests ({limit}/min) exceeded for your IP address on {category} endpoints." }
+                );
+
+                var json = JsonSerializer.Serialize(response);
+                await context.Response.WriteAsync(json);
+                return;
             }
 
             await _next(context);
         }
+
+        private static string GetEndpointCategory(string path) =>
+            path switch
+            {
+                var p when p.Contains("/api/auth/") => "Authentication",
+                var p when p.Contains("/api/contact") || p.Contains("/api/feedback") => "InquiryDesk",
+                var p when p.Contains("/api/reservations") || p.Contains("/api/borrowings") => "CirculationHold",
+                var p when p.Contains("/export") => "DataExport",
+                _ => "GeneralCatalog"
+            };
+
+        private static int GetEffectiveLimit(string category, bool isLoopback) =>
+            category switch
+            {
+                "Authentication" => isLoopback ? 1000 : MaxAuthRequestsPerMinute,
+                "InquiryDesk" => isLoopback ? 300 : MaxContactRequestsPerMinute,
+                "CirculationHold" => isLoopback ? 1000 : MaxReservationRequestsPerMinute,
+                "DataExport" => isLoopback ? 500 : MaxExportRequestsPerMinute,
+                _ => isLoopback ? 5000 : MaxGeneralRequestsPerMinute
+            };
     }
 }

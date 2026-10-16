@@ -10,8 +10,25 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
-export const API_BASE_URL: string =
-  (import.meta.env?.VITE_API_URL as string | undefined) ?? 'http://localhost:5000/api';
+export const getApiBaseUrl = (): string => {
+  // If explicitly configured in Vite environment, respect that configuration
+  const envUrl = (import.meta.env?.VITE_API_BASE_URL as string | undefined) ??
+                 (import.meta.env?.VITE_API_URL as string | undefined);
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // In browser runtime, synchronize with the current client hostname (localhost vs 127.0.0.1)
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol || 'http:';
+    return `${protocol}//${host}:5000/api`;
+  }
+
+  return 'http://localhost:5000/api';
+};
+
+export const API_BASE_URL: string = getApiBaseUrl();
 
 export const AUTH_TOKEN_KEY = 'katipuneros_token';
 export const USER_INFO_KEY = 'katipuneros_user';
@@ -46,7 +63,8 @@ export const apiRequest = async <T>(
   path: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
-  const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   const token = getAuthToken();
 
   const headers: Record<string, string> = {
@@ -63,6 +81,7 @@ export const apiRequest = async <T>(
     const response = await fetch(url, {
       ...options,
       headers,
+      credentials: 'include',
     });
 
     const text = await response.text();
@@ -88,8 +107,11 @@ export const apiRequest = async <T>(
       };
     }
 
-    if (!response.ok && json.success) {
+    if (!response.ok) {
       json.success = false;
+      if (response.status === 429) {
+        json.message = json.message || 'Rate limit exceeded (HTTP 429). Please wait 60 seconds before retrying.';
+      }
     }
 
     return json;
@@ -97,7 +119,7 @@ export const apiRequest = async <T>(
     const message = error instanceof Error ? error.message : 'Network connection failed';
     return {
       success: false,
-      message: 'Failed to communicate with Katipuneros Library Backend API.',
+      message: 'Unable to communicate with the Katipuneros Library server. Please verify your connection or ensure backend is running.',
       data: null as unknown as T,
       errors: [message],
     };

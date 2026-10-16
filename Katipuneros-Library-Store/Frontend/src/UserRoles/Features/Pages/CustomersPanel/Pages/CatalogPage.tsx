@@ -4,7 +4,7 @@
 // Adheres strictly to Zero Mock Data (N=0 empty state), Universal Lambda syntax (=>),
 // and reactive toast notifications via useToasts.
 import React, { FC, useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   getCatalogBooks,
   getCatalogMetrics,
@@ -22,6 +22,7 @@ import {
   getCustomerFavorites,
   toggleCustomerFavorite,
 } from '../../../../../Endpoints/Customer/favoriteApi';
+import { getAuthToken } from '../../../../../Endpoints/apiClient';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
@@ -29,7 +30,13 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400';
 const MAX_RESERVE_QUOTA = 5;
 
+const isHoldActive = (status: number | string) => {
+  const s = String(status).toLowerCase();
+  return status === 1 || status === 2 || s === 'pending' || s === 'stagedinlocker' || s === 'ready_for_pickup' || s === 'ready';
+};
+
 const CatalogPage: FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toasts, addToast, removeToast } = useToasts();
   const { containerRef: categoryChipsRef } = useTableDraggable<HTMLDivElement>();
@@ -98,7 +105,12 @@ const CatalogPage: FC = () => {
 
   // Derived Active Holds and Reserve Quota
   const activeHoldsCount = useMemo(() =>
-    reservations.filter((r) => r.status === 0 || r.status === 1).length,
+    reservations.filter((r) => isHoldActive(r.status)).length,
+    [reservations]
+  );
+
+  const isBookReservedByMe = useCallback(
+    (bookId: string) => reservations.some((r) => r.bookId === bookId && isHoldActive(r.status)),
     [reservations]
   );
 
@@ -200,6 +212,18 @@ const CatalogPage: FC = () => {
 
   // Reserve Handler
   const handleReserve = async (book: BackendBook) => {
+    const token = getAuthToken();
+    if (!token) {
+      addToast('Please sign in to place a book reservation hold.', 'warning');
+      navigate('/login');
+      return;
+    }
+
+    if (isBookReservedByMe(book.id)) {
+      addToast(`You already have an active hold on "${book.title}". View it in your Reservations ledger.`, 'info');
+      return;
+    }
+
     if (activeHoldsCount >= MAX_RESERVE_QUOTA) {
       addToast(`Hold limit reached (${MAX_RESERVE_QUOTA} max concurrent holds).`, 'warning');
       return;
@@ -664,14 +688,25 @@ const CatalogPage: FC = () => {
                             >
                               Inspect Stacks
                             </button>
-                            <button
-                              onClick={() => handleReserve(book)}
-                              disabled={isReserving}
-                              className="px-space-lg py-2.5 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-semibold transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-                              type="button"
-                            >
-                              {isReserving ? 'Reserving...' : isAvailable ? 'Reserve' : 'Join Waitlist'}
-                            </button>
+                            {isBookReservedByMe(book.id) ? (
+                              <button
+                                disabled
+                                className="px-space-lg py-2.5 rounded-xl bg-surface-container-high text-text-secondary font-body-medium text-body-medium font-semibold shadow-xs cursor-not-allowed flex items-center gap-1.5 opacity-80"
+                                type="button"
+                              >
+                                <span className="material-symbols-outlined text-base">bookmark_added</span>
+                                <span>Reserved</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleReserve(book)}
+                                disabled={isReserving}
+                                className="px-space-lg py-2.5 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-semibold transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                                type="button"
+                              >
+                                {isReserving ? 'Reserving...' : isAvailable ? 'Reserve' : 'Join Waitlist'}
+                              </button>
+                            )}
                           </div>
                         </article>
                       );
@@ -756,15 +791,26 @@ const CatalogPage: FC = () => {
 
                         {/* Action Footer */}
                         <div className="pt-space-md flex flex-col gap-space-xs mt-auto">
-                          <button
-                            onClick={() => handleReserve(book)}
-                            disabled={isReserving}
-                            className="w-full py-2.5 rounded-xl bg-action-green text-text-primary font-body-medium text-body-medium font-semibold hover:bg-action-green-hover transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                            type="button"
-                          >
-                            <span className="material-symbols-outlined text-base">bookmark_add</span>
-                            <span>{isReserving ? 'Reserving...' : isAvailable ? 'Reserve Book' : 'Join Waitlist'}</span>
-                          </button>
+                          {isBookReservedByMe(book.id) ? (
+                            <button
+                              disabled
+                              className="w-full py-2.5 rounded-xl bg-surface-container-high text-text-secondary font-body-medium text-body-medium font-semibold shadow-xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-80"
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-base">bookmark_added</span>
+                              <span>Reserved (In Queue)</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleReserve(book)}
+                              disabled={isReserving}
+                              className="w-full py-2.5 rounded-xl bg-action-green text-text-primary font-body-medium text-body-medium font-semibold hover:bg-action-green-hover transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-base">bookmark_add</span>
+                              <span>{isReserving ? 'Reserving...' : isAvailable ? 'Reserve Book' : 'Join Waitlist'}</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => setSelectedBook(book)}
                             className="w-full py-2 rounded-xl bg-soft-blue/60 text-primary font-small text-small hover:bg-soft-blue transition-colors text-center font-medium cursor-pointer"
@@ -954,18 +1000,29 @@ const CatalogPage: FC = () => {
                 </span>
                 <span>{favoriteBookIds.has(selectedBook.id) ? 'Saved in Wishlist' : 'Save to Wishlist'}</span>
               </button>
-              <button
-                onClick={() => handleReserve(selectedBook)}
-                disabled={reservingBookId === selectedBook.id}
-                className="px-space-xl py-2.5 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold shadow-md transition-colors cursor-pointer disabled:opacity-50"
-                type="button"
-              >
-                {reservingBookId === selectedBook.id
-                  ? 'Reserving...'
-                  : selectedBook.availableCopies > 0
-                  ? 'Reserve Book Now'
-                  : 'Join Waitlist'}
-              </button>
+              {isBookReservedByMe(selectedBook.id) ? (
+                <button
+                  disabled
+                  className="px-space-xl py-2.5 rounded-xl bg-surface-container-high text-text-secondary font-body-medium text-body-medium font-bold shadow-xs cursor-not-allowed flex items-center gap-2 opacity-80"
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-base">bookmark_added</span>
+                  <span>Reserved (In Queue)</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleReserve(selectedBook)}
+                  disabled={reservingBookId === selectedBook.id}
+                  className="px-space-xl py-2.5 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                  type="button"
+                >
+                  {reservingBookId === selectedBook.id
+                    ? 'Reserving...'
+                    : selectedBook.availableCopies > 0
+                    ? 'Reserve Book Now'
+                    : 'Join Waitlist'}
+                </button>
+              )}
             </div>
           </div>
         </div>

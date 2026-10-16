@@ -111,12 +111,20 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5174",
-            "http://127.0.0.1:5174"
-        )
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            try
+            {
+                var uri = new Uri(origin);
+                return (uri.Host is "localhost" or "127.0.0.1" or "::1") ||
+                       (uri.Port is 5173 or 5174 or 5000);
+            }
+            catch
+            {
+                return false;
+            }
+        })
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials();
@@ -142,12 +150,12 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 // ==========================================
-// 8. Middleware Pipeline (Strict AGENTS.md Order)
+// 8. Middleware Pipeline (CORS First for Preflight & Error Safety)
 // ==========================================
-app.UseMiddleware<GlobalExceptionMiddleware>();  // 1. Catch unhandled exceptions
-app.UseMiddleware<RateLimitMiddleware>();        // 2. Rate limiting per IP
-app.UseMiddleware<IdempotencyMiddleware>();      // 3. Duplicate POST protection
-app.UseCors("AllowFrontend");                    // 4. CORS headers
+app.UseCors("AllowFrontend");                    // 1. CORS headers FIRST so all responses & preflights succeed
+app.UseMiddleware<GlobalExceptionMiddleware>();  // 2. Catch unhandled exceptions
+app.UseMiddleware<RateLimitMiddleware>();        // 3. Rate limiting per IP
+app.UseMiddleware<IdempotencyMiddleware>();      // 4. Duplicate POST protection
 app.UseAuthentication();                         // 5. JWT token validation
 app.UseAuthorization();                          // 6. Role / policy checks
 app.UseMiddleware<JwtMiddleware>();              // 7. Identity context hydration

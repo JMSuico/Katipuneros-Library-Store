@@ -308,50 +308,31 @@ const BooksManager: FC = () => {
     try {
       const res = await createCatalogBook({
         ...addForm,
-        categoryId: addForm.categoryId || (categories[0]?.id ?? 'cs-cat-01'),
+        categoryId: addForm.categoryId || (categories[0]?.id ?? ''),
       });
       if (res.success && res.data) {
         setBooks((prev) => [res.data as BackendBook, ...prev]);
         setSelectedBook(res.data as BackendBook);
         showToast('New book successfully accessioned into catalog!');
+        setIsAddModalOpen(false);
+        setAddForm({
+          title: '',
+          author: '',
+          isbn: '',
+          deweyCode: '',
+          categoryId: categories[0]?.id ?? '',
+          publishedYear: new Date().getFullYear(),
+          totalCopies: 1,
+          bayLocation: 'Bay A-01',
+          description: '',
+          rfidTag: '',
+        });
+        loadData();
       } else {
-        // Optimistic addition
-        const newLocalBook: BackendBook = {
-          id: `book-${Date.now()}`,
-          ...addForm,
-          deweyCode: addForm.deweyCode || '',
-          availableCopies: addForm.totalCopies,
-          isSpotlight: false,
-          isArchived: false,
-          createdAt: new Date().toISOString(),
-          category: categories.find((c) => c.id === addForm.categoryId) || {
-            id: addForm.categoryId,
-            name: 'General',
-            deweyRange: '000-999',
-            description: '',
-            shelfBayLocation: addForm.bayLocation,
-          },
-        };
-        setBooks((prev) => [newLocalBook, ...prev]);
-        setSelectedBook(newLocalBook);
-        showToast('Book created and saved to active catalog session!');
+        showToast(res.message || res.errors?.[0] || 'Failed to accession book into catalog.');
       }
-      setIsAddModalOpen(false);
-      setAddForm({
-        title: '',
-        author: '',
-        isbn: '',
-        deweyCode: '',
-        categoryId: categories[0]?.id ?? '',
-        publishedYear: new Date().getFullYear(),
-        totalCopies: 1,
-        bayLocation: 'Bay A-01',
-        description: '',
-        rfidTag: '',
-      });
-      loadData();
     } catch {
-      showToast('Error accessioning book. Please verify network connection.');
+      showToast('Network error while communicating with library API server.');
     }
   };
 

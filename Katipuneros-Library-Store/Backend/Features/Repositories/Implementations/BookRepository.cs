@@ -27,10 +27,25 @@ public class BookRepository : IBookRepository
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Isbn == isbn);
 
-    public async Task<Book?> GetByBarcodeAsync(string barcode) =>
-        await _context.Books
+    public async Task<Book?> GetByBarcodeAsync(string barcode)
+    {
+        var cleanBarcode = barcode.Trim();
+        var stripped = cleanBarcode.Replace("-", "");
+        var isGuid = Guid.TryParse(cleanBarcode, out var bookId);
+
+        return await _context.Books
             .Include(b => b.Category)
-            .FirstOrDefaultAsync(b => b.IsbnBarcode == barcode || b.RfidTag == barcode || b.Isbn == barcode);
+            .FirstOrDefaultAsync(b =>
+                (isGuid && b.Id == bookId) ||
+                b.IsbnBarcode == cleanBarcode ||
+                b.IsbnBarcode == stripped ||
+                b.RfidTag == cleanBarcode ||
+                b.Isbn == cleanBarcode ||
+                b.Isbn == stripped);
+    }
+
+    public async Task<Guid> GetDefaultCategoryIdAsync() =>
+        await _context.Categories.Select(c => c.Id).FirstOrDefaultAsync();
 
     public async Task<List<Book>> GetAllAsync(Guid? categoryId = null, string? searchTerm = null, bool? isSpotlight = null) =>
         await _context.Books

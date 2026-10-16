@@ -111,12 +111,31 @@ public class BorrowService : IBorrowService
 
     public async Task<(bool Success, BorrowTransaction? Transaction, decimal AssessedFine, string? Error)> ReturnBookAsync(string barcode, string? condition, decimal? damageFee, Guid? cashierId)
     {
-        var book = await _bookRepository.GetByBarcodeAsync(barcode);
-        if (book == null)
-            return (false, null, 0, $"Book barcode '{barcode}' not found.");
+        var cleanBarcode = barcode.Trim();
+        var book = await _bookRepository.GetByBarcodeAsync(cleanBarcode);
 
         var allLoans = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
-        var activeLoan = allLoans.FirstOrDefault(l => l.BookId == book.Id);
+        BorrowTransaction? activeLoan = null;
+
+        if (book != null)
+        {
+            activeLoan = allLoans.FirstOrDefault(l => l.BookId == book.Id);
+        }
+
+        if (activeLoan == null)
+        {
+            activeLoan = allLoans.FirstOrDefault(l =>
+                (l.GatePassCode != null && l.GatePassCode.Equals(cleanBarcode, StringComparison.OrdinalIgnoreCase)) ||
+                l.Id.ToString().Equals(cleanBarcode, StringComparison.OrdinalIgnoreCase));
+
+            if (activeLoan != null && book == null)
+            {
+                book = await _bookRepository.GetByIdAsync(activeLoan.BookId);
+            }
+        }
+
+        if (book == null)
+            return (false, null, 0, $"Book barcode or asset identifier '{barcode}' not found.");
 
         if (activeLoan == null)
             return (false, null, 0, $"No active loan record found for '{book.Title}'.");

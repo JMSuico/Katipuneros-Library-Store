@@ -15,11 +15,14 @@ public class LoginRequest
 
     public string? UsernameOrEmail { get; set; }
 
+    public string? Identifier { get; set; }
+
     [Required]
     public string Password { get; set; } = string.Empty;
 
     public string GetIdentifier() =>
-        !string.IsNullOrWhiteSpace(UsernameOrEmail) ? UsernameOrEmail.Trim()
+        !string.IsNullOrWhiteSpace(Identifier) ? Identifier.Trim()
+        : !string.IsNullOrWhiteSpace(UsernameOrEmail) ? UsernameOrEmail.Trim()
         : !string.IsNullOrWhiteSpace(Email) ? Email.Trim()
         : !string.IsNullOrWhiteSpace(Username) ? Username.Trim()
         : string.Empty;

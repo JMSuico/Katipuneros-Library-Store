@@ -30,6 +30,11 @@ public class BookService : IBookService
 
     public async Task<Book> CreateBookAsync(string title, string author, string isbn, string? deweyCode, Guid categoryId, int year, int totalCopies, string bay, string? description, string? rfid)
     {
+        if (categoryId == Guid.Empty)
+        {
+            categoryId = await _bookRepository.GetDefaultCategoryIdAsync();
+        }
+
         var book = new Book
         {
             Title = InputSanitizer.SanitizeText(title),

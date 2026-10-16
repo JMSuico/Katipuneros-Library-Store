@@ -12,6 +12,7 @@ public interface IBookRepository
     Task<Book?> GetByIdAsync(Guid id);
     Task<Book?> GetByIsbnAsync(string isbn);
     Task<Book?> GetByBarcodeAsync(string barcode);
+    Task<Guid> GetDefaultCategoryIdAsync();
     Task<List<Book>> GetAllAsync(Guid? categoryId = null, string? searchTerm = null, bool? isSpotlight = null);
     Task AddAsync(Book book);
     Task UpdateAsync(Book book);

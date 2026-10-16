@@ -40,7 +40,14 @@ declare global {
   }
 }
 
-const API_BASE = 'http://localhost:5000';
+const getAdminApiBase = () => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  }
+  return 'http://localhost:5000';
+};
+
+const API_BASE = getAdminApiBase();
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();

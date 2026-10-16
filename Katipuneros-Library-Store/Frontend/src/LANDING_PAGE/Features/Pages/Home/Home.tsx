@@ -11,12 +11,10 @@ import LibraryMapSection from './Components/LibraryMapSection';
 import ContactForm from '../ContactMe/Components/ContactForm';
 import { BookDetailModal, BookDetailData } from './Components/BookDetailModal';
 import { ReservationModal } from './Components/ReservationModal';
-import { AuthModal } from '../../../../Shared/Components/AuthModal';
 
 const Home: FC = () => {
   const [selectedDetailBook, setSelectedDetailBook] = useState<BookDetailData | null>(null);
   const [selectedReserveBook, setSelectedReserveBook] = useState<BookDetailData | null>(null);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
@@ -54,11 +52,6 @@ const Home: FC = () => {
         isOpen={Boolean(selectedReserveBook)}
         onClose={() => setSelectedReserveBook(null)}
         book={selectedReserveBook}
-      />
-
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
       />
     </div>
   );

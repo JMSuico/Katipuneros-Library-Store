@@ -181,9 +181,16 @@ export const loginUser = async (
     return { success: true, message: res.message || 'Login successful.', user, token: res.data.token };
   }
 
+  const errorMessage =
+    res.message && !res.message.toLowerCase().includes('failed to fetch') && res.message !== 'Server error'
+      ? res.message
+      : (res.errors?.[0] && !res.errors[0].toLowerCase().includes('failed to fetch')
+          ? res.errors[0]
+          : (res.message || 'Invalid credentials. Please verify your email or username and password.'));
+
   return {
     success: false,
-    message: res.errors?.[0] || res.message || 'Invalid email or password.',
+    message: errorMessage,
   };
 };
 
@@ -216,9 +223,16 @@ export const registerUser = async (
     return { success: true, message: res.message || 'User registered successfully.', user, token: res.data.token };
   }
 
+  const errorMessage =
+    res.message && !res.message.toLowerCase().includes('failed to fetch') && res.message !== 'Server error'
+      ? res.message
+      : (res.errors?.[0] && !res.errors[0].toLowerCase().includes('failed to fetch')
+          ? res.errors[0]
+          : (res.message || 'Registration failed. Please verify your details.'));
+
   return {
     success: false,
-    message: res.errors?.[0] || res.message || 'Registration failed. Please verify your details.',
+    message: errorMessage,
   };
 };
 

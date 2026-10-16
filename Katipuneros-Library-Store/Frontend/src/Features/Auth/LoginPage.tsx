@@ -4,12 +4,16 @@
 // Expresses all sync and async routines via clean lambda expressions.
 
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { loginUser } from '../../Endpoints/authApi';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState('');
+  const [searchParams] = useSearchParams();
+  const isRegisteredSuccess = searchParams.get('registered') === 'true';
+  const registeredUsername = searchParams.get('username') || '';
+
+  const [identifier, setIdentifier] = useState(registeredUsername);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +31,13 @@ export const LoginPage: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      const res = await loginUser({ usernameOrEmail: identifier.trim(), password });
+      const res = await loginUser({
+        usernameOrEmail: identifier.trim(),
+        username: identifier.trim(),
+        email: identifier.trim(),
+        password,
+      });
+
       if (res.success && res.user) {
         if (res.user.role === 'Cashier') {
           navigate('/cashier/checkout');
@@ -40,7 +50,7 @@ export const LoginPage: React.FC = () => {
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Network connection failure. Ensure the .NET 10 API backend is online.');
+      setErrorMessage('Network connection failure. Unable to reach library API on port 5000.');
     } finally {
       setIsLoading(false);
     }
@@ -82,6 +92,14 @@ export const LoginPage: React.FC = () => {
             Access your borrowing account, active reserves, digital shelves, or cashier circulation terminal.
           </p>
         </div>
+
+        {/* Registration Success Banner */}
+        {isRegisteredSuccess && !errorMessage && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-action-green/20 border border-action-green/50 text-text-primary text-small flex items-start gap-2.5 shadow-sm">
+            <span className="material-symbols-outlined text-action-green text-[20px] shrink-0 mt-0.5">check_circle</span>
+            <span>Registration successful! Your account is active and verified. Please sign in with your credentials below.</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMessage && (

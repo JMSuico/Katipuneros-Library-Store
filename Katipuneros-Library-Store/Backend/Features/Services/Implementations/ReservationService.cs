@@ -112,7 +112,7 @@ public class ReservationService : IReservationService
         if (activeHolds.Any(h => h.BookId == bookId))
             return (false, null, "You already have an active hold on this catalog title.");
 
-        int holdLimit = patron.Role == UserRole.Admin || patron.Department == "Research" ? 5 : 2;
+        int holdLimit = 5;
         if (activeHolds.Count >= holdLimit)
             return (false, null, $"Concurrent hold ceiling reached ({activeHolds.Count}/{holdLimit}). Overages queue for secondary Dean approval.");
 
@@ -154,8 +154,18 @@ public class ReservationService : IReservationService
         if (await _reservationRepository.GetByIdAsync(reservationId) is not { } reservation)
             return (false, "Reservation hold not found.");
 
-        reservation.Status = approved ? ReservationStatus.Pending : ReservationStatus.Cancelled;
-        if (priority) reservation.QueuePosition = 1;
+        if (approved)
+        {
+            reservation.Status = ReservationStatus.StagedInLocker;
+            reservation.LockerBay = string.IsNullOrWhiteSpace(reservation.LockerBay) ? "Bay 01 Counter" : reservation.LockerBay;
+            reservation.LockerPin = string.IsNullOrWhiteSpace(reservation.LockerPin) ? Random.Shared.Next(1000, 9999).ToString() : reservation.LockerPin;
+            reservation.ExpiryDate = DateTime.UtcNow.AddHours(48);
+            if (priority) reservation.QueuePosition = 1;
+        }
+        else
+        {
+            reservation.Status = ReservationStatus.Cancelled;
+        }
 
         await _reservationRepository.UpdateAsync(reservation);
         var saved = await _reservationRepository.SaveChangesAsync();
@@ -191,13 +201,16 @@ public class ReservationService : IReservationService
             switch (action.ToLowerInvariant())
             {
                 case "stage":
+                case "approve":
                     r.Status = ReservationStatus.StagedInLocker;
                     r.LockerBay = string.IsNullOrWhiteSpace(lockerBay) ? "Bay 01 Counter" : lockerBay;
-                    r.LockerPin = new Random().Next(1000, 9999).ToString();
+                    r.LockerPin = Random.Shared.Next(1000, 9999).ToString();
                     r.ExpiryDate = DateTime.UtcNow.AddHours(48);
                     count++;
                     break;
                 case "cancel":
+                case "decline":
+                case "reject":
                     r.Status = ReservationStatus.Cancelled;
                     count++;
                     break;
