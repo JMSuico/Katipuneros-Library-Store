@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  katipuneros-landing:
+    ports:
+      - "5173:80"
+
+  katipuneros-customer:
+    ports:
+      - "5176:80"
+
+  katipuneros-cashier:
+    ports:
+      - "5175:80"
+
+  katipuneros-admin:
+    ports:
+      - "5174:80"
+
+  katipuneros-backend:
+    ports:
+      - "5000:5000"
+
+  katipuneros-redis:
+    ports:
+      - "6379:6379"
+
+  katipuneros-db-primary:
+    ports:
+      - "5432:5432"
+
+  katipuneros-db-replica:
+    ports:
+      - "5433:5432"
