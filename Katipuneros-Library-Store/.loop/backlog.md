@@ -1,0 +1,6 @@
+- [x] customer-auth | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_auth.ps1
+- [x] admin-add-book | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_book_add.ps1
+- [x] customer-reserve | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_reservation.ps1
+- [x] admin-triage | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_triage.ps1
+- [x] book-return | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_returns.ps1
+- [x] patron-wishlist | verify: powershell -ExecutionPolicy Bypass -File scratch/verify_wishlist.ps1

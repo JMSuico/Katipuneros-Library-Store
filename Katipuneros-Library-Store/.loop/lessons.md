@@ -1,0 +1,1 @@
+- 2026-10-16 | End-to-end circulation, customer auth, triage, returns, and wishlist loop | rounds 1 | ALL GREEN | Preflight OPTIONS and CORS headers must wrap ASP.NET Core rate-limit and exception middlewares to prevent Chromium PNA Failed to fetch exceptions; Boolean DTO properties require explicit boolean literals in test payloads.
