@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: katipuneros-prod
+  labels:
+    app.kubernetes.io/name: katipuneros-library
+    app.kubernetes.io/part-of: katipuneros-system

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: katipuneros-db-primary
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-db-primary
+    layer: "7"
+spec:
+  serviceName: katipuneros-db-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katipuneros-db-primary
+  template:
+    metadata:
+      labels:
+        app: katipuneros-db-primary
+        layer: "7"
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: katipuneros-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: primary-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-db-primary
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: katipuneros-db-primary

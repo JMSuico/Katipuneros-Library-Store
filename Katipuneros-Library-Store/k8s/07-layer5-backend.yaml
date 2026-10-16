@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katipuneros-backend
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-backend
+    layer: "5"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: katipuneros-backend
+  template:
+    metadata:
+      labels:
+        app: katipuneros-backend
+        layer: "5"
+    spec:
+      containers:
+        - name: backend
+          image: katipuneros-backend:prod
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: katipuneros-config
+            - secretRef:
+                name: katipuneros-secrets
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-backend-svc
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+  selector:
+    app: katipuneros-backend
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: katipuneros-backend-hpa
+  namespace: katipuneros-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: katipuneros-backend
+  minReplicas: 3
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75

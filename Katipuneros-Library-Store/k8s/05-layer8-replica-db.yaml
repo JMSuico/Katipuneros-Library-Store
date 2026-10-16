@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: katipuneros-db-replica
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-db-replica
+    layer: "8"
+spec:
+  serviceName: katipuneros-db-replica
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katipuneros-db-replica
+  template:
+    metadata:
+      labels:
+        app: katipuneros-db-replica
+        layer: "8"
+    spec:
+      initContainers:
+        - name: clone-primary
+          image: postgres:16-alpine
+          command:
+            - bash
+            - -c
+            - |
+              until pg_isready -h katipuneros-db-primary -p 5432; do
+                echo 'Waiting for Primary DB to respond...'
+                sleep 2
+              done
+              if [ ! -s /var/lib/postgresql/data/standby.signal ]; then
+                echo 'Cloning from primary via pg_basebackup...'
+                rm -rf /var/lib/postgresql/data/*
+                PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v
+                touch /var/lib/postgresql/data/standby.signal
+                chmod 700 /var/lib/postgresql/data
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      containers:
+        - name: postgres-replica
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: replica-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-db-replica
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: katipuneros-db-replica

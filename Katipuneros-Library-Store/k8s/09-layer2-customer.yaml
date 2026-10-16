@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katipuneros-customer
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-customer
+    layer: "2"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: katipuneros-customer
+  template:
+    metadata:
+      labels:
+        app: katipuneros-customer
+        layer: "2"
+    spec:
+      containers:
+        - name: customer
+          image: katipuneros-customer:prod
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-customer-svc
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: katipuneros-customer
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: katipuneros-customer-hpa
+  namespace: katipuneros-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: katipuneros-customer
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75

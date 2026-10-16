@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: katipuneros-config
+  namespace: katipuneros-prod
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ConnectionStrings__PrimaryConnection: "Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Include Error Detail=true;"
+  ConnectionStrings__ReplicaConnection: "Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Application Name=Katipuneros_ReadReplica;"
+  Redis__ConnectionString: "katipuneros-redis:6379,password=KatipunerosRedisSecret_2026!"
