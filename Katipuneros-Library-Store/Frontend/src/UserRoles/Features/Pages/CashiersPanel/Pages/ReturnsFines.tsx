@@ -171,13 +171,21 @@ export const ReturnsFines: FC = () => {
       }
 
       const lower = code.toLowerCase();
+      const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
+      const passId = lower.startsWith('pass-') ? lower.replace('pass-', '') : '';
+
       const matched = activeLoans.find(
         (l) =>
           l.bookBarcode?.toLowerCase() === lower ||
           l.loanCode?.toLowerCase() === lower ||
           l.bookTitle?.toLowerCase().includes(lower) ||
           l.patronLibraryId?.toLowerCase() === lower ||
-          l.patronName?.toLowerCase().includes(lower)
+          l.patronName?.toLowerCase().includes(lower) ||
+          l.id.toLowerCase() === lower ||
+          (expressId && (l.id.toLowerCase().includes(expressId) || l.loanCode?.toLowerCase().includes(expressId))) ||
+          (passId && (l.patronLibraryId?.toLowerCase().includes(passId) || l.loanCode?.toLowerCase().includes(passId))) ||
+          (l.bookBarcode && lower.includes(l.bookBarcode.toLowerCase())) ||
+          (l.bookBarcode && l.bookBarcode.toLowerCase().includes(lower))
       );
 
       if (matched) {
@@ -374,13 +382,18 @@ export const ReturnsFines: FC = () => {
 
     return activeLoans
       .filter((l) => {
+        const expressId = q.startsWith('scan-bay-') ? q.replace('scan-bay-', '') : '';
+        const passId = q.startsWith('pass-') ? q.replace('pass-', '') : '';
         const matchesSearch =
           !q ||
           l.bookTitle?.toLowerCase().includes(q) ||
           l.patronName?.toLowerCase().includes(q) ||
           l.patronLibraryId?.toLowerCase().includes(q) ||
           l.bookBarcode?.toLowerCase().includes(q) ||
-          l.loanCode?.toLowerCase().includes(q);
+          l.loanCode?.toLowerCase().includes(q) ||
+          l.id.toLowerCase().includes(q) ||
+          (expressId && (l.id.toLowerCase().includes(expressId) || l.loanCode?.toLowerCase().includes(expressId))) ||
+          (passId && (l.patronLibraryId?.toLowerCase().includes(passId) || l.loanCode?.toLowerCase().includes(passId)));
 
         const dueTime = new Date(l.dueDate).getTime();
         const isOverdue = dueTime < now;
@@ -436,7 +449,7 @@ export const ReturnsFines: FC = () => {
                 Circulation Desk Book Returns &amp; Check-In
               </h1>
               <p className="font-body text-body text-text-secondary">
-                Scan book barcode, audit physical condition, and compute automated overdue penalties and receipts.
+                Scan QR code, ExpressCode, or accession number, audit physical condition, and compute automated overdue penalties and receipts.
               </p>
             </div>
 
@@ -476,12 +489,12 @@ export const ReturnsFines: FC = () => {
           </div>
         </section>
 
-        {/* Barcode Intake Scanner Bar */}
+        {/* QR & ExpressCode Intake Scanner Bar */}
         <section className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <form onSubmit={handleScanSubmit} className="flex-1 relative flex items-center gap-2">
             <div className="flex-1">
               <SearchBar
-                placeholder="Scan Book Barcode, Loan Ref, or Patron Library ID..."
+                placeholder="Scan QR Code, ExpressCode, or Accession Number..."
                 value={scannerInput}
                 onChange={(v) => setScannerInput(v)}
                 shortcutKey=""
@@ -491,7 +504,7 @@ export const ReturnsFines: FC = () => {
               type="submit"
               className="px-4 py-2.5 bg-primary text-on-primary font-caption text-caption font-bold rounded-xl hover:bg-primary-container transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
-              <span className="material-symbols-outlined text-base">barcode_scanner</span>
+              <span className="material-symbols-outlined text-base">qr_code_scanner</span>
               <span>Intake Scan</span>
             </button>
             <button
@@ -680,7 +693,7 @@ export const ReturnsFines: FC = () => {
                   No Active Borrowing Selected
                 </p>
                 <p className="font-caption text-caption text-text-secondary max-w-sm mt-1">
-                  Scan book barcode above or choose an active loan from the circulating queue below to begin condition audit.
+                  Scan QR code, ExpressCode, or accession number above or choose an active loan from the circulating queue below to begin condition audit.
                 </p>
               </div>
             )}
@@ -936,7 +949,7 @@ export const ReturnsFines: FC = () => {
           <div className="flex flex-col md:flex-row items-center gap-3">
             <div className="flex-1 w-full">
               <SearchBar
-                placeholder="Search active loans by title, patron name, barcode, or loan code..."
+                placeholder="Search active loans by title, patron name, QR / ExpressCode, or accession number..."
                 value={searchQuery}
                 onChange={(v) => setSearchQuery(v)}
                 shortcutKey=""
@@ -1229,7 +1242,7 @@ export const ReturnsFines: FC = () => {
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-2xl">qr_code_scanner</span>
                 <div>
-                  <h3 className="font-headline-4 text-headline-4 text-text-primary">Camera QR &amp; Barcode Scanner</h3>
+                  <h3 className="font-headline-4 text-headline-4 text-text-primary">Camera QR &amp; ExpressCode Scanner</h3>
                   <p className="font-caption text-caption text-text-secondary">Position the book's physical QR sticker inside the reticle</p>
                 </div>
               </div>
@@ -1313,7 +1326,7 @@ export const ReturnsFines: FC = () => {
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Or type/paste Accession Number (e.g. KP-ACC-0042-C1)..."
+                  placeholder="Scan QR Code, ExpressCode, or Accession Number (e.g. SCAN-BAY-XXXXXX, KLS-XXXX-CX)..."
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -1343,7 +1356,7 @@ export const ReturnsFines: FC = () => {
                 </button>
               </div>
               <div className="flex items-center justify-between text-[11px] text-text-secondary px-1">
-                <span>Compatible with laptop webcams, USB cameras, and 2D barcode imagers</span>
+                <span>Compatible with laptop webcams, USB cameras, and 2D QR / barcode imagers</span>
                 <button
                   type="button"
                   onClick={() => {

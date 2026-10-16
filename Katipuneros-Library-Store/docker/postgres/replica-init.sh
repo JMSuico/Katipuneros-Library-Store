@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-if [ ! -s "$PGDATA/PG_VERSION" ]; then
+if [ ! -f "$PGDATA/standby.signal" ]; then
     echo "Initializing replica standby from primary..."
     rm -rf "$PGDATA"/*
     PGPASSWORD="${POSTGRES_REPLICATION_PASSWORD:-KatipunerosReplPass_2026!}" pg_basebackup \

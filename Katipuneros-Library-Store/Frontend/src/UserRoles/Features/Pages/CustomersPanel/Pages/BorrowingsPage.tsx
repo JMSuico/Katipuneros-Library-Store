@@ -514,7 +514,7 @@ const BorrowingsPage: FC = () => {
                             <div className="flex flex-wrap items-center justify-between gap-space-xs mb-space-xs">
                               <span className="inline-flex items-center gap-1 font-caption text-caption font-mono text-text-secondary bg-surface-container px-2 py-0.5 rounded-md">
                                 <span className="material-symbols-outlined text-xs text-primary">
-                                  barcode_scanner
+                                  qr_code_scanner
                                 </span>
                                 #{loan.id.slice(0, 8).toUpperCase()}
                               </span>
@@ -587,7 +587,7 @@ const BorrowingsPage: FC = () => {
                               </div>
                               <div>
                                 <span className="block font-caption text-caption text-text-secondary">
-                                  Accession Barcode
+                                  Accession / ExpressCode
                                 </span>
                                 <span className="font-small text-small font-mono text-text-primary">
                                   {loan.gatePassCode || loan.book?.isbn || '—'}
@@ -818,7 +818,7 @@ const BorrowingsPage: FC = () => {
                           : '—'}
                       </span>
                       <span className="mt-1 px-2 py-0.5 rounded text-[11px] font-caption bg-status-available/20 text-status-available font-medium">
-                        Barcode Passed
+                        Patron QR Pass Verified
                       </span>
                     </div>
 
@@ -891,7 +891,7 @@ const BorrowingsPage: FC = () => {
                       Returning books in person?
                     </p>
                     <p className="font-caption text-caption text-text-secondary">
-                      Show your patron barcode at Circulation Desk Level 1 or drop directly into Smart Drop Box 24/7.
+                      Show your Patron QR Pass or ExpressCode at Circulation Desk Level 1 or drop directly into Smart Drop Box 24/7.
                     </p>
                   </div>
                 </div>
@@ -899,7 +899,7 @@ const BorrowingsPage: FC = () => {
                   className="shrink-0 px-space-md py-1.5 rounded-xl bg-soft-blue hover:bg-secondary-fixed text-primary font-small text-small font-medium transition-all"
                   to="/customer/profile"
                 >
-                  Show Patron Barcode Pass
+                  Show Patron QR Pass
                 </Link>
               </div>
             </div>
@@ -954,7 +954,7 @@ const BorrowingsPage: FC = () => {
                   <input
                     className="w-full bg-surface-container-lowest/80 pl-9 pr-3 py-2 rounded-xl text-small font-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest transition-all"
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Filter by book, barcode, or receipt..."
+                    placeholder="Filter by book, QR code, ExpressCode, or receipt..."
                     type="text"
                     value={searchQuery}
                   />
@@ -971,7 +971,7 @@ const BorrowingsPage: FC = () => {
                 <table className="w-full text-left border-collapse" id="borrowingsTable">
                   <thead>
                     <tr className="bg-surface-container-high/40 text-text-secondary font-caption text-caption uppercase tracking-wider">
-                      <th className="py-space-md px-space-lg">Book Title &amp; Barcode</th>
+                      <th className="py-space-md px-space-lg">Book Title &amp; ExpressCode</th>
                       <th className="py-space-md px-space-md">Borrow Date</th>
                       <th className="py-space-md px-space-md">Return Date</th>
                       <th className="py-space-md px-space-md">Duration</th>
@@ -1187,7 +1187,7 @@ const BorrowingsPage: FC = () => {
                           <span>24/7 Smart Drop-Box</span>
                         </div>
                         <p className="font-caption text-caption text-text-secondary leading-relaxed">
-                          Contactless returns can be deposited at the <strong>Atrium South Gate automated bin</strong>. Barcode scanners timestamp items immediately to safeguard patron return status.
+                          Contactless returns can be deposited at the <strong>Atrium South Gate automated bin</strong>. QR and optical scanners timestamp items immediately to safeguard patron return status.
                         </p>
                       </div>
                       <div className="mt-space-sm pt-space-xs border-t border-surface-variant/40 font-caption text-caption text-secondary font-medium">

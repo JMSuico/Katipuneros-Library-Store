@@ -11,6 +11,7 @@ import { processCashierCheckout } from '../../../../../Endpoints/Cashier/transac
 import { getAdminUsersList, AdminUserRecord } from '../../../../../Endpoints/Admin/userApi';
 import { getCatalogBooks, BackendBook } from '../../../../../Endpoints/booksApi';
 import { getAdminReservations, BackendReservation } from '../../../../../Endpoints/Admin/reservationsApi';
+import { scanBookCopy } from '../../../../../Endpoints/Admin/bookCopiesApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
@@ -160,12 +161,26 @@ export const CheckoutBorrow: FC = () => {
     if (!query) return;
 
     setIsSearchingPatron(true);
+    const cleanExpress = query.startsWith('scan-bay-') ? query.replace('scan-bay-', '') : '';
+    const cleanPass = query.startsWith('pass-') ? query.replace('pass-', '') : '';
+
+    if (cleanExpress) {
+      const resMatch = allReservations.find((r) => r.id.toLowerCase().includes(cleanExpress));
+      if (resMatch) {
+        handleStageReservationHold(resMatch);
+        setIsSearchingPatron(false);
+        return;
+      }
+    }
+
     const matched = allUsers.find(
       (u) =>
         u.fullName?.toLowerCase().includes(query) ||
         u.email?.toLowerCase().includes(query) ||
         u.libraryCardNumber?.toLowerCase() === query ||
-        u.id.toLowerCase() === query
+        u.id.toLowerCase() === query ||
+        (cleanPass && u.libraryCardNumber?.toLowerCase().includes(cleanPass)) ||
+        (cleanExpress && u.id.toLowerCase().includes(cleanExpress))
     );
 
     if (matched) {
@@ -185,13 +200,52 @@ export const CheckoutBorrow: FC = () => {
 
     setIsStagingBook(true);
     try {
+      const lower = query.toLowerCase();
+      const cleanExpress = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
+
+      // 1. If ExpressCode is scanned in book stage bar, check active reservations
+      if (cleanExpress) {
+        const matchedRes = allReservations.find((r) => r.id.toLowerCase().includes(cleanExpress));
+        if (matchedRes) {
+          await handleStageReservationHold(matchedRes);
+          setBookBarcodeQuery('');
+          setIsStagingBook(false);
+          return;
+        }
+      }
+
+      // 2. Try resolving accession numbers (e.g. KLS-XXXX-CX, KP-ACC-...) or QR code data via scanBookCopy
+      try {
+        const copyScanRes = await scanBookCopy(query);
+        if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
+          const bookId = copyScanRes.data.copy.bookId;
+          const catalogBooks = await getCatalogBooks();
+          const matchedBook = catalogBooks.find((b) => b.id.toLowerCase() === bookId.toLowerCase());
+          if (matchedBook) {
+            if (stagedBooks.some((b) => b.id === matchedBook.id)) {
+              addToast(`Book "${matchedBook.title}" is already staged.`, 'warning');
+            } else {
+              setStagedBooks((prev) => [...prev, matchedBook]);
+              setBookBarcodeQuery('');
+              addToast(`"${matchedBook.title}" (Accession: ${copyScanRes.data.copy.accessionNumber}) staged successfully.`, 'success');
+            }
+            setIsStagingBook(false);
+            return;
+          }
+        }
+      } catch {
+        // Fall back to direct catalog query
+      }
+
+      // 3. Fallback to direct catalog books query
       const books = await getCatalogBooks(undefined, query);
       const matched = books.find(
         (b) =>
-          b.isbnBarcode?.toLowerCase() === query.toLowerCase() ||
-          b.isbn?.toLowerCase() === query.toLowerCase() ||
-          b.title?.toLowerCase().includes(query.toLowerCase()) ||
-          b.id.toLowerCase() === query.toLowerCase()
+          b.isbnBarcode?.toLowerCase() === lower ||
+          b.isbn?.toLowerCase() === lower ||
+          b.title?.toLowerCase().includes(lower) ||
+          b.id.toLowerCase() === lower ||
+          (b.isbnBarcode && (lower.includes(b.isbnBarcode.toLowerCase()) || b.isbnBarcode.toLowerCase().includes(lower)))
       );
 
       if (matched) {
@@ -205,7 +259,7 @@ export const CheckoutBorrow: FC = () => {
           addToast(`"${matched.title}" staged successfully.`, 'success');
         }
       } else {
-        addToast(`No book found matching barcode/ISBN: ${query}`, 'warning');
+        addToast(`No book found matching code: ${query}`, 'warning');
       }
     } catch {
       addToast('Error querying book catalog.', 'error');
@@ -417,7 +471,7 @@ export const CheckoutBorrow: FC = () => {
               </span>
               <div className="flex flex-col leading-none">
                 <span className="font-caption text-caption font-bold text-text-primary">
-                  ⚡ Accession Scanner Ready
+                  ⚡ QR &amp; ExpressCode Scanner Ready
                 </span>
                 <span className="font-caption text-caption text-text-secondary text-[10px]">
                   Circulation Input Active
@@ -465,7 +519,7 @@ export const CheckoutBorrow: FC = () => {
                   <div>
                     <h2 className="font-headline-4 text-headline-4 text-text-primary">User Identification &amp; Eligibility</h2>
                     <span className="font-caption text-caption text-text-secondary">
-                      Scan patron barcode card or browse directory
+                      Scan patron QR pass, library card, or browse directory
                     </span>
                   </div>
                 </div>
@@ -491,7 +545,7 @@ export const CheckoutBorrow: FC = () => {
               <form onSubmit={handlePatronSearchSubmit} className="relative flex items-center gap-2">
                 <div className="flex-1">
                   <SearchBar
-                    placeholder="Scan User Card Barcode or Enter Name / Email (e.g., KP-88192)..."
+                    placeholder="Scan QR Code, ExpressCode, or Accession Number..."
                     value={patronSearchInput}
                     onChange={(v) => setPatronSearchInput(v)}
                     shortcutKey=""
@@ -584,7 +638,7 @@ export const CheckoutBorrow: FC = () => {
               ) : (
                 <div className="p-6 bg-surface-container-low/40 rounded-xl flex items-center justify-center text-center">
                   <span className="font-caption text-caption text-text-secondary">
-                    No patron selected yet. Scan library card, search above, or click &quot;Browse Patrons&quot; to verify eligibility.
+                    No patron selected yet. Scan QR pass, library card, search above, or click &quot;Browse Patrons&quot; to verify eligibility.
                   </span>
                 </div>
               )}
@@ -662,10 +716,10 @@ export const CheckoutBorrow: FC = () => {
                   </span>
                   <div>
                     <h2 className="font-headline-4 text-headline-4 text-text-primary">
-                      Book Asset Barcode Scanning &amp; Staging
+                      Book Asset QR &amp; Accession Staging
                     </h2>
                     <span className="font-caption text-caption text-text-secondary">
-                      Scan book barcode on flyleaf sticker or match against catalog
+                      Scan QR code, ExpressCode, or accession number on book or match against catalog
                     </span>
                   </div>
                 </div>
@@ -691,7 +745,7 @@ export const CheckoutBorrow: FC = () => {
               <form onSubmit={handleStageBook} className="relative flex items-center gap-2">
                 <div className="flex-1">
                   <SearchBar
-                    placeholder="Scan Physical Book Barcode, ISBN, or Title..."
+                    placeholder="Scan QR Code, ExpressCode, or Accession Number..."
                     value={bookBarcodeQuery}
                     onChange={(v) => setBookBarcodeQuery(v)}
                     shortcutKey=""
@@ -717,7 +771,7 @@ export const CheckoutBorrow: FC = () => {
                     Staging Area Empty
                   </p>
                   <p className="font-caption text-caption text-text-secondary max-w-sm mt-1">
-                    Scan or enter physical book spine barcodes to stage them for checkout.
+                    Scan or enter QR codes, ExpressCodes, or accession numbers to stage them for checkout.
                   </p>
                 </div>
               ) : (
@@ -733,7 +787,7 @@ export const CheckoutBorrow: FC = () => {
                           <th className="py-3 px-4">Asset Details</th>
                           <th className="py-3 px-4">Author</th>
                           <th className="py-3 px-4">Dewey Call No.</th>
-                          <th className="py-3 px-4">Asset Barcode</th>
+                          <th className="py-3 px-4">Accession / QR Code</th>
                           <th className="py-3 px-4">Stacks Bay</th>
                           <th className="py-3 px-4">Custody Status</th>
                           <th className="py-3 px-4 text-right">Action</th>
@@ -849,7 +903,7 @@ export const CheckoutBorrow: FC = () => {
                                 </span>
                               </div>
                               <div className="bg-surface-container-lowest p-1.5 rounded-lg">
-                                <span className="block text-text-secondary text-[10px]">Asset Barcode</span>
+                                <span className="block text-text-secondary text-[10px]">Accession / QR Code</span>
                                 <span className="font-bold text-text-primary font-mono truncate block text-xs">
                                   {book.isbnBarcode || book.isbn}
                                 </span>
@@ -1174,7 +1228,7 @@ export const CheckoutBorrow: FC = () => {
                 <thead>
                   <tr className="border-b border-surface-container bg-surface-container-low/60 text-caption font-caption text-text-secondary font-bold uppercase tracking-wider">
                     <th className="py-2.5 px-4">Patron Name</th>
-                    <th className="py-2.5 px-4">Card Barcode</th>
+                    <th className="py-2.5 px-4">Patron QR / Card ID</th>
                     <th className="py-2.5 px-4">Email</th>
                     <th className="py-2.5 px-4">Role / Department</th>
                     <th className="py-2.5 px-4">Status</th>

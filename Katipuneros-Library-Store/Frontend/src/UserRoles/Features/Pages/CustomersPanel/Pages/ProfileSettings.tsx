@@ -935,63 +935,26 @@ export const ProfileSettings: FC = () => {
                     </div>
                   </div>
 
-                  {/* Card Bottom Barcode */}
+                  {/* Card Bottom Patron QR Pass */}
                   <div className="pt-space-xs relative z-10 flex flex-col gap-1">
                     <div className="flex items-center justify-between font-mono text-[11px] text-teal-200 tracking-wider">
                       <span>CARD # {cardNumber}</span>
                       <span>EXP 06/2027</span>
                     </div>
-                    {/* High-Fidelity SVG Barcode */}
-                    <div className="bg-white/95 p-1.5 rounded flex items-center justify-center">
-                      <svg className="w-full h-8 text-neutral-900" fill="currentColor" viewBox="0 0 240 32">
-                        <rect height="32" width="3" x="0" y="0"></rect>
-                        <rect height="32" width="2" x="5" y="0"></rect>
-                        <rect height="32" width="4" x="9" y="0"></rect>
-                        <rect height="32" width="1" x="15" y="0"></rect>
-                        <rect height="32" width="3" x="18" y="0"></rect>
-                        <rect height="32" width="5" x="23" y="0"></rect>
-                        <rect height="32" width="2" x="30" y="0"></rect>
-                        <rect height="32" width="2" x="34" y="0"></rect>
-                        <rect height="32" width="6" x="38" y="0"></rect>
-                        <rect height="32" width="3" x="46" y="0"></rect>
-                        <rect height="32" width="1" x="51" y="0"></rect>
-                        <rect height="32" width="4" x="54" y="0"></rect>
-                        <rect height="32" width="2" x="60" y="0"></rect>
-                        <rect height="32" width="5" x="64" y="0"></rect>
-                        <rect height="32" width="3" x="71" y="0"></rect>
-                        <rect height="32" width="2" x="76" y="0"></rect>
-                        <rect height="32" width="6" x="80" y="0"></rect>
-                        <rect height="32" width="2" x="88" y="0"></rect>
-                        <rect height="32" width="4" x="92" y="0"></rect>
-                        <rect height="32" width="1" x="98" y="0"></rect>
-                        <rect height="32" width="3" x="101" y="0"></rect>
-                        <rect height="32" width="5" x="106" y="0"></rect>
-                        <rect height="32" width="2" x="113" y="0"></rect>
-                        <rect height="32" width="4" x="117" y="0"></rect>
-                        <rect height="32" width="2" x="123" y="0"></rect>
-                        <rect height="32" width="6" x="127" y="0"></rect>
-                        <rect height="32" width="3" x="135" y="0"></rect>
-                        <rect height="32" width="1" x="140" y="0"></rect>
-                        <rect height="32" width="5" x="143" y="0"></rect>
-                        <rect height="32" width="2" x="150" y="0"></rect>
-                        <rect height="32" width="3" x="154" y="0"></rect>
-                        <rect height="32" width="5" x="159" y="0"></rect>
-                        <rect height="32" width="2" x="166" y="0"></rect>
-                        <rect height="32" width="4" x="170" y="0"></rect>
-                        <rect height="32" width="2" x="176" y="0"></rect>
-                        <rect height="32" width="6" x="180" y="0"></rect>
-                        <rect height="32" width="1" x="188" y="0"></rect>
-                        <rect height="32" width="3" x="191" y="0"></rect>
-                        <rect height="32" width="5" x="196" y="0"></rect>
-                        <rect height="32" width="2" x="203" y="0"></rect>
-                        <rect height="32" width="4" x="207" y="0"></rect>
-                        <rect height="32" width="3" x="213" y="0"></rect>
-                        <rect height="32" width="2" x="218" y="0"></rect>
-                        <rect height="32" width="5" x="222" y="0"></rect>
-                        <rect height="32" width="2" x="229" y="0"></rect>
-                        <rect height="32" width="3" x="233" y="0"></rect>
-                        <rect height="32" width="2" x="238" y="0"></rect>
-                      </svg>
+                    {/* Modern QR Code Pass */}
+                    <div className="bg-white/95 p-2 rounded-lg flex items-center justify-between gap-2 shadow-inner">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-md bg-neutral-900 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <span className="material-symbols-outlined text-[24px]">qr_code_2</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold tracking-wider uppercase text-neutral-500">Patron QR Pass</span>
+                          <span className="font-mono text-[12px] font-bold text-neutral-900 tracking-wide">PASS-{cardNumber.slice(-6).toUpperCase()}</span>
+                        </div>
+                      </div>
+                      <span className="font-mono text-[10px] bg-teal-100 text-teal-900 font-semibold px-2 py-0.5 rounded-full border border-teal-200">
+                        Scan Ready
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1009,11 +972,11 @@ export const ProfileSettings: FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => addToast(`Patron Pass Barcode: ${cardNumber}`, 'info')}
+                    onClick={() => addToast(`Patron QR Pass: ${cardNumber}`, 'info')}
                     className="h-10 px-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-high text-text-primary font-small text-small font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-primary">barcode</span>
-                    <span>Barcode Ready</span>
+                    <span className="material-symbols-outlined text-[18px] text-primary">qr_code_scanner</span>
+                    <span>Patron QR Pass</span>
                   </button>
                 </div>
               </div>
