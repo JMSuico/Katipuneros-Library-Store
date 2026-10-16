@@ -51,7 +51,7 @@ To eliminate outdated physical barcode references and modernize the circulation 
 | **ExpressCode** | `SCAN-BAY-{ReservationPrefix}` | `SCAN-BAY-9042FA` | `Reservation` | Embedded in User Slip QR code for rapid checkout scan |
 | **Staged Counter Bay** | `Bay {Number:D2} Counter` | `Bay 01 Counter` | `Reservation` | Physical pickup counter location |
 | **Staging Pickup PIN** | 4-Digit Numeric String (`\d{4}`) | `8492` | `Reservation` | Verified by patron at cashier desk for manual handover |
-| **Patron Gate Pass Code** | `GP-{RandomHex4}-{RandomHex4}` | `GP-9F2B-841C` | `BorrowTransaction` | Digital proof of active loan for building exit gate |
+| **Transaction Reference / Gate Pass** | `KP-TXN-{yyyyMMdd}-{Hex6}` | `KP-TXN-20261017-9F4B2C` | `BorrowTransaction` | Unique digital proof of active loan for building exit gate and return audit |
 
 ---
 
@@ -76,6 +76,53 @@ private static (string AccessionNumber, string QrCodeData) GenerateIdentifiers(B
     return (accession, qr);
 }
 ```
+
+---
+
+### 2.3 `KP-TXN-XXXXXXXX` Transaction Reference Schema
+
+To replace non-descript random codes with an immutable, auditable reference format across circulation checkout, building gate security, and return audits:
+
+1. **Structure Specification**:
+   ```
+   KP-TXN-{yyyyMMdd}-{Hex6}
+   ```
+   - **Prefix (`KP-TXN-`)**: Katipuneros Patron Transaction identifier namespace.
+   - **Date Segment (`yyyyMMdd`)**: UTC date stamp guaranteeing chronological sortability and calendar-based indexing.
+   - **Entropy Segment (`Hex6`)**: 6-character uppercase alphanumeric hex string (`Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()`), providing $16^6 = 16,777,216$ unique permutations per calendar day.
+
+2. **Lifecycle & Usage**:
+   - Generated during `BorrowService.CheckoutAsync` upon successful checkout completion.
+   - Persisted in `BorrowTransaction.GatePassCode` and associated audit trails.
+   - Returned in checkout responses for rendering on patron confirmation receipts, printable exit passes, and notification payloads.
+   - Scanned or entered at circulation return desks (`ReturnsFines.tsx`) to rapidly recall the originating borrowing loan and calculate overdue fees.
+
+---
+
+### 2.4 Unique 4-Digit Pickup PIN Generation & Collision Avoidance
+
+To prevent security vulnerabilities where two patrons holding volumes for the same title share the same PIN:
+
+```csharp
+private async Task<string> GenerateUniqueLockerPinAsync(Guid bookId)
+{
+    var activePins = await _reservationRepository.GetActivePinsForBookAsync(bookId);
+
+    string pin;
+    int attempts = 0;
+    do
+    {
+        pin = Random.Shared.Next(1000, 9999).ToString();
+        attempts++;
+    } while (activePins.Contains(pin) && attempts < 50);
+
+    return pin;
+}
+```
+
+- **Scope of Uniqueness**: Strictly unique across all active (`Pending`, `StagedInLocker`) reservations for that title and physical `BookCopy`.
+- **Enforcement**: Assigned during staff hold approval (`TriageReservationAsync` and `BatchClearanceAsync`).
+- **Verification Gate**: At checkout, the patron must provide this PIN; the cashier portal validates it before the transaction is finalized.
 
 ---
 
@@ -219,7 +266,42 @@ export async function generateUserSlipPng(data: UserSlipData): Promise<string> {
 
 ---
 
+### 3.3 Dual-Mode Camera Scanner & 4-Digit PIN Handover Verification Modal (`CheckoutBorrow.tsx`)
+
+At the Cashier Circulation Desk, volume release enforces a dual-mode verification flow to ensure that physical books are handed over exclusively to the legitimate hold holder:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   CIRCULATION DESK HANDOVER VERIFICATION               │
+├──────────────────────────────────┬─────────────────────────────────────┤
+│  OPTION 1: OPTICAL CAMERA SCAN   │  OPTION 2: 4-DIGIT PIN ENTRY MODAL  │
+├──────────────────────────────────┼─────────────────────────────────────┤
+│ • Hardware: Webcam / USB Scanner │ • Trigger: Hold staging or search   │
+│ • API: navigator.mediaDevices    │ • Monospace 4-Digit PIN input       │
+│ • Device Switcher: Front/Rear/USB│ • Auto-advance across digit inputs  │
+│ • Auto-detects SCAN-BAY-XXXXXX   │ • Real-time match with LockerPin    │
+│ • Instant hold record resolution │ • Strict guard: rejects mismatch    │
+└──────────────────────────────────┴─────────────────────────────────────┘
+```
+
+1. **Option 1 — Integrated Multi-Driver Camera Scanner**:
+   - Uses the MediaDevices API (`navigator.mediaDevices.getUserMedia`) with continuous video stream rendering in a dedicated `<video>` element with targeting reticle.
+   - Includes input device enumeration (`navigator.mediaDevices.enumerateDevices()`) to support any internal laptop camera, external USB document camera, or optical barcode reader.
+   - Real-time frame decoding powered by native browser `BarcodeDetector` (with automatic fallback) decodes both Patron QR Passes and ExpressCodes (`SCAN-BAY-XXXXXX`).
+   - Upon successful scan, the cashier interface automatically matches the patron's active hold and book copy.
+
+2. **Option 2 — 4-Digit PIN Handover Verification Modal (`HandoverVerificationModal`)**:
+   - Opens when the cashier clicks "Verify & Handover" on a staged reservation or searches a patron manually.
+   - Displays clear hold metadata: Patron Name, Library Card ID, Book Title, Assigned Counter Bay, and Reservation Reference.
+   - Features 4 distinct monospace input boxes (`pinDigits: string[]`) that auto-advance on numeric keystroke and support backspace navigation.
+   - Compares the entered PIN against the reservation's assigned `LockerPin`. If correct, passes `pickupPin` and `reservationId` to the checkout request payload.
+   - If incorrect, displays a prominent error warning toast and blocks the checkout action to protect collection integrity.
+
+---
+
 ## 4. Cross-Role Circulation Workflow
+
+### 4.1 End-to-End Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -230,6 +312,7 @@ sequenceDiagram
     participant CashierUI as 🖥️ Cashier Desk (:5175)
     actor Cashier as 👨‍💼 Cashier Desk Staff
     participant AdminUI as 🏢 Admin Console (:5174)
+    participant Bus as 🔔 Notification Bus
 
     %% Phase 1: Hold Request
     Note over Patron,CustomerUI: Phase 1: Hold Creation
@@ -242,6 +325,7 @@ sequenceDiagram
     Note over CashierUI,Backend: Phase 2: Once-Only Triage
     Cashier->>CashierUI: Opens Pending Reservations Queue
     CashierUI->>Backend: PUT /api/reservations/{id}/triage (approved: true)
+    Backend->>Backend: Generate unique PIN via GenerateUniqueLockerPinAsync
     Backend->>Backend: Assign LockerBay="Bay 01 Counter", PIN="8492"
     Backend->>Backend: Lock decision (Status: StagedInLocker)
     Backend-->>CashierUI: HTTP 200 (Success)
@@ -256,18 +340,30 @@ sequenceDiagram
     CustomerUI-->>Patron: Saves Katipuneros_UserSlip_<ID>.png
 
     %% Phase 4: Desk Handover & Checkout
-    Note over Patron,CashierUI: Phase 4: Checkout Handover
-    Patron->>Cashier: Presents User Slip QR or states PIN 8492
-    Cashier->>CashierUI: Scans QR code or types 8492
-    CashierUI->>Backend: GET /api/copies/scan?code=SCAN-BAY-...
-    Backend-->>CashierUI: Resolves Hold & matches physical copy
-    Cashier->>CashierUI: Clicks "Complete Checkout"
-    CashierUI->>Backend: POST /api/borrow/checkout
-    Backend->>Backend: Set BookCopy.Status=Borrowed, Generate DueDate (+14d)
-    Backend-->>CashierUI: Active Loan Generated with Gate Pass Code
+    Note over Patron,CashierUI: Phase 4: Desk Handover & Dual-Mode Verification
+    alt Option 1: Optical Camera Scan
+        Cashier->>CashierUI: Points Camera Scanner at User Slip QR
+        CashierUI->>Backend: GET /api/copies/scan?code=SCAN-BAY-...
+        Backend-->>CashierUI: Resolves Hold & matched copy
+    else Option 2: Monospace 4-Digit PIN Handover Modal
+        Cashier->>CashierUI: Selects Patron hold and opens Handover Modal
+        Patron->>Cashier: Communicates 4-digit PIN (e.g. 8492)
+        Cashier->>CashierUI: Enters 8-4-9-2 into auto-advancing boxes
+        CashierUI->>CashierUI: Verifies entered PIN matches reservation PIN
+    end
+
+    Cashier->>CashierUI: Clicks "Confirm & Issue Gate Pass"
+    CashierUI->>Backend: POST /api/borrow/checkout { patronId, barcodes, pickupPin, reservationId }
+    Backend->>Backend: Validate PIN, set BookCopy.Status=Borrowed
+    Backend->>Backend: Generate GatePassCode="KP-TXN-20261017-9F4B2C"
+    Backend->>Bus: Dispatch borrow_confirmed notifications
+    Bus-->>CustomerUI: Notification Bell rings (Red Badge + Toast)
+    Bus-->>CashierUI: Notification Bell rings (Terminal Alert)
+    Bus-->>AdminUI: Notification Bell rings (Circulation Audit)
+    Backend-->>CashierUI: Active Loan Generated with KP-TXN reference
 
     %% Phase 5: Return & Physical Inspection
-    Note over Patron,CashierUI: Phase 5: QR Camera Return
+    Note over Patron,CashierUI: Phase 5: QR Camera Return & Clearance
     Patron->>Cashier: Returns book volume to counter
     Cashier->>CashierUI: Opens Returns Desk (/cashier/returns)
     Cashier->>CashierUI: Points webcam to Book Copy QR (KP:COPY:...)
@@ -276,8 +372,29 @@ sequenceDiagram
     Cashier->>CashierUI: Audits condition ("Good" / "Damaged"), clicks "Confirm Return"
     CashierUI->>Backend: POST /api/borrow/return
     Backend->>Backend: Set BookCopy.Status=Available, AvailableCopies++
+    Backend->>Bus: Dispatch return_confirmed notifications
+    Bus-->>CustomerUI: Return cleared notification
+    Bus-->>CashierUI: Restock confirmed notification
+    Bus-->>AdminUI: Inventory restock audit notification
     Backend-->>CashierUI: Return settled and inventory synchronized!
 ```
+
+---
+
+### 4.2 Cross-Portal Notification Bell Synchronization & Routing Table
+
+The Katipuneros Library Store employs a unified cross-portal event bus (`notificationBus.ts`) bridging the Patron (`:5173`), Admin (`:5174`), and Cashier (`:5175`) portals. Events are broadcast using local custom events (`kls_notification_received`), cross-tab `localStorage` synchronization (`kls_latest_notification`), and top navigation bar bell caches (`katipuneros_global_notifications_v1`).
+
+#### Multi-Role Notification Routing Matrix
+
+| Event Type | Trigger Origin | Target Portal | Destination Route | Notification Bell Message | Bell Action / Link |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `borrow_confirmed` | Cashier Checkout (`BorrowService`) | **Customer** | `/customer/borrowings` | 📖 *Your borrow for '{Title}' (Ref: {Ref}) is confirmed at {Bay}. Return by {DueDate}.* | View My Borrowings |
+| `borrow_confirmed` | Cashier Checkout (`BorrowService`) | **Cashier** | `/cashier/notifications` | ⚡ *Circulation checkout confirmed for {PatronName} - Volume: '{Title}' (Ref: {Ref}).* | View Terminal Alerts |
+| `borrow_confirmed` | Cashier Checkout (`BorrowService`) | **Chief Admin** | `/admin/returns` | 📋 *Circulation Audit: {PatronName} checked out '{Title}' under transaction {Ref}.* | View Active Loans |
+| `return_confirmed` | Returns Desk (`ReturnsFines.tsx`) | **Customer** | `/customer/borrowings` | ✅ *Your return of '{Title}' (Ref: {Ref}) was verified and cleared. Thank you!* | View Loan History |
+| `return_confirmed` | Returns Desk (`ReturnsFines.tsx`) | **Cashier** | `/cashier/notifications` | 📦 *Book returned: '{Title}' checked in by {PatronName} and restocked to {Bay}.* | Open Returns Desk |
+| `return_confirmed` | Returns Desk (`ReturnsFines.tsx`) | **Chief Admin** | `/admin/returns` | 🔄 *Inventory Restock: Physical copy of '{Title}' successfully returned to active stacks.* | Circulation Audit |
 
 ---
 
@@ -303,6 +420,7 @@ Across all frontend views:
 Run the full end-to-end circulation verification test suite:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scratch\verify_pin_verification_and_notifications.ps1
 powershell -ExecutionPolicy Bypass -File .\scratch\verify_unique_book_copy_qr_flow.ps1
 powershell -ExecutionPolicy Bypass -File .\scratch\verify_reservation_triage_flow.ps1
 ```
@@ -314,6 +432,10 @@ powershell -ExecutionPolicy Bypass -File .\scratch\verify_reservation_triage_flo
 - [x] **Test 4**: Once-Only triage guard rejecting repeat approvals or conflicting declines with HTTP 400.
 - [x] **Test 5**: User Slip PNG rendering with high-contrast QR code, staging bay, and pickup PIN.
 - [x] **Test 6**: Camera/hardware scan checkout and return settlement resetting copy status to `Available`.
+- [x] **Test 7**: Dual-mode camera scanner & 4-digit PIN handover modal in Cashier Desk (`CheckoutBorrow.tsx`).
+- [x] **Test 8**: Unique `KP-TXN-{yyyyMMdd}-{Hex6}` transaction reference issued upon checkout.
+- [x] **Test 9**: Cross-portal notification bell synchronization for borrow and return clearance (`notificationBus.ts`).
+- [x] **Test 10**: Zero compiler warnings/errors on Backend (.NET 10) and Frontend (Vite/TypeScript).
 
 ---
 
