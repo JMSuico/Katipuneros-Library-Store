@@ -21,6 +21,7 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          args: ["-c", "config_file=/etc/postgresql/postgresql.conf"]
           ports:
             - containerPort: 5432
               name: postgres
@@ -30,6 +31,12 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: pg-init
+              mountPath: /docker-entrypoint-initdb.d/01-init.sh
+              subPath: 01-init.sh
+            - name: pg-config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
           resources:
             requests:
               cpu: 250m
@@ -41,6 +48,19 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: primary-db-pvc
+        - name: pg-init
+          configMap:
+            name: katipuneros-pg-primary-config
+            defaultMode: 0755
+            items:
+              - key: 01-init.sh
+                path: 01-init.sh
+        - name: pg-config
+          configMap:
+            name: katipuneros-pg-primary-config
+            items:
+              - key: postgresql.conf
+                path: postgresql.conf
 ---
 apiVersion: v1
 kind: Service

@@ -13,17 +13,21 @@ namespace Backend.Features.Repositories.Implementations;
 public class BookRepository : IBookRepository
 {
     private readonly AppDbContext _context;
+    private readonly AppDbContext _readOnlyContext;
 
-    public BookRepository(AppDbContext context) =>
+    public BookRepository(AppDbContext context, ReadOnlyAppDbContext? readOnlyContext = null)
+    {
         _context = context;
+        _readOnlyContext = (AppDbContext?)readOnlyContext ?? context;
+    }
 
     public async Task<Book?> GetByIdAsync(Guid id) =>
-        await _context.Books
+        await _readOnlyContext.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Id == id);
 
     public async Task<Book?> GetByIsbnAsync(string isbn) =>
-        await _context.Books
+        await _readOnlyContext.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Isbn == isbn);
 
@@ -33,7 +37,7 @@ public class BookRepository : IBookRepository
         var stripped = cleanBarcode.Replace("-", "");
         var isGuid = Guid.TryParse(cleanBarcode, out var bookId);
 
-        return await _context.Books
+        return await _readOnlyContext.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b =>
                 (isGuid && b.Id == bookId) ||
@@ -45,10 +49,10 @@ public class BookRepository : IBookRepository
     }
 
     public async Task<Guid> GetDefaultCategoryIdAsync() =>
-        await _context.Categories.Select(c => c.Id).FirstOrDefaultAsync();
+        await _readOnlyContext.Categories.Select(c => c.Id).FirstOrDefaultAsync();
 
     public async Task<List<Book>> GetAllAsync(Guid? categoryId = null, string? searchTerm = null, bool? isSpotlight = null) =>
-        await _context.Books
+        await _readOnlyContext.Books
             .Include(b => b.Category)
             .Where(b => !categoryId.HasValue || b.CategoryId == categoryId.Value)
             .Where(b => !isSpotlight.HasValue || b.IsSpotlight == isSpotlight.Value)

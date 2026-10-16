@@ -22,6 +22,7 @@ public class BorrowService : IBorrowService
     private readonly IUserRepository _userRepository;
     private readonly IFineRepository _fineRepository;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
 
     public BorrowService(
         IBorrowRepository borrowRepository,
@@ -29,9 +30,10 @@ public class BorrowService : IBorrowService
         IBookCopyRepository bookCopyRepository,
         IUserRepository userRepository,
         IFineRepository fineRepository,
-        IConfiguration configuration) =>
-        (_borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _configuration) =
-        (borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, configuration);
+        IConfiguration configuration,
+        IEmailService emailService) =>
+        (_borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _configuration, _emailService) =
+        (borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, configuration, emailService);
 
     public async Task<List<BorrowTransaction>> GetPatronActiveLoansAsync(Guid patronId) =>
         await _borrowRepository.GetActiveByPatronIdAsync(patronId);
@@ -101,7 +103,9 @@ public class BorrowService : IBorrowService
                 DueDate = dueDate > DateTime.UtcNow ? dueDate : DateTime.UtcNow.AddDays(14),
                 Status = TransactionStatus.Active,
                 RenewalCount = 0,
-                GatePassCode = $"GP-{Random.Shared.Next(100000, 999999)}"
+                GatePassCode = $"GP-{Random.Shared.Next(100000, 999999)}",
+                Patron = patron,
+                Book = book
             };
 
             await _borrowRepository.AddAsync(transaction);
@@ -111,6 +115,11 @@ public class BorrowService : IBorrowService
         await _bookCopyRepository.SaveChangesAsync();
         await _borrowRepository.SaveChangesAsync();
         await _bookRepository.SaveChangesAsync();
+
+        foreach (var loan in created)
+        {
+            await _emailService.SendLoanNotificationAsync(loan, "Checkout");
+        }
 
         return (true, created, null);
     }
@@ -260,6 +269,13 @@ public class BorrowService : IBorrowService
         await _borrowRepository.UpdateAsync(activeLoan);
         await _borrowRepository.SaveChangesAsync();
         await _bookRepository.SaveChangesAsync();
+
+        activeLoan.Book = book;
+        if (activeLoan.Patron == null)
+        {
+            activeLoan.Patron = await _userRepository.GetByIdAsync(activeLoan.PatronId);
+        }
+        await _emailService.SendLoanNotificationAsync(activeLoan, "Returned", totalFine);
 
         return (true, activeLoan, totalFine, null);
     }

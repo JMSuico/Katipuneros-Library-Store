@@ -20,12 +20,22 @@ spec:
       containers:
         - name: redis
           image: redis:7.2-alpine
-          command: ["redis-server", "--requirepass", "KatipunerosRedisSecret_2026!"]
+          command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+          args: ["--requirepass", "$(REDIS_PASSWORD)"]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: katipuneros-secrets
+                  key: REDIS_PASSWORD
           ports:
             - containerPort: 6379
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: redis-config
+              mountPath: /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
           resources:
             requests:
               cpu: 100m
@@ -37,6 +47,12 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: redis-pvc
+        - name: redis-config
+          configMap:
+            name: katipuneros-pg-primary-config
+            items:
+              - key: redis.conf
+                path: redis.conf
 ---
 apiVersion: v1
 kind: Service

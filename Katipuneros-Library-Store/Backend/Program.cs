@@ -519,6 +519,20 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
 // ==========================================
 // 9. Database Auto-Seeder on Startup
 // ==========================================
+if (isPostgres)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        db.Database.EnsureCreated();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "PostgreSQL Database.EnsureCreated completed with non-fatal status.");
+    }
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();

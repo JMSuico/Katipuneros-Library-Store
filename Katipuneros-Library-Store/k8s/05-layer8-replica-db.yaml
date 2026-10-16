@@ -21,6 +21,12 @@ spec:
       initContainers:
         - name: clone-primary
           image: postgres:16-alpine
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: katipuneros-secrets
+                  key: POSTGRES_REPLICATION_PASSWORD
           command:
             - bash
             - -c
@@ -32,7 +38,7 @@ spec:
               if [ ! -f /var/lib/postgresql/data/standby.signal ]; then
                 echo 'Cloning from primary via pg_basebackup...'
                 rm -rf /var/lib/postgresql/data/*
-                PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v
+                PGPASSWORD=$PGPASSWORD pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v
                 touch /var/lib/postgresql/data/standby.signal
                 chmod 700 /var/lib/postgresql/data
               fi

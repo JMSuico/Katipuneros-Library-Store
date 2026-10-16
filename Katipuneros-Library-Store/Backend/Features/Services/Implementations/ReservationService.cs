@@ -24,14 +24,16 @@ public class ReservationService : IReservationService
     private readonly IReservationRepository _reservationRepository;
     private readonly IBookRepository _bookRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IEmailService _emailService;
     private static readonly SemaphoreSlim _triageLock = new(1, 1);
 
     public ReservationService(
         IReservationRepository reservationRepository,
         IBookRepository bookRepository,
-        IUserRepository userRepository) =>
-        (_reservationRepository, _bookRepository, _userRepository) =
-        (reservationRepository, bookRepository, userRepository);
+        IUserRepository userRepository,
+        IEmailService emailService) =>
+        (_reservationRepository, _bookRepository, _userRepository, _emailService) =
+        (reservationRepository, bookRepository, userRepository, emailService);
 
     public async Task<List<Reservation>> GetPatronReservationsAsync(Guid patronId) =>
         await _reservationRepository.GetActiveByPatronIdAsync(patronId);
@@ -129,11 +131,15 @@ public class ReservationService : IReservationService
             ExpiryDate = DateTime.UtcNow.AddHours(48),
             Status = ReservationStatus.Pending,
             PickupBranch = InputSanitizer.SanitizeText(pickupBranch ?? "Main Circulation Desk"),
-            QueuePosition = nextPosition
+            QueuePosition = nextPosition,
+            Patron = patron,
+            Book = book
         };
 
         await _reservationRepository.AddAsync(reservation);
         await _reservationRepository.SaveChangesAsync();
+
+        await _emailService.SendReservationNotificationAsync(reservation, "Submitted");
 
         return (true, reservation, null);
     }
@@ -177,6 +183,10 @@ public class ReservationService : IReservationService
 
             await _reservationRepository.UpdateAsync(reservation);
             var saved = await _reservationRepository.SaveChangesAsync();
+            if (saved)
+            {
+                await _emailService.SendReservationNotificationAsync(reservation, approved ? "Approved" : "Declined", reason);
+            }
             return (saved, saved ? null : "Failed to update triage decision.");
         }
         finally
