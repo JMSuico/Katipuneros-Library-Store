@@ -95,8 +95,9 @@ function App() {
   useAccountTheme();
   const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
   const port = typeof window !== 'undefined' ? window.location.port : '';
-  const isPortAdmin = port === '5174' || host.startsWith('admin.');
-  const isPortCashier = port === '5175' || host.startsWith('cashier.');
+  const portalEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL ? String(import.meta.env.VITE_PORTAL).toLowerCase() : '');
+  const isPortAdmin = portalEnv === 'admin' || port === '5174' || host.startsWith('admin.') || host.includes('-admin.') || host.includes('admin');
+  const isPortCashier = portalEnv === 'cashier' || port === '5175' || host.startsWith('cashier.') || host.includes('-cashier.') || host.includes('cashier');
 
   return (
     <Suspense

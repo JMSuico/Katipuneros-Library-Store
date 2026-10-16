@@ -1,0 +1,50 @@
+services:
+  # ─── SERVICE 1: .NET 10 Web API Backend ────────────────────────────
+  - type: web
+    name: katipuneros-backend
+    env: docker
+    dockerfilePath: docker/Dockerfile.backend
+    plan: starter
+    region: singapore
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:5000
+      - key: ConnectionStrings__PrimaryConnection
+        sync: false # Set to Supabase PostgreSQL connection string
+      - key: ConnectionStrings__ReplicaConnection
+        sync: false # Set to Supabase Read Replica (or same as Primary)
+      - key: Redis__ConnectionString
+        sync: false # Optional: Set to Upstash Redis or Render Redis
+      - key: Cors__AllowedOrigins__0
+        value: https://katipuneros-customer.vercel.app
+      - key: Cors__AllowedOrigins__1
+        value: https://katipuneros-cashier.vercel.app
+      - key: Cors__AllowedOrigins__2
+        value: https://katipuneros-admin.onrender.com
+
+  # ─── SERVICE 2: Chief Admin Console (Static Site on Render) ────────
+  - type: web
+    name: katipuneros-admin
+    env: static
+    plan: free
+    region: singapore
+    autoDeploy: true
+    buildCommand: cd Frontend && npm install && npm run build
+    staticPublishPath: Frontend/dist
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_PORTAL
+        value: admin
+      - key: VITE_API_URL
+        sync: false # Set to https://katipuneros-backend.onrender.com/api
