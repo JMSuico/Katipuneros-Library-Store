@@ -3,9 +3,10 @@
 # Works across any Windows laptop without needing Visual Studio IDE.
 # Usage:
 #   .\manage.ps1             (Launches interactive menu)
-#   .\manage.ps1 start       (Starts Backend :5000, Public UI :5173, Admin :5174)
-#   .\manage.ps1 refresh     (Hard refresh: cleans caches, rebuilds & restarts)
-#   .\manage.ps1 stop        (Stops all running services on ports 5000, 5173, 5174)
+#   .\manage.ps1 start       (Starts Backend :5000, Patron :5173, Admin :5174, Cashier :5175)
+#   .\manage.ps1 status      (Probes live health matrix of all 4 service ports)
+#   .\manage.ps1 refresh     (Hard refresh: cleans caches, rebuilds & restarts all 4)
+#   .\manage.ps1 stop        (Stops all running services on ports 5000, 5173, 5174, 5175)
 #   .\manage.ps1 migrate     (Interactive EF Core migration & DB update)
 #   .\manage.ps1 test        (Build checks, API tests & SHA-256 chain verification)
 # ==============================================================================
@@ -71,9 +72,9 @@ function Check-Prerequisites {
 }
 
 function Stop-AllServices {
-    Write-Header "STOPPING ALL KATIPUNEROS SERVICES (PORTS 5000, 5173, 5174)"
+    Write-Header "STOPPING ALL KATIPUNEROS SERVICES (PORTS 5000, 5173, 5174, 5175)"
     
-    $ports = @(5000, 5173, 5174)
+    $ports = @(5000, 5173, 5174, 5175)
     $killedCount = 0
 
     foreach ($port in $ports) {
@@ -115,17 +116,79 @@ function Stop-AllServices {
     }
 
     if ($killedCount -gt 0) {
-        Write-Host "  [OK] Stopped $killedCount service process(es). Ports 5000, 5173, and 5174 are now free." -ForegroundColor Green
+        Write-Host "  [OK] Stopped $killedCount service process(es). Ports 5000, 5173, 5174, and 5175 are now free." -ForegroundColor Green
     } else {
-        Write-Host "  [i] No active services detected on ports 5000, 5173, or 5174." -ForegroundColor Gray
+        Write-Host "  [i] No active services detected on ports 5000, 5173, 5174, or 5175." -ForegroundColor Gray
     }
 }
 
+function Show-Status {
+    Write-Header "KATIPUNEROS SYSTEM LIVE STATUS & PORT MATRIX"
+    
+    $services = @(
+        @{ Port = 5000; Name = "Backend Web API"; Target = "http://localhost:5000/api/health"; Role = ".NET 10 REST API & Scalar Docs" },
+        @{ Port = 5173; Name = "Patron Portal";    Target = "http://127.0.0.1:5173/";         Role = "Public Landing, Catalog & Customer" },
+        @{ Port = 5174; Name = "Chief Admin Console"; Target = "http://127.0.0.1:5174/";      Role = "Security-Isolated Admin Console" },
+        @{ Port = 5175; Name = "Cashier Terminal"; Target = "http://127.0.0.1:5175/";         Role = "Circulation Desk, POS & Scanners" }
+    )
+
+    $format = "{0,-6} | {1,-20} | {2,-8} | {3,-12} | {4,-12} | {5}"
+    Write-Host ($format -f "PORT", "SERVICE NAME", "PID", "TCP STATUS", "HTTP HEALTH", "DESCRIPTION") -ForegroundColor Yellow
+    Write-Host ("-" * 95) -ForegroundColor DarkGray
+
+    foreach ($svc in $services) {
+        $p = $svc.Port
+        $procId = "-"
+        $tcpStatus = "OFFLINE"
+        $httpStatus = "UNKNOWN"
+
+        # Check TCP Listener
+        try {
+            $conn = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($conn) {
+                $procId = $conn.OwningProcess
+                $tcpStatus = "LISTENING"
+            }
+        } catch {}
+
+        if ($tcpStatus -eq "OFFLINE") {
+            # Netstat fallback
+            $match = netstat -ano | Select-String ":$p\s+.*LISTENING\s+(\d+)" | Select-Object -First 1
+            if ($match -and $match.Matches.Groups[1].Value) {
+                $procId = [int]$match.Matches.Groups[1].Value
+                $tcpStatus = "LISTENING"
+            }
+        }
+
+        # Check HTTP Endpoint
+        if ($tcpStatus -eq "LISTENING") {
+            try {
+                $resp = Invoke-WebRequest -Uri $svc.Target -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+                if ($resp.StatusCode -eq 200) {
+                    $httpStatus = "200 OK"
+                } else {
+                    $httpStatus = "HTTP $($resp.StatusCode)"
+                }
+            } catch {
+                $httpStatus = "NO RESPONSE"
+            }
+        } else {
+            $httpStatus = "DOWN"
+        }
+
+        $color = if ($tcpStatus -eq "LISTENING" -and $httpStatus -like "*200*") { "Green" } elseif ($tcpStatus -eq "LISTENING") { "Yellow" } else { "DarkGray" }
+        Write-Host ($format -f $p, $svc.Name, $procId, $tcpStatus, $httpStatus, $svc.Role) -ForegroundColor $color
+    }
+
+    Write-Host ("-" * 95) -ForegroundColor DarkGray
+    Write-Host ""
+}
+
 function Start-AllServices {
-    Write-Header "STARTING KATIPUNEROS LIBRARY STORE (DEV PREVIEW)"
+    Write-Header "STARTING KATIPUNEROS LIBRARY STORE (DEV PREVIEW - 4 SERVICES)"
     if (-not (Check-Prerequisites)) { return }
 
-    # 1. Stop any stale instances
+    # 1. Stop any stale instances across all 4 ports
     Stop-AllServices
 
     # 2. Update Database via EF Core to ensure schemas are current
@@ -141,8 +204,8 @@ function Start-AllServices {
 
     # 3. Start Backend Web API on Port 5000
     Write-Host "[*] Launching .NET 10 Web API backend on http://localhost:5000..." -ForegroundColor Cyan
-    $backendCmd = "cd '$BackendDir'; dotnet run --launch-profile http"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Katipuneros .NET 10 Web API Backend' -ForegroundColor Cyan; $backendCmd"
+    $backendCmd = "Set-Location '$BackendDir'; dotnet run --launch-profile http"
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "& { Write-Host 'Katipuneros .NET 10 Web API Backend (:5000)' -ForegroundColor Cyan; $backendCmd }"
 
     # Wait for backend port 5000 to be ready
     Write-Host "[*] Waiting for backend API to initialize..." -ForegroundColor Gray
@@ -164,25 +227,31 @@ function Start-AllServices {
         Write-Host "  [i] Backend process spawned. Proceeding to launch UI clients..." -ForegroundColor Yellow
     }
 
-    # 4. Start Public Frontend Client on Port 5173 (Customer, Cashier, Landing Page)
-    Write-Host "[*] Launching Public & Circulation Client on http://127.0.0.1:5173..." -ForegroundColor Cyan
-    $publicCmd = "cd '$FrontendDir'; npm run dev -- --host 127.0.0.1 --port 5173"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Katipuneros Public & Circulation Client (:5173)' -ForegroundColor Green; $publicCmd"
+    # 4. Start Public & Patron Frontend Client on Port 5173
+    Write-Host "[*] Launching Patron Portal & Public Landing on http://127.0.0.1:5173..." -ForegroundColor Cyan
+    $publicCmd = "Set-Location '$FrontendDir'; npm run dev:customer -- --host 127.0.0.1"
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "& { Write-Host 'Katipuneros Public & Patron Portal (:5173)' -ForegroundColor Green; $publicCmd }"
 
     # 5. Start Security-Isolated Admin Portal on Port 5174
     Write-Host "[*] Launching Isolated Chief Admin Portal on http://127.0.0.1:5174..." -ForegroundColor Cyan
-    $adminCmd = "cd '$FrontendDir'; npm run dev:admin -- --host 127.0.0.1"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Katipuneros Isolated Admin Console (:5174)' -ForegroundColor Magenta; $adminCmd"
+    $adminCmd = "Set-Location '$FrontendDir'; npm run dev:admin -- --host 127.0.0.1"
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "& { Write-Host 'Katipuneros Isolated Admin Console (:5174)' -ForegroundColor Magenta; $adminCmd }"
+
+    # 6. Start Dedicated Cashier Circulation Terminal on Port 5175
+    Write-Host "[*] Launching Cashier Circulation Terminal on http://127.0.0.1:5175..." -ForegroundColor Cyan
+    $cashierCmd = "Set-Location '$FrontendDir'; npm run dev:cashier -- --host 127.0.0.1"
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "& { Write-Host 'Katipuneros Cashier Circulation Terminal (:5175)' -ForegroundColor Yellow; $cashierCmd }"
 
     Start-Sleep -Seconds 2
 
-    # 6. Auto-Launch Web Browser
+    # 7. Print Access Dashboard & Auto-Launch Web Browser
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Green
-    Write-Host "  ALL SERVICES SUCCESSFULLY LAUNCHED!" -ForegroundColor Green
+    Write-Host "  ALL 4 KATIPUNEROS SERVICES SUCCESSFULLY LAUNCHED!" -ForegroundColor Green
     Write-Host "======================================================================" -ForegroundColor Green
-    Write-Host "  * Public Portal (Patron / Cashier):  http://127.0.0.1:5173/login" -ForegroundColor White
+    Write-Host "  * Public Portal (Patron / Catalog):  http://127.0.0.1:5173/login" -ForegroundColor White
     Write-Host "  * Chief Admin Console (Isolated):    http://127.0.0.1:5174/admin/login" -ForegroundColor White
+    Write-Host "  * Cashier Desk Terminal (POS & QR):  http://127.0.0.1:5175/cashier/login" -ForegroundColor White
     Write-Host "  * Backend API & Scalar Docs:         http://localhost:5000/scalar/v1" -ForegroundColor White
     Write-Host "======================================================================" -ForegroundColor Green
     Write-Host ""
@@ -190,12 +259,13 @@ function Start-AllServices {
     Write-Host "[*] Opening browser tabs for preview..." -ForegroundColor Gray
     Start-Process "http://127.0.0.1:5173/"
     Start-Process "http://127.0.0.1:5174/admin/login"
+    Start-Process "http://127.0.0.1:5175/cashier/login"
 }
 
 function Hard-Refresh {
-    Write-Header "HARD REFRESH & CLEAN REBUILD"
+    Write-Header "HARD REFRESH & CLEAN REBUILD (ALL 4 SERVICES)"
     
-    # 1. Stop existing services
+    # 1. Stop existing services on ports 5000, 5173, 5174, 5175
     Stop-AllServices
 
     # 2. Clean Vite Cache & Build Artifacts
@@ -216,7 +286,12 @@ function Hard-Refresh {
     # 4. Verify Frontend TypeScript Compilation
     Write-Host "[*] Validating TypeScript compilation (tsc -b)..." -ForegroundColor Gray
     Push-Location $FrontendDir
-    & npx tsc -b
+    $tscPath = Join-Path $FrontendDir "node_modules\.bin\tsc.cmd"
+    if (Test-Path $tscPath) {
+        & $tscPath -b
+    } else {
+        & npx --yes tsc -b
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  [ERROR] TypeScript build failed. Please fix compile errors before refreshing." -ForegroundColor Red
         Pop-Location
@@ -237,7 +312,7 @@ function Hard-Refresh {
     Write-Host "  [OK] Backend built successfully with 0 errors." -ForegroundColor Green
     Pop-Location
 
-    # 6. Re-launch fresh services
+    # 6. Re-launch fresh services across all 4 ports
     Start-AllServices
 }
 
@@ -290,8 +365,8 @@ function Run-DatabaseMigrations {
 function Run-HealthTests {
     Write-Header "KATIPUNEROS SYSTEM HEALTH & INTEGRITY CHECK"
     
-    # Check Backend Build
-    Write-Host "[1/4] Checking .NET 10 compilation..." -ForegroundColor Gray
+    # 1. Check Backend Build
+    Write-Host "[1/5] Checking .NET 10 compilation..." -ForegroundColor Gray
     Push-Location $RootDir
     & dotnet build Backend/Backend.csproj --verbosity minimal
     if ($LASTEXITCODE -eq 0) {
@@ -299,17 +374,22 @@ function Run-HealthTests {
     }
     Pop-Location
 
-    # Check Frontend Typecheck
-    Write-Host "[2/4] Checking Frontend TypeScript..." -ForegroundColor Gray
+    # 2. Check Frontend Typecheck
+    Write-Host "[2/5] Checking Frontend TypeScript..." -ForegroundColor Gray
     Push-Location $FrontendDir
-    & npx tsc -b
+    $tscPath = Join-Path $FrontendDir "node_modules\.bin\tsc.cmd"
+    if (Test-Path $tscPath) {
+        & $tscPath -b
+    } else {
+        & npx --yes tsc -b
+    }
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  [OK] Frontend TypeScript compiles with 0 errors." -ForegroundColor Green
     }
     Pop-Location
 
-    # Check live API endpoints if running
-    Write-Host "[3/4] Testing Backend REST API connectivity..." -ForegroundColor Gray
+    # 3. Check live API endpoints if running
+    Write-Host "[3/5] Testing Backend REST API connectivity (:5000)..." -ForegroundColor Gray
     try {
         $books = Invoke-RestMethod -Uri "http://localhost:5000/api/books" -TimeoutSec 3 -ErrorAction Stop
         Write-Host "  [OK] GET /api/books returned $($books.data.Count) catalog titles." -ForegroundColor Green
@@ -317,16 +397,45 @@ function Run-HealthTests {
         Write-Host "  [i] Backend is not currently running. Start services via Option [1] to test live API." -ForegroundColor Yellow
     }
 
-    # Test SHA-256 Chain if API is online
-    Write-Host "[4/4] Testing SHA-256 Tamper-Evident Audit Chain..." -ForegroundColor Gray
+    # 4. Probe Frontend Ports (5173, 5174, 5175)
+    Write-Host "[4/5] Checking Frontend listeners (:5173, :5174, :5175)..." -ForegroundColor Gray
+    $fePorts = @(
+        @{ Port = 5173; Label = "Patron Portal (:5173)" },
+        @{ Port = 5174; Label = "Admin Portal (:5174)" },
+        @{ Port = 5175; Label = "Cashier Terminal (:5175)" }
+    )
+    foreach ($fp in $fePorts) {
+        $found = Get-NetTCPConnection -LocalPort $fp.Port -State Listen -ErrorAction SilentlyContinue
+        if ($found) {
+            Write-Host "  [OK] $($fp.Label) is active (PID: $($found.OwningProcess))." -ForegroundColor Green
+        } else {
+            Write-Host "  [i] $($fp.Label) is not listening." -ForegroundColor DarkGray
+        }
+    }
+
+    # 5. Test SHA-256 Chain if API is online
+    Write-Host "[5/5] Testing SHA-256 Tamper-Evident Audit Chain..." -ForegroundColor Gray
     try {
-        $loginJson = @{ email = "admin@katipuneros.edu.ph"; password = "Admin@2026!" } | ConvertTo-Json
-        $auth = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/login" -Method Post -Body $loginJson -ContentType "application/json" -TimeoutSec 3 -ErrorAction Stop
-        $token = $auth.data.token
-        $verify = Invoke-RestMethod -Uri "http://localhost:5000/api/audit/verify-chain" -Method Get -Headers @{ Authorization = "Bearer $token" } -TimeoutSec 3 -ErrorAction Stop
-        Write-Host "  [OK] Cryptographic Audit Verification: isIntact=$($verify.data.isIntact) - $($verify.data.statusMessage)" -ForegroundColor Green
+        $adminEmails = @("customadmin1@katipuneros.edu.ph", "admin@katipuneros.edu.ph", "testadmin@katipuneros.edu.ph")
+        $token = $null
+        foreach ($email in $adminEmails) {
+            try {
+                $loginJson = @{ email = $email; password = "Admin@2026!" } | ConvertTo-Json
+                $auth = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/login" -Method Post -Body $loginJson -ContentType "application/json" -TimeoutSec 3 -ErrorAction Stop
+                if ($auth.data.token) {
+                    $token = $auth.data.token
+                    break
+                }
+            } catch {}
+        }
+        if ($token) {
+            $verify = Invoke-RestMethod -Uri "http://localhost:5000/api/audit/verify-chain" -Method Get -Headers @{ Authorization = "Bearer $token" } -TimeoutSec 3 -ErrorAction Stop
+            Write-Host "  [OK] Cryptographic Audit Verification: isIntact=$($verify.data.isIntact) - $($verify.data.statusMessage)" -ForegroundColor Green
+        } else {
+            Write-Host "  [i] SHA-256 test skipped (no matching admin credentials for automated login)." -ForegroundColor DarkGray
+        }
     } catch {
-        Write-Host "  [i] SHA-256 live test skipped (server offline or starting)." -ForegroundColor Yellow
+        Write-Host "  [i] SHA-256 live test skipped ($($_.Exception.Message))." -ForegroundColor Yellow
     }
 }
 
@@ -383,6 +492,7 @@ function New-UserCliPrompt {
 # ─── Command Line Argument Dispatcher ────────────────────────────────────────
 switch ($Action.ToLower()) {
     "start"   { Start-AllServices; exit }
+    "status"  { Show-Status; exit }
     "refresh" { Hard-Refresh; exit }
     "stop"    { Stop-AllServices; exit }
     "migrate" { Run-DatabaseMigrations; exit }
@@ -441,37 +551,39 @@ do {
     Write-Host "   Single command runner for any team member's Windows machine        " -ForegroundColor Gray
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  [1] Start Fullstack Dev      -> Backend :5000 + Public :5173 + Admin :5174" -ForegroundColor White
-    Write-Host "  [2] Hard Refresh & Rebuild   -> Purge caches, re-compile & restart fresh" -ForegroundColor White
-    Write-Host "  [3] Stop All Services        -> Free ports 5000, 5173, and 5174" -ForegroundColor White
-    Write-Host "  [4] Database Migrations      -> Add EF Core migration & update SQL Server" -ForegroundColor White
-    Write-Host "  [5] Health Check & Tests     -> Build validation & SHA-256 audit verification" -ForegroundColor White
-    Write-Host "  [6] Create SuperAdmin CLI    -> Terminal prompt for createsuperadmin" -ForegroundColor White
-    Write-Host "  [7] Create Custom Admin CLI  -> Terminal prompt for createcustomsuperadmin" -ForegroundColor White
-    Write-Host "  [8] Add User CLI             -> Terminal prompt to add Patron/Cashier/Admin" -ForegroundColor White
-    Write-Host "  [9] SSMS 19 DB Initialize   -> Create/Update DB via EF Core (InventoryLibrary)" -ForegroundColor White
+    Write-Host "  [1] Start Fullstack Dev      -> Backend :5000 + Patron :5173 + Admin :5174 + Cashier :5175" -ForegroundColor White
+    Write-Host "  [2] Live Status Matrix       -> Probes ports 5000, 5173, 5174, 5175 and HTTP health" -ForegroundColor White
+    Write-Host "  [3] Hard Refresh & Rebuild   -> Purge caches, re-compile & restart all 4 services" -ForegroundColor White
+    Write-Host "  [4] Stop All Services        -> Free ports 5000, 5173, 5174, and 5175" -ForegroundColor White
+    Write-Host "  [5] Database Migrations      -> Add EF Core migration & update SQL Server" -ForegroundColor White
+    Write-Host "  [6] Health Check & Tests     -> Build validation & SHA-256 audit verification" -ForegroundColor White
+    Write-Host "  [7] Create SuperAdmin CLI    -> Terminal prompt for createsuperadmin" -ForegroundColor White
+    Write-Host "  [8] Create Custom Admin CLI  -> Terminal prompt for createcustomsuperadmin" -ForegroundColor White
+    Write-Host "  [9] Add User CLI             -> Terminal prompt to add Patron/Cashier/Admin" -ForegroundColor White
+    Write-Host "  [10] SSMS 19 DB Initialize   -> Create/Update DB via EF Core (InventoryLibrary)" -ForegroundColor White
     Write-Host ""
     Write-Host "  [0] Exit" -ForegroundColor DarkGray
     Write-Host "======================================================================" -ForegroundColor Cyan
-    $sel = Read-Host "Select an option [0-9]"
+    $sel = Read-Host "Select an option [0-10]"
 
     switch ($sel) {
-        "1" { Start-AllServices; Read-Host "`nPress Enter to return to menu..." }
-        "2" { Hard-Refresh; Read-Host "`nPress Enter to return to menu..." }
-        "3" { Stop-AllServices; Read-Host "`nPress Enter to return to menu..." }
-        "4" { Run-DatabaseMigrations; Read-Host "`nPress Enter to return to menu..." }
-        "5" { Run-HealthTests; Read-Host "`nPress Enter to return to menu..." }
-        "6" { New-SuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
-        "7" { New-CustomSuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
-        "8" { New-UserCliPrompt; Read-Host "`nPress Enter to return to menu..." }
-        "9" { 
+        "1"  { Start-AllServices; Read-Host "`nPress Enter to return to menu..." }
+        "2"  { Show-Status; Read-Host "`nPress Enter to return to menu..." }
+        "3"  { Hard-Refresh; Read-Host "`nPress Enter to return to menu..." }
+        "4"  { Stop-AllServices; Read-Host "`nPress Enter to return to menu..." }
+        "5"  { Run-DatabaseMigrations; Read-Host "`nPress Enter to return to menu..." }
+        "6"  { Run-HealthTests; Read-Host "`nPress Enter to return to menu..." }
+        "7"  { New-SuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "8"  { New-CustomSuperAdminPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "9"  { New-UserCliPrompt; Read-Host "`nPress Enter to return to menu..." }
+        "10" { 
             Write-Host "[*] Executing EF Core database update (InventoryLibrary)..." -ForegroundColor Cyan
             Push-Location $RootDir
             & dotnet ef database update --project Backend
             Pop-Location
             Read-Host "`nPress Enter to return to menu..." 
         }
-        "0" { Write-Host "`nExiting. Mabuhay!" -ForegroundColor Yellow; break }
+        "0"  { Write-Host "`nExiting. Mabuhay!" -ForegroundColor Yellow; break }
         Default { Write-Host "`nInvalid selection." -ForegroundColor Red; Start-Sleep -Seconds 1 }
     }
 } while ($sel -ne "0")

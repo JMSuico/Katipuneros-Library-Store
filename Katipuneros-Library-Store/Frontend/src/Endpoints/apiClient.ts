@@ -33,8 +33,21 @@ export const API_BASE_URL: string = getApiBaseUrl();
 export const AUTH_TOKEN_KEY = 'katipuneros_token';
 export const USER_INFO_KEY = 'katipuneros_user';
 
+export const getPortSuffix = (): string => {
+  if (typeof window !== 'undefined' && window.location?.port) {
+    return `_${window.location.port}`;
+  }
+  return '';
+};
+
+export const getAuthTokenKey = (): string => `katipuneros_token${getPortSuffix()}`;
+export const getUserInfoKey = (): string => `katipuneros_user${getPortSuffix()}`;
+export const getStoredUserKey = (): string => `katipuneros_user_data${getPortSuffix()}`;
+
 export const getAuthToken = (): string | null => {
   try {
+    const partitioned = localStorage.getItem(getAuthTokenKey());
+    if (partitioned) return partitioned;
     return localStorage.getItem(AUTH_TOKEN_KEY);
   } catch {
     return null;
@@ -43,6 +56,7 @@ export const getAuthToken = (): string | null => {
 
 export const setAuthToken = (token: string): void => {
   try {
+    localStorage.setItem(getAuthTokenKey(), token);
     localStorage.setItem(AUTH_TOKEN_KEY, token);
   } catch {
     // Ignore storage exceptions
@@ -51,6 +65,9 @@ export const setAuthToken = (token: string): void => {
 
 export const clearAuthSession = (): void => {
   try {
+    localStorage.removeItem(getAuthTokenKey());
+    localStorage.removeItem(getUserInfoKey());
+    localStorage.removeItem(getStoredUserKey());
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(USER_INFO_KEY);
     localStorage.removeItem('katipuneros_user_data');

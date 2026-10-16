@@ -3,15 +3,24 @@
 // Rejects Chief Admin accounts (strictly separated on port 5174).
 // Expresses all sync and async routines via clean lambda expressions.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { loginUser } from '../../Endpoints/authApi';
+import { loginUser, getStoredUser } from '../../Endpoints/authApi';
+import { getAuthToken } from '../../Endpoints/apiClient';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isRegisteredSuccess = searchParams.get('registered') === 'true';
   const registeredUsername = searchParams.get('username') || '';
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const user = getStoredUser();
+    if (token && user?.role === 'Customer') {
+      navigate('/customer/home', { replace: true });
+    }
+  }, [navigate]);
 
   const [identifier, setIdentifier] = useState(registeredUsername);
   const [password, setPassword] = useState('');
@@ -39,12 +48,12 @@ export const LoginPage: React.FC = () => {
       });
 
       if (res.success && res.user) {
-        if (res.user.role === 'Cashier') {
-          navigate('/cashier/checkout');
-        } else if (res.user.role === 'Customer') {
+        if (res.user.role === 'Customer') {
           navigate('/customer/home');
+        } else if (res.user.role === 'Cashier') {
+          setErrorMessage('Cashier desk staff must sign in at the dedicated Circulation Terminal on port 5175 (http://127.0.0.1:5175/cashier/login).');
         } else {
-          setErrorMessage('Admin access is restricted to the dedicated Admin terminal at http://127.0.0.1:5174/admin.');
+          setErrorMessage('Admin access is restricted to the dedicated Admin Console on port 5174 (http://127.0.0.1:5174/admin/login).');
         }
       } else {
         setErrorMessage(res.message);
@@ -74,22 +83,22 @@ export const LoginPage: React.FC = () => {
                 Katipuneros Library
               </h1>
               <span className="font-caption text-caption text-text-secondary">
-                User &amp; Circulation Desk Portal
+                Patron &amp; Scholar Portal
               </span>
             </div>
           </Link>
           <span className="font-caption text-caption font-semibold px-3 py-1 rounded-full bg-surface-container text-primary">
-            PORT 5173
+            PORT 5173 • PATRON
           </span>
         </div>
 
         {/* Title */}
         <div className="mb-6">
           <h2 className="font-headline-2 text-headline-2 text-text-primary font-bold">
-            Sign In
+            Patron Sign In
           </h2>
           <p className="font-body text-body text-text-secondary mt-1">
-            Access your borrowing account, active reserves, digital shelves, or cashier circulation terminal.
+            Access your scholastic borrowing account, active reserves, and digital library catalog.
           </p>
         </div>
 
@@ -179,7 +188,7 @@ export const LoginPage: React.FC = () => {
                 <span>Authenticating Credentials...</span>
               </>
             ) : (
-              <span>Sign In to Circulation</span>
+              <span>Sign In as Patron</span>
             )}
           </button>
         </form>
