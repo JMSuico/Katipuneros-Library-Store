@@ -160,8 +160,11 @@ builder.Services.AddCors(options =>
             try
             {
                 var uri = new Uri(origin);
+                var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
                 return (uri.Host is "localhost" or "127.0.0.1" or "::1") ||
-                       (uri.Port is 5173 or 5174 or 5175 or 5000);
+                       uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+                       (uri.Port is 5173 or 5174 or 5175 or 5176 or 5000) ||
+                       configuredOrigins.Any(o => o.Equals(origin, StringComparison.OrdinalIgnoreCase));
             }
             catch
             {

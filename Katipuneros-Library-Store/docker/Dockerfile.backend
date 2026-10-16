@@ -17,7 +17,7 @@ WORKDIR /app
 RUN addgroup -S katipuneros && adduser -S katipuneros -G katipuneros
 USER katipuneros
 
-COPY --from=build /app/publish .
+COPY --from=build --chown=katipuneros:katipuneros /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:5000
 ENV ASPNETCORE_ENVIRONMENT=Production
