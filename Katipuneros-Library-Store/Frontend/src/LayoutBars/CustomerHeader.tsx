@@ -9,6 +9,7 @@ import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../End
 import { useNotification } from '../Hooks/useNotification';
 import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
 import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
+import { listenCirculationNotifications } from '../Shared/Utils/notificationBus';
 
 const getInitials = (name?: string): string => {
   if (!name || !name.trim()) return 'US';
@@ -47,7 +48,17 @@ const CustomerHeader: React.FC = () => {
     markAsRead,
     markAllAsRead,
     clearAll,
+    refresh,
   } = useNotification('Customer');
+
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Customer')) {
+        refresh();
+      }
+    });
+    return () => unsubscribe();
+  }, [refresh]);
 
   useEffect(() => {
     const syncUser = () => {

@@ -15,6 +15,27 @@ import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
+import { dispatchCirculationNotification } from '../../../../../Shared/Utils/notificationBus';
+
+export interface ReturnReceiptData {
+  reference: string;
+  bookTitle: string;
+  bookBarcode: string;
+  patronName: string;
+  patronLibraryId: string;
+  condition: string;
+  conditionNotes?: string;
+  borrowDate: string;
+  dueDate: string;
+  returnDate: string;
+  daysOverdue: number;
+  baseFine: number;
+  conditionSurcharge: number;
+  totalFine: number;
+  cashierName?: string;
+  deskBay?: string;
+  clearanceStatus: string;
+}
 
 export const ReturnsFines: FC = () => {
   const location = useLocation();
@@ -28,6 +49,10 @@ export const ReturnsFines: FC = () => {
   const [scannedCopy, setScannedCopy] = useState<BookCopyDto | null>(null);
   const [isAfterHoursCounterSlot, setIsAfterHoursCounterSlot] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+  // Return Receipt Modal State & Reference Tracking
+  const [completedReceipt, setCompletedReceipt] = useState<ReturnReceiptData | null>(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState<boolean>(false);
 
   // Camera Barcode/QR Scanner State
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
@@ -311,8 +336,8 @@ export const ReturnsFines: FC = () => {
 
   const totalFineDue = baseOverdueFine + conditionSurcharge;
 
-  // Finalize Return
-  const handleFinalizeReturn = async () => {
+  // Finalize Return Check-In & Settlement
+  const handleProcessReturn = async () => {
     if (!selectedLoan) {
       addToast('No book selected for return.', 'warning');
       return;
@@ -329,19 +354,117 @@ export const ReturnsFines: FC = () => {
           ? 'Severe physical damage assessed (binding fee applied)'
           : 'Declared lost by patron';
 
-      const res = await processBookReturn({
+      const res: any = await processBookReturn({
         barcode: scannedCopy?.accessionNumber || selectedLoan.bookBarcode,
         bookCopyId: scannedCopy?.id,
-        condition: condition === 'good' ? 'Good' : condition === 'wear' ? 'Minor Wear' : condition === 'damage' ? 'Damaged' : 'Lost',
+        condition:
+          condition === 'good'
+            ? 'Good'
+            : condition === 'wear'
+            ? 'Minor Wear'
+            : condition === 'damage'
+            ? 'Damaged'
+            : 'Lost',
         conditionNotes: notes,
         damageFee: conditionSurcharge,
       });
 
-      if ((res as { success?: boolean }).success !== false) {
+      if (res?.success !== false) {
+        // Unpack response payload to capture transaction reference & fine
+        const resData = res?.data || res;
+        const rawTxn = res?.transaction || resData?.transaction;
+        const rawRef =
+          rawTxn?.gatePassCode ||
+          rawTxn?.id ||
+          selectedLoan.loanCode ||
+          `KP-TXN-${(selectedLoan.id || Date.now().toString()).slice(0, 8).toUpperCase()}`;
+
+        // Format prominently as KP-TXN-XXXXXXXX if not already prefixed
+        const transactionRef = rawRef.startsWith('KP-TXN-')
+          ? rawRef
+          : (rawRef.startsWith('GP-') || rawRef.startsWith('LN-'))
+            ? rawRef.replace(/^(GP|LN)-/, 'KP-TXN-')
+            : `KP-TXN-${rawRef.replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()}`;
+
+        const assessedFine = res?.assessedFine ?? resData?.assessedFine ?? totalFineDue;
+        res.transaction = rawTxn
+          ? {
+              ...rawTxn,
+              gatePassCode: rawTxn.gatePassCode || transactionRef,
+              id: rawTxn.id || transactionRef,
+            }
+          : {
+              id: transactionRef,
+              gatePassCode: transactionRef,
+            };
+        res.assessedFine = assessedFine;
+
+        const selectedReturnItem = {
+          title: selectedLoan.bookTitle,
+          patronName: selectedLoan.patronName,
+          ...selectedLoan,
+        };
+
+        // Dispatch circulation-return-confirmed custom event exactly as specified
+        window.dispatchEvent(
+          new CustomEvent('circulation-return-confirmed', {
+            detail: {
+              reference: res.transaction?.gatePassCode || res.transaction?.id,
+              title: selectedReturnItem?.title,
+              patronName: selectedReturnItem?.patronName,
+              fine: res.assessedFine,
+            },
+          })
+        );
+
+        // Broadcast notification across multi-portal notification bus
+        dispatchCirculationNotification({
+          id: `notif-return-${Date.now()}`,
+          type: 'return_confirmed',
+          reference: res.transaction?.gatePassCode || res.transaction?.id || transactionRef,
+          title: selectedReturnItem.title,
+          patronName: selectedReturnItem.patronName,
+          timestamp: new Date().toISOString(),
+          message: `Return recorded for "${selectedReturnItem.title}" by ${selectedReturnItem.patronName}. Ref: ${transactionRef}${assessedFine > 0 ? ` (Penalty: ₱${assessedFine.toFixed(2)})` : ''}`,
+          recipientRoles: ['Customer', 'Cashier', 'Admin'],
+        });
+
+        // Formulate and save completed receipt for display in receipt modal
+        const returnReceipt: ReturnReceiptData = {
+          reference: transactionRef,
+          bookTitle: selectedLoan.bookTitle,
+          bookBarcode: scannedCopy?.accessionNumber || selectedLoan.bookBarcode,
+          patronName: selectedLoan.patronName,
+          patronLibraryId: selectedLoan.patronLibraryId || 'KP-CARD',
+          condition:
+            condition === 'good'
+              ? 'Good'
+              : condition === 'wear'
+              ? 'Minor Wear'
+              : condition === 'damage'
+              ? 'Damaged'
+              : 'Lost',
+          conditionNotes: notes,
+          borrowDate: selectedLoan.borrowDate,
+          dueDate: selectedLoan.dueDate,
+          returnDate: new Date().toISOString(),
+          daysOverdue,
+          baseFine: baseOverdueFine,
+          conditionSurcharge,
+          totalFine: assessedFine,
+          cashierName: 'Cashier Desk Bay 01',
+          deskBay: 'Desk Bay 01',
+          clearanceStatus: assessedFine > 0 ? 'Pending Fine Payment' : 'Cleared & Restocked',
+        };
+
+        setCompletedReceipt(returnReceipt);
+        setIsReceiptModalOpen(true);
+
         addToast(
-          `Book "${selectedLoan.bookTitle}" ${scannedCopy ? `(${scannedCopy.accessionNumber}) ` : ''}returned successfully! Total settled: ₱${totalFineDue.toFixed(2)}.`,
+          `Book "${selectedLoan.bookTitle}" returned successfully! Reference: ${transactionRef}. Total settled: ₱${assessedFine.toFixed(2)}.`,
           'success'
         );
+
         setSelectedLoan(null);
         setScannedCopy(null);
         setScannerInput('');
@@ -358,12 +481,49 @@ export const ReturnsFines: FC = () => {
     }
   };
 
+  // Alias for backward compatibility
+  const handleFinalizeReturn = handleProcessReturn;
+
   const handlePrintSlip = () => {
-    if (!selectedLoan) {
-      addToast('Select a return transaction before printing slip.', 'warning');
+    if (completedReceipt) {
+      setIsReceiptModalOpen(true);
       return;
     }
-    addToast('Receipt slip dispatched to Desk 01 thermal printer.', 'info');
+    if (!selectedLoan) {
+      addToast('Select an active loan or complete a return before viewing receipt slip.', 'warning');
+      return;
+    }
+    const loanRef = selectedLoan.loanCode?.startsWith('KP-TXN-')
+      ? selectedLoan.loanCode
+      : `KP-TXN-${(selectedLoan.loanCode || selectedLoan.id).replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()}`;
+
+    setCompletedReceipt({
+      reference: loanRef,
+      bookTitle: selectedLoan.bookTitle,
+      bookBarcode: scannedCopy?.accessionNumber || selectedLoan.bookBarcode,
+      patronName: selectedLoan.patronName,
+      patronLibraryId: selectedLoan.patronLibraryId || 'KP-CARD',
+      condition:
+        condition === 'good'
+          ? 'Good'
+          : condition === 'wear'
+          ? 'Minor Wear'
+          : condition === 'damage'
+          ? 'Damaged'
+          : 'Lost',
+      conditionNotes: condition === 'good' ? 'Good condition' : 'Audit in progress',
+      borrowDate: selectedLoan.borrowDate,
+      dueDate: selectedLoan.dueDate,
+      returnDate: new Date().toISOString(),
+      daysOverdue,
+      baseFine: baseOverdueFine,
+      conditionSurcharge,
+      totalFine: totalFineDue,
+      cashierName: 'Cashier Desk Bay 01',
+      deskBay: 'Desk Bay 01',
+      clearanceStatus: totalFineDue > 0 ? 'Pending Fine Assessment' : 'Ready for Clearance',
+    });
+    setIsReceiptModalOpen(true);
   };
 
   const handleClearCounter = () => {
@@ -371,6 +531,7 @@ export const ReturnsFines: FC = () => {
     setScannedCopy(null);
     setScannerInput('');
     setCondition('good');
+    setCompletedReceipt(null);
     addToast('Desk counter cleared. Ready for next intake.', 'info');
   };
 
@@ -544,6 +705,50 @@ export const ReturnsFines: FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Left Column: Active Loan Return Audit & Physical Condition */}
           <div className="xl:col-span-7 flex flex-col space-y-6">
+            {/* Completed Return Clearance Docket Banner */}
+            {completedReceipt && !selectedLoan && (
+              <div className="bg-surface-container-lowest rounded-xl shadow-md p-5 border border-action-green/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-action-green/20 text-action-green flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-2xl">check_circle</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-body-medium text-body-medium font-bold text-text-primary">
+                        Return Clearance Confirmed
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full font-mono text-caption font-bold bg-primary text-on-primary">
+                        {completedReceipt.reference}
+                      </span>
+                    </div>
+                    <p className="font-caption text-caption text-text-secondary mt-0.5">
+                      <strong>{completedReceipt.patronName}</strong> returned "{completedReceipt.bookTitle}" •{' '}
+                      <span className="font-semibold text-action-green">{completedReceipt.clearanceStatus}</span>
+                      {completedReceipt.totalFine > 0 && ` (Fine: ₱${completedReceipt.totalFine.toFixed(2)})`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsReceiptModalOpen(true)}
+                    className="px-3 py-2 bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-base">receipt_long</span>
+                    <span>View Receipt Slip</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompletedReceipt(null)}
+                    className="p-2 text-text-secondary hover:text-text-primary rounded-lg transition-colors cursor-pointer"
+                    title="Dismiss"
+                  >
+                    <span className="material-symbols-outlined text-base">close</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* User & Asset Card */}
             {selectedLoan ? (
               <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 flex flex-col space-y-4 border border-outline/10">
@@ -628,7 +833,14 @@ export const ReturnsFines: FC = () => {
                         <span className="font-bold text-text-primary">Call No:</span> {selectedLoan.bookCallNumber || 'N/A'}
                       </div>
                       <div>
-                        <span className="font-bold text-text-primary">Loan Code:</span> {selectedLoan.loanCode}
+                        <span className="font-bold text-text-primary">Return Ref:</span>{' '}
+                        <span className="font-mono font-bold text-primary">
+                          {selectedLoan.loanCode?.startsWith('KP-TXN-')
+                            ? selectedLoan.loanCode
+                            : (selectedLoan.loanCode?.startsWith('GP-') || selectedLoan.loanCode?.startsWith('LN-'))
+                              ? selectedLoan.loanCode.replace(/^(GP|LN)-/, 'KP-TXN-')
+                              : `KP-TXN-${(selectedLoan.loanCode || selectedLoan.id).replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()}`}
+                        </span>
                       </div>
                       <div>
                         <span className="font-bold text-text-primary">Checkout Desk:</span> Terminal 01
@@ -873,7 +1085,7 @@ export const ReturnsFines: FC = () => {
               {/* Action Buttons */}
               <div className="pt-4 flex flex-col space-y-3">
                 <button
-                  onClick={handleFinalizeReturn}
+                  onClick={handleProcessReturn}
                   disabled={isProcessing || !selectedLoan}
                   className="w-full py-3.5 px-4 bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   type="button"
@@ -887,12 +1099,12 @@ export const ReturnsFines: FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={handlePrintSlip}
-                    disabled={!selectedLoan}
+                    disabled={!selectedLoan && !completedReceipt}
                     className="py-2.5 px-3 bg-surface-container hover:bg-surface-container-high text-text-primary font-caption text-caption font-bold rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
                     type="button"
                   >
-                    <span className="material-symbols-outlined text-base">print</span>
-                    <span>Print Receipt Slip</span>
+                    <span className="material-symbols-outlined text-base">receipt_long</span>
+                    <span>{completedReceipt ? 'View Return Receipt' : 'Print Receipt Slip'}</span>
                   </button>
                   <button
                     onClick={handleClearCounter}
@@ -1232,6 +1444,188 @@ export const ReturnsFines: FC = () => {
           )}
         </section>
       </div>
+
+      {/* Return Receipt & Audit Docket Modal */}
+      {isReceiptModalOpen && completedReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline/10 overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-surface-container bg-surface-container-low flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-primary text-2xl">receipt_long</span>
+                <div>
+                  <h3 className="font-headline-4 text-headline-4 text-text-primary">
+                    Circulation Return Receipt
+                  </h3>
+                  <p className="font-caption text-caption text-text-secondary">
+                    Official Institutional Clearance &amp; Restock Docket
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReceiptModalOpen(false)}
+                className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Modal Body / Receipt Content */}
+            <div className="p-6 flex flex-col space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Prominent Transaction Reference Banner */}
+              <div className="p-4 rounded-xl bg-soft-blue/60 border border-primary/20 flex flex-col items-center justify-center text-center gap-1.5 shadow-sm">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                  Transaction Return Reference
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xl sm:text-2xl font-extrabold text-primary tracking-wider">
+                    {completedReceipt.reference}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(completedReceipt.reference);
+                      addToast('Reference copied to clipboard!', 'info');
+                    }}
+                    title="Copy Reference"
+                    className="p-1 text-text-secondary hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">content_copy</span>
+                  </button>
+                </div>
+                <span className="text-[11px] text-text-secondary">
+                  Institutional Audit ID • Validated at Desk Bay 01
+                </span>
+              </div>
+
+              {/* Clearance Status Tag */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline/10">
+                <span className="font-caption text-caption text-text-secondary">Clearance Status:</span>
+                <span
+                  className={`font-caption text-caption font-bold px-2.5 py-0.5 rounded-full ${
+                    completedReceipt.totalFine > 0
+                      ? 'bg-status-danger/20 text-status-danger'
+                      : 'bg-action-green/20 text-action-green'
+                  }`}
+                >
+                  {completedReceipt.clearanceStatus}
+                </span>
+              </div>
+
+              {/* Patron & Book Summary */}
+              <div className="p-3.5 rounded-xl bg-surface-container-low/70 border border-outline/10 space-y-2 font-caption text-caption">
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Patron Scholar:</span>
+                  <span className="font-bold text-text-primary">{completedReceipt.patronName}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Library ID:</span>
+                  <span className="font-mono font-bold text-text-primary">{completedReceipt.patronLibraryId}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Title:</span>
+                  <span className="font-bold text-text-primary text-right max-w-[260px] truncate">
+                    {completedReceipt.bookTitle}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Barcode / Accession:</span>
+                  <span className="font-mono text-text-primary">{completedReceipt.bookBarcode}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Intake Condition:</span>
+                  <span className="font-bold text-primary">{completedReceipt.condition}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Borrowed Date:</span>
+                  <span className="text-text-primary">{new Date(completedReceipt.borrowDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-surface-container">
+                  <span className="text-text-secondary">Scheduled Due:</span>
+                  <span className="text-text-primary">{new Date(completedReceipt.dueDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-text-secondary">Returned At:</span>
+                  <span className="font-semibold text-text-primary">
+                    {new Date(completedReceipt.returnDate).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Penalty / Surcharge Breakdown */}
+              <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline/10 space-y-1.5 font-caption text-caption">
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary">Days Overdue:</span>
+                  <span className={completedReceipt.daysOverdue > 0 ? 'text-status-danger font-bold' : 'text-action-green font-bold'}>
+                    {completedReceipt.daysOverdue} Days
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary">Base Overdue Fine:</span>
+                  <span className="font-mono text-text-primary">₱{completedReceipt.baseFine.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary">Condition Surcharge:</span>
+                  <span className="font-mono text-text-primary">₱{completedReceipt.conditionSurcharge.toFixed(2)}</span>
+                </div>
+                <div className="pt-2 border-t border-surface-container flex justify-between items-center font-body-medium text-body-medium">
+                  <span className="font-bold text-text-primary">Total Surcharge Assessed:</span>
+                  <span className="font-bold text-primary text-base font-mono">
+                    ₱{completedReceipt.totalFine.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Barcode representation */}
+              <div className="p-3 bg-white rounded-lg border border-outline/20 flex flex-col items-center justify-center gap-1">
+                <div className="h-10 w-full flex items-center justify-center space-x-1">
+                  {completedReceipt.reference.split('').map((char, i) => (
+                    <div
+                      key={i}
+                      className="bg-black"
+                      style={{
+                        width: `${(char.charCodeAt(0) % 3) + 1.5}px`,
+                        height: '100%',
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="font-mono text-[11px] font-bold text-black tracking-widest">
+                  *{completedReceipt.reference}*
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-surface-container-low border-t border-surface-container flex items-center justify-between gap-3">
+              <span className="font-caption text-caption text-text-secondary">
+                {completedReceipt.deskBay} • Katipuneros Library System
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.print();
+                    addToast('Print command dispatched to thermal receipt printer.', 'info');
+                  }}
+                  className="px-4 py-2 bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-base">print</span>
+                  <span>Print Slip</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsReceiptModalOpen(false)}
+                  className="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-text-primary font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live Camera Barcode & QR Scanner Modal */}
       {isCameraOpen && (

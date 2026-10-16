@@ -1,7 +1,13 @@
 // [Layer: UserRoles/Features/Pages/AdminsPanel/Shared]
 // NotificationUI.tsx -- Admin notification panel UI component.
-// DO NOT put business logic or direct API calls here.
-import { FC } from 'react';
+// Synchronizes real-time circulation notifications (borrow/return) via notificationBus.
+// DO NOT put direct backend API calls here.
+
+import { FC, useState, useEffect } from 'react';
+import {
+  listenCirculationNotifications,
+  CirculationNotificationEvent,
+} from '../../../../../Shared/Utils/notificationBus';
 
 export interface AdminNotificationItem {
   id: string;
@@ -13,16 +19,66 @@ export interface AdminNotificationItem {
 }
 
 interface NotificationUIProps {
-  notifications: AdminNotificationItem[];
+  notifications?: AdminNotificationItem[];
   onMarkAsRead?: (id: string) => void;
   onClearAll?: () => void;
 }
 
 export const NotificationUI: FC<NotificationUIProps> = ({
-  notifications,
+  notifications: initialNotifications = [],
   onMarkAsRead,
   onClearAll,
 }) => {
+  const [notificationsList, setNotificationsList] = useState<AdminNotificationItem[]>(
+    initialNotifications
+  );
+
+  // Sync when prop updates
+  useEffect(() => {
+    if (initialNotifications && initialNotifications.length > 0) {
+      setNotificationsList(initialNotifications);
+    }
+  }, [initialNotifications]);
+
+  // Real-time listener for cross-portal circulation events
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event: CirculationNotificationEvent) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Admin')) {
+        const newItem: AdminNotificationItem = {
+          id: event.id || `notif-adm-${Date.now()}`,
+          title:
+            event.type === 'borrow_confirmed'
+              ? `Circulation: ${event.title} Checked Out`
+              : `Circulation: ${event.title} Returned`,
+          message:
+            event.message ||
+            `Patron ${event.patronName} (Ref: ${event.reference}) completed circulation transaction.`,
+          timestamp: 'Just now',
+          type: event.type === 'borrow_confirmed' ? 'info' : 'success',
+          read: false,
+        };
+
+        setNotificationsList((prev) => [newItem, ...prev.filter((n) => n.id !== newItem.id)]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleMarkAsRead = (id: string) => {
+    setNotificationsList((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+    onMarkAsRead?.(id);
+  };
+
+  const handleClearAll = () => {
+    setNotificationsList((prev) => prev.map((n) => ({ ...n, read: true })));
+    onClearAll?.();
+  };
+
+  const unreadCount = notificationsList.filter((n) => !n.read).length;
+
   const typeStyles = {
     info: 'bg-soft-blue text-primary border-primary/20',
     warning: 'bg-status-pending/15 text-status-pending border-status-pending/30',
@@ -41,17 +97,22 @@ export const NotificationUI: FC<NotificationUIProps> = ({
     <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-surface-container-high overflow-hidden">
       <div className="px-5 py-4 bg-surface-container-low flex items-center justify-between border-b border-surface-container-high">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-xl">notifications</span>
+          <div className="relative">
+            <span className="material-symbols-outlined text-primary text-xl">notifications</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full ring-2 ring-white animate-pulse" />
+            )}
+          </div>
           <h3 className="font-body-large text-body-large font-bold text-text-primary">
             System Alerts &amp; Notifications
           </h3>
           <span className="bg-primary text-on-primary text-caption font-bold px-2 py-0.5 rounded-full">
-            {notifications.filter((n) => !n.read).length} Unread
+            {unreadCount} Unread
           </span>
         </div>
-        {onClearAll && (
+        {(onClearAll || notificationsList.length > 0) && (
           <button
-            onClick={onClearAll}
+            onClick={handleClearAll}
             className="text-caption font-caption text-text-secondary hover:text-primary transition-colors cursor-pointer"
           >
             Mark all as read
@@ -60,15 +121,15 @@ export const NotificationUI: FC<NotificationUIProps> = ({
       </div>
 
       <div className="divide-y divide-surface-container-high max-h-96 overflow-y-auto">
-        {notifications.length === 0 ? (
+        {notificationsList.length === 0 ? (
           <div className="p-8 text-center text-text-secondary font-small">
             No active notifications at this time.
           </div>
         ) : (
-          notifications.map((notif) => (
+          notificationsList.map((notif) => (
             <div
               key={notif.id}
-              onClick={() => onMarkAsRead?.(notif.id)}
+              onClick={() => handleMarkAsRead(notif.id)}
               className={`p-4 flex items-start gap-3 transition-colors cursor-pointer ${
                 notif.read
                   ? 'bg-surface-container-lowest opacity-75 hover:opacity-100'

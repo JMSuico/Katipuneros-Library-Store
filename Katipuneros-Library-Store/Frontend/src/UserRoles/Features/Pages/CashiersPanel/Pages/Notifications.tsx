@@ -19,6 +19,10 @@ import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
+import {
+  listenCirculationNotifications,
+  CirculationNotificationEvent,
+} from '../../../../../Shared/Utils/notificationBus';
 
 export const Notifications: FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
@@ -84,6 +88,38 @@ export const Notifications: FC = () => {
       window.removeEventListener('cashier-refresh-kpis', handleRefresh);
     };
   }, [loadData]);
+
+  // Real-time synchronization of cashier operational notifications
+  useEffect(() => {
+    const unsubscribe = listenCirculationNotifications((event: CirculationNotificationEvent) => {
+      if (!event.recipientRoles || event.recipientRoles.includes('Cashier')) {
+        const newAlert: AdminSystemAlert = {
+          id: event.id || `notif-csh-${Date.now()}`,
+          type: event.type === 'borrow_confirmed' ? 'deficit' : 'system',
+          title:
+            event.type === 'borrow_confirmed'
+              ? `Borrow Confirmed: ${event.title}`
+              : `Return Processed: ${event.title}`,
+          category: 'Circulation',
+          tag: event.reference || 'COUNTER',
+          triggeredAgo: 'Just now',
+          description:
+            event.message ||
+            `Patron ${event.patronName} (Ref: ${event.reference}) transaction verified at terminal.`,
+          severity: 'info',
+          isResolved: false,
+        };
+
+        setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
+        addToast(
+          `Real-time alert: ${newAlert.title} for ${event.patronName} (${event.reference})`,
+          'info'
+        );
+      }
+    });
+
+    return () => unsubscribe();
+  }, [addToast]);
 
   // Mark all as read
   const handleMarkAllRead = async () => {
