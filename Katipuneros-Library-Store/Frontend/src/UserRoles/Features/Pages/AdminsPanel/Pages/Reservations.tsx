@@ -407,7 +407,7 @@ const Reservations: FC = () => {
               Institutional Hold &amp; Reservation Queue Management
             </h1>
             <p className="font-small text-small text-text-secondary mt-0.5">
-              Real-time shelf allocations, staging locker synchronization, and automated high-demand quota enforcement.
+              Real-time shelf allocations, physical counter bay staging, and automated high-demand quota enforcement.
             </p>
           </div>
 
@@ -426,7 +426,7 @@ const Reservations: FC = () => {
               onClick={() => setIsLockerMatrixModalOpen(true)}
             >
               <span className="material-symbols-outlined text-[18px]">tune</span>
-              <span>Locker Matrix</span>
+              <span>Staging Bay Matrix</span>
             </button>
             <button
               className="flex items-center gap-space-xs bg-action-green hover:bg-action-green-hover text-text-primary px-space-lg py-2.5 rounded-lg shadow-sm font-small text-small font-bold transition-all transform hover:-translate-y-0.5"
@@ -510,11 +510,11 @@ const Reservations: FC = () => {
                   <span className="font-headline-1 text-headline-1 text-text-primary font-bold">
                     {metrics.stagedReady}
                   </span>
-                  <span className="font-caption text-caption text-text-secondary font-medium">Locker Units</span>
+                  <span className="font-caption text-caption text-text-secondary font-medium">Counter Bays</span>
                 </div>
               </div>
               <div className="w-10 h-10 rounded-lg bg-action-green/20 flex items-center justify-center text-text-primary">
-                <span className="material-symbols-outlined text-[22px]">lock_open</span>
+                <span className="material-symbols-outlined text-[22px]">inventory_2</span>
               </div>
             </div>
             <div className="mt-space-md flex items-center justify-between font-caption text-caption text-text-secondary">
@@ -524,7 +524,7 @@ const Reservations: FC = () => {
                   style={{ width: `${Math.min(100, metrics.lockerCapacityPercent)}%` }}
                 ></div>
               </div>
-              <span className="font-semibold text-text-primary">{metrics.lockerCapacityPercent}% Locker Cap</span>
+              <span className="font-semibold text-text-primary">{metrics.lockerCapacityPercent}% Bay Cap</span>
             </div>
           </div>
 
@@ -1383,7 +1383,7 @@ const Reservations: FC = () => {
               {selectedReservation.lockerPin && (
                 <div className="p-space-sm bg-action-green/20 rounded-xl flex items-center justify-between">
                   <span className="font-caption text-caption uppercase tracking-wider font-bold text-text-primary">
-                    Locker Access PIN:
+                    Staging Bay Accession Code:
                   </span>
                   <span className="font-mono text-headline-3 font-bold text-primary tracking-widest">
                     {selectedReservation.lockerPin}

@@ -3,7 +3,7 @@
 // Dispatches typed HTTP requests to /api/books and /api/categories on .NET 10 Web API.
 // DO NOT put business logic or UI rendering here.
 
-import { apiRequest } from './apiClient';
+import { apiRequest, getApiBaseUrl } from './apiClient';
 import { FEATURED_BOOKS, StaticBook } from '../Libs/Assets/bookData';
 
 export interface BackendCategory {
@@ -49,6 +49,7 @@ export interface CreateBookDto {
   bayLocation: string;
   description?: string;
   rfidTag?: string;
+  coverImage?: string;
 }
 
 export interface CatalogMetrics {
@@ -170,5 +171,5 @@ export const getExportBooksUrl = (params: ExportFilterParams): string => {
   if (params.idContains) q.append('idContains', params.idContains);
   if (params.sortDirection) q.append('sortDirection', params.sortDirection);
   if (params.format) q.append('format', params.format);
-  return `/api/books/export?${q.toString()}`;
+  return `${getApiBaseUrl()}/books/export?${q.toString()}`;
 };

@@ -18,18 +18,22 @@ public class BorrowService : IBorrowService
 {
     private readonly IBorrowRepository _borrowRepository;
     private readonly IBookRepository _bookRepository;
+    private readonly IBookCopyRepository _bookCopyRepository;
     private readonly IUserRepository _userRepository;
     private readonly IFineRepository _fineRepository;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
 
     public BorrowService(
         IBorrowRepository borrowRepository,
         IBookRepository bookRepository,
+        IBookCopyRepository bookCopyRepository,
         IUserRepository userRepository,
         IFineRepository fineRepository,
-        IConfiguration configuration) =>
-        (_borrowRepository, _bookRepository, _userRepository, _fineRepository, _configuration) =
-        (borrowRepository, bookRepository, userRepository, fineRepository, configuration);
+        IConfiguration configuration,
+        IEmailService emailService) =>
+        (_borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _configuration, _emailService) =
+        (borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, configuration, emailService);
 
     public async Task<List<BorrowTransaction>> GetPatronActiveLoansAsync(Guid patronId) =>
         await _borrowRepository.GetActiveByPatronIdAsync(patronId);
@@ -57,33 +61,65 @@ public class BorrowService : IBorrowService
         foreach (var barcode in bookBarcodes)
         {
             var book = await _bookRepository.GetByBarcodeAsync(barcode);
+            BookCopy? copy = null;
+
             if (book == null)
-                return (false, new List<BorrowTransaction>(), $"Book barcode '{barcode}' not found in registry.");
+            {
+                // Check if the barcode was an individual copy Accession Number or QR code
+                copy = await _bookCopyRepository.FindByCodeAsync(barcode);
+                if (copy != null)
+                {
+                    book = copy.Book ?? await _bookRepository.GetByIdAsync(copy.BookId);
+                }
+            }
+
+            if (book == null)
+                return (false, new List<BorrowTransaction>(), $"Book barcode or copy identifier '{barcode}' not found in registry.");
 
             if (book.AvailableCopies <= 0)
                 return (false, new List<BorrowTransaction>(), $"No physical copies of '{book.Title}' are currently available on shelf.");
 
-            book.AvailableCopies--;
+            if (copy == null)
+            {
+                copy = await _bookCopyRepository.GetAvailableCopyAsync(book.Id);
+            }
+
+            if (copy != null)
+            {
+                copy.Status = CopyStatus.Borrowed;
+                await _bookCopyRepository.UpdateAsync(copy);
+            }
+
+            book.AvailableCopies = Math.Max(0, book.AvailableCopies - 1);
             await _bookRepository.UpdateAsync(book);
 
             var transaction = new BorrowTransaction
             {
                 PatronId = patronId,
                 BookId = book.Id,
+                BookCopyId = copy?.Id,
                 CashierId = cashierId,
                 BorrowDate = DateTime.UtcNow,
                 DueDate = dueDate > DateTime.UtcNow ? dueDate : DateTime.UtcNow.AddDays(14),
                 Status = TransactionStatus.Active,
                 RenewalCount = 0,
-                GatePassCode = $"GP-{Random.Shared.Next(100000, 999999)}"
+                GatePassCode = $"GP-{Random.Shared.Next(100000, 999999)}",
+                Patron = patron,
+                Book = book
             };
 
             await _borrowRepository.AddAsync(transaction);
             created.Add(transaction);
         }
 
+        await _bookCopyRepository.SaveChangesAsync();
         await _borrowRepository.SaveChangesAsync();
         await _bookRepository.SaveChangesAsync();
+
+        foreach (var loan in created)
+        {
+            await _emailService.SendLoanNotificationAsync(loan, "Checkout");
+        }
 
         return (true, created, null);
     }
@@ -109,24 +145,87 @@ public class BorrowService : IBorrowService
         return (true, loan, null);
     }
 
-    public async Task<(bool Success, BorrowTransaction? Transaction, decimal AssessedFine, string? Error)> ReturnBookAsync(string barcode, string? condition, decimal? damageFee, Guid? cashierId)
+    public async Task<(bool Success, BorrowTransaction? Transaction, decimal AssessedFine, string? Error)> ReturnBookAsync(string barcode, string? condition, decimal? damageFee, Guid? cashierId, Guid? bookCopyId = null)
     {
-        var book = await _bookRepository.GetByBarcodeAsync(barcode);
-        if (book == null)
-            return (false, null, 0, $"Book barcode '{barcode}' not found.");
+        var cleanBarcode = barcode.Trim();
+        BookCopy? copy = bookCopyId.HasValue ? await _bookCopyRepository.GetByIdAsync(bookCopyId.Value) : null;
+        if (copy == null && !string.IsNullOrWhiteSpace(cleanBarcode))
+        {
+            copy = await _bookCopyRepository.FindByCodeAsync(cleanBarcode);
+        }
 
-        var allLoans = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
-        var activeLoan = allLoans.FirstOrDefault(l => l.BookId == book.Id);
+        Book? book = copy?.Book;
+        if (book == null && !string.IsNullOrWhiteSpace(cleanBarcode))
+        {
+            book = await _bookRepository.GetByBarcodeAsync(cleanBarcode);
+        }
+
+        BorrowTransaction? activeLoan = null;
+        if (copy != null)
+        {
+            activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, copy.BookId);
+        }
+
+        if (activeLoan == null && book != null)
+        {
+            activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(null, book.Id);
+        }
+
+        if (activeLoan == null)
+        {
+            var allLoans = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+            activeLoan = allLoans.FirstOrDefault(l =>
+                (l.GatePassCode != null && l.GatePassCode.Equals(cleanBarcode, StringComparison.OrdinalIgnoreCase)) ||
+                l.Id.ToString().Equals(cleanBarcode, StringComparison.OrdinalIgnoreCase));
+
+            if (activeLoan != null && book == null)
+            {
+                book = await _bookRepository.GetByIdAsync(activeLoan.BookId);
+            }
+        }
+
+        if (book == null && activeLoan != null)
+        {
+            book = await _bookRepository.GetByIdAsync(activeLoan.BookId);
+        }
+
+        if (book == null)
+            return (false, null, 0, $"Book barcode or asset identifier '{barcode}' not found.");
 
         if (activeLoan == null)
             return (false, null, 0, $"No active loan record found for '{book.Title}'.");
 
-        activeLoan.ReturnDate = DateTime.UtcNow;
-        activeLoan.Status = TransactionStatus.Returned;
-        activeLoan.ConditionNotes = condition != null ? InputSanitizer.SanitizeText(condition) : null;
+        if (copy == null && activeLoan.BookCopyId.HasValue)
+        {
+            copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+        }
 
-        book.AvailableCopies = Math.Min(book.TotalCopies, book.AvailableCopies + 1);
-        await _bookRepository.UpdateAsync(book);
+        // Determine condition and update physical copy if present
+        var conditionStr = string.IsNullOrWhiteSpace(condition) ? "Good" : condition.Trim();
+        bool isDamaged = conditionStr.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
+        bool isLost = conditionStr.Equals("Lost", StringComparison.OrdinalIgnoreCase);
+
+        if (copy != null)
+        {
+            copy.Status = isDamaged ? CopyStatus.Damaged : isLost ? CopyStatus.Lost : CopyStatus.Available;
+            copy.Condition = conditionStr;
+            copy.ConditionNotes = condition;
+            copy.LastReturnedDate = DateTime.UtcNow;
+            await _bookCopyRepository.UpdateAsync(copy);
+            await _bookCopyRepository.SaveChangesAsync();
+        }
+
+        activeLoan.ReturnDate = DateTime.UtcNow;
+        activeLoan.Status = isLost ? TransactionStatus.Lost : TransactionStatus.Returned;
+        activeLoan.ConditionNotes = InputSanitizer.SanitizeText(conditionStr);
+        if (copy != null) activeLoan.BookCopyId = copy.Id;
+
+        // Only restore available copies if the book is physically available (not damaged or lost)
+        if (!isDamaged && !isLost)
+        {
+            book.AvailableCopies = Math.Min(book.TotalCopies, book.AvailableCopies + 1);
+            await _bookRepository.UpdateAsync(book);
+        }
 
         decimal dailyFine = decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal fr) ? fr : 5.00m;
         decimal fineCap = decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out decimal fc) ? fc : 500.00m;
@@ -143,6 +242,14 @@ public class BorrowService : IBorrowService
         {
             totalFine += damageFee.Value;
         }
+        else if (isDamaged)
+        {
+            totalFine += 150.00m; // Default damage assessment
+        }
+        else if (isLost)
+        {
+            totalFine += 500.00m; // Default replacement cost
+        }
 
         if (totalFine > 0)
         {
@@ -153,7 +260,7 @@ public class BorrowService : IBorrowService
                 Amount = totalFine,
                 BalanceRemaining = totalFine,
                 Status = "Unpaid",
-                Reason = $"Overdue return and/or condition assessment penalty for '{book.Title}'."
+                Reason = isLost ? $"Book replacement tariff for lost copy of '{book.Title}'." : $"Overdue return and/or condition assessment ({conditionStr}) penalty for '{book.Title}'."
             };
             await _fineRepository.AddAsync(fine);
             await _fineRepository.SaveChangesAsync();
@@ -162,6 +269,13 @@ public class BorrowService : IBorrowService
         await _borrowRepository.UpdateAsync(activeLoan);
         await _borrowRepository.SaveChangesAsync();
         await _bookRepository.SaveChangesAsync();
+
+        activeLoan.Book = book;
+        if (activeLoan.Patron == null)
+        {
+            activeLoan.Patron = await _userRepository.GetByIdAsync(activeLoan.PatronId);
+        }
+        await _emailService.SendLoanNotificationAsync(activeLoan, "Returned", totalFine);
 
         return (true, activeLoan, totalFine, null);
     }

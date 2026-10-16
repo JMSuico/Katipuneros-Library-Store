@@ -135,6 +135,15 @@ public class UserService : IUserService
             ? request.LibraryCardNumber.Trim()
             : $"KP-CSH-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(10000, 99999)}";
 
+        if (await _userRepository.GetByCardNumberAsync(cardNo) != null)
+        {
+            cardNo = $"KP-CSH-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(10000, 99999)}";
+            while (await _userRepository.GetByCardNumberAsync(cardNo) != null)
+            {
+                cardNo = $"KP-CSH-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(10000, 99999)}";
+            }
+        }
+
         var user = new User
         {
             FirstName = cleanFirst,
@@ -184,6 +193,23 @@ public class UserService : IUserService
 
     private async Task<(bool Success, string? Error)> ExecuteDetailedProfileUpdateAsync(User user, UpdateProfileRequest request)
     {
+        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username.Trim() != user.Username)
+        {
+            var existingUser = await _userRepository.GetByUsernameAsync(request.Username.Trim());
+            if (existingUser != null && existingUser.Id != user.Id)
+                return (false, "Username is already taken by another account.");
+            user.Username = InputSanitizer.SanitizeText(request.Username.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Email) && request.Email.Trim() != user.Email)
+        {
+            string cleanEmail = InputSanitizer.SanitizeEmail(request.Email.Trim());
+            var existingUser = await _userRepository.GetByEmailAsync(cleanEmail);
+            if (existingUser != null && existingUser.Id != user.Id)
+                return (false, "Email is already taken by another account.");
+            user.Email = cleanEmail;
+        }
+
         if (!string.IsNullOrWhiteSpace(request.FirstName)) user.FirstName = InputSanitizer.SanitizeText(request.FirstName);
         if (request.MiddleName != null) user.MiddleName = InputSanitizer.SanitizeText(request.MiddleName);
         if (!string.IsNullOrWhiteSpace(request.LastName)) user.LastName = InputSanitizer.SanitizeText(request.LastName);
@@ -196,6 +222,7 @@ public class UserService : IUserService
         if (!string.IsNullOrWhiteSpace(request.PermanentAddress)) user.PermanentAddress = InputSanitizer.SanitizeText(request.PermanentAddress);
         if (!string.IsNullOrWhiteSpace(request.PhoneNumber)) user.PhoneNumber = request.PhoneNumber.Trim();
         if (!string.IsNullOrWhiteSpace(request.Department)) user.Department = InputSanitizer.SanitizeText(request.Department);
+        if (request.Age.HasValue) user.Age = request.Age.Value.ToString();
 
         await _userRepository.UpdateAsync(user);
         var saved = await _userRepository.SaveChangesAsync();
@@ -278,6 +305,15 @@ public class UserService : IUserService
 
     private async Task<(bool Success, string? Error)> ExecuteAdminUpdateAsync(User user, AdminUpdateUserRequest request)
     {
+        if (!string.IsNullOrWhiteSpace(request.Email) && request.Email.Trim() != user.Email)
+        {
+            string cleanEmail = InputSanitizer.SanitizeEmail(request.Email.Trim());
+            var existingUser = await _userRepository.GetByEmailAsync(cleanEmail);
+            if (existingUser != null && existingUser.Id != user.Id)
+                return (false, "Email is already taken by another account.");
+            user.Email = cleanEmail;
+        }
+
         if (request.FirstName != null) user.FirstName = InputSanitizer.SanitizeText(request.FirstName);
         if (request.MiddleName != null) user.MiddleName = InputSanitizer.SanitizeText(request.MiddleName);
         if (request.LastName != null) user.LastName = InputSanitizer.SanitizeText(request.LastName);
@@ -292,6 +328,9 @@ public class UserService : IUserService
         if (request.LibraryCardNumber != null) user.LibraryCardNumber = request.LibraryCardNumber.Trim();
         if (request.PhoneNumber != null) user.PhoneNumber = request.PhoneNumber.Trim();
         if (request.CurrentAddress != null) user.CurrentAddress = InputSanitizer.SanitizeText(request.CurrentAddress);
+        if (request.PermanentAddress != null) user.PermanentAddress = InputSanitizer.SanitizeText(request.PermanentAddress);
+        if (request.EmploymentStatus != null) user.EmploymentStatus = InputSanitizer.SanitizeText(request.EmploymentStatus);
+        if (!string.IsNullOrWhiteSpace(request.ProfilePictureUrl)) user.ProfilePictureUrl = request.ProfilePictureUrl;
         if (request.Age != null) user.Age = request.Age.Trim();
         if (!string.IsNullOrWhiteSpace(request.Password)) user.PasswordHash = PasswordHelper.HashPassword(request.Password);
 
@@ -319,6 +358,16 @@ public class UserService : IUserService
             ? request.LibraryCardNumber.Trim()
             : $"KP-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(10000, 99999)}";
 
+        if (await _userRepository.GetByCardNumberAsync(cardNo) != null)
+        {
+            var prefix = request.Role == UserRole.Admin ? "KP-ADM" : request.Role == UserRole.Cashier ? "KP-CSH" : "KP-LIB";
+            cardNo = $"{prefix}-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(10000, 99999)}";
+            while (await _userRepository.GetByCardNumberAsync(cardNo) != null)
+            {
+                cardNo = $"{prefix}-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(10000, 99999)}";
+            }
+        }
+
         string password = !string.IsNullOrWhiteSpace(request.Password) ? request.Password : "Katipuneros@2026";
 
         string fullName = string.IsNullOrWhiteSpace(request.MiddleName)
@@ -335,12 +384,13 @@ public class UserService : IUserService
             Email = cleanEmail,
             PasswordHash = PasswordHelper.HashPassword(password),
             Role = request.Role,
-            EmploymentStatus = request.Role == UserRole.Customer ? "Student" : "Staff",
+            EmploymentStatus = !string.IsNullOrWhiteSpace(request.EmploymentStatus) ? InputSanitizer.SanitizeText(request.EmploymentStatus) : (request.Role == UserRole.Customer ? "Student" : "Staff"),
             LibraryCardNumber = cardNo,
             Department = InputSanitizer.SanitizeText(request.Department ?? (request.Role == UserRole.Customer ? "General Academic" : "Circulation Desk")),
             PhoneNumber = request.PhoneNumber?.Trim(),
             CurrentAddress = request.CurrentAddress != null ? InputSanitizer.SanitizeText(request.CurrentAddress) : null,
-            PermanentAddress = request.CurrentAddress != null ? InputSanitizer.SanitizeText(request.CurrentAddress) : null,
+            PermanentAddress = request.PermanentAddress != null ? InputSanitizer.SanitizeText(request.PermanentAddress) : (request.CurrentAddress != null ? InputSanitizer.SanitizeText(request.CurrentAddress) : null),
+            ProfilePictureUrl = !string.IsNullOrWhiteSpace(request.ProfilePictureUrl) ? request.ProfilePictureUrl : null,
             Age = request.Age?.Trim(),
             IsActive = true
         };

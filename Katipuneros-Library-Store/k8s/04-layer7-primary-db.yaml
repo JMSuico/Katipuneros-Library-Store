@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: katipuneros-db-primary
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-db-primary
+    layer: "7"
+spec:
+  serviceName: katipuneros-db-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katipuneros-db-primary
+  template:
+    metadata:
+      labels:
+        app: katipuneros-db-primary
+        layer: "7"
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          args: ["-c", "config_file=/etc/postgresql/postgresql.conf"]
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: katipuneros-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: pg-init
+              mountPath: /docker-entrypoint-initdb.d/01-init.sh
+              subPath: 01-init.sh
+            - name: pg-config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: primary-db-pvc
+        - name: pg-init
+          configMap:
+            name: katipuneros-pg-primary-config
+            defaultMode: 0755
+            items:
+              - key: 01-init.sh
+                path: 01-init.sh
+        - name: pg-config
+          configMap:
+            name: katipuneros-pg-primary-config
+            items:
+              - key: postgresql.conf
+                path: postgresql.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-db-primary
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: katipuneros-db-primary

@@ -864,7 +864,7 @@ const Inventory: FC = () => {
                   { value: 'All', label: 'All Wings & Stacks Floors' },
                   { value: 'Stacks North', label: 'Stacks North (Bay 1-10)' },
                   { value: 'Stacks South', label: 'Stacks South (Bay 11-20)' },
-                  { value: 'Central Staging', label: 'Central Staging Locker' },
+                  { value: 'Central Staging', label: 'Central Staging Bay' },
                   { value: 'Vault Wing', label: 'Vault / Special Collections' },
                   { value: 'Preservation Wing', label: 'Preservation Wing / Bindery' },
                 ]}

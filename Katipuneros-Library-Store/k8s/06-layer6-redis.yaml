@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katipuneros-redis
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-redis
+    layer: "6"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katipuneros-redis
+  template:
+    metadata:
+      labels:
+        app: katipuneros-redis
+        layer: "6"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+          args: ["--requirepass", "$(REDIS_PASSWORD)"]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: katipuneros-secrets
+                  key: REDIS_PASSWORD
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: redis-config
+              mountPath: /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redis-pvc
+        - name: redis-config
+          configMap:
+            name: katipuneros-pg-primary-config
+            items:
+              - key: redis.conf
+                path: redis.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-redis
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: katipuneros-redis

@@ -25,12 +25,14 @@ public class BorrowController : ControllerBase
         _borrowService = borrowService;
 
     [HttpPost("checkout")]
-    [Authorize(Roles = "Cashier,Admin")]
+    [Authorize]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request) =>
         !ModelState.IsValid
             ? BadRequest(ApiResponse<object>.Fail("Invalid checkout request payload."))
             : await _borrowService.CheckoutAsync(
-                request.PatronId,
+                request.PatronId != Guid.Empty
+                    ? request.PatronId
+                    : (Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var pid) ? pid : Guid.Empty),
                 request.BookBarcodes,
                 request.DueDate ?? DateTime.UtcNow.AddDays(14),
                 Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null
@@ -47,9 +49,10 @@ public class BorrowController : ControllerBase
             ? BadRequest(ApiResponse<object>.Fail("Invalid return request payload."))
             : await _borrowService.ReturnBookAsync(
                 request.Barcode,
-                request.ConditionNotes,
+                !string.IsNullOrWhiteSpace(request.Condition) ? request.Condition : request.ConditionNotes,
                 request.DamageFee,
-                Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null
+                Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null,
+                request.BookCopyId
             ) switch
             {
                 (true, var transaction, var fine, _) => Ok(ApiResponse<object>.Ok(new
@@ -73,14 +76,32 @@ public class BorrowController : ControllerBase
             };
 
     [HttpGet("my-loans")]
-    [Authorize(Roles = "Customer")]
+    [Authorize]
     public async Task<IActionResult> GetMyActiveLoans() =>
         !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)
             ? Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."))
             : Ok(ApiResponse<object>.Ok(await _borrowService.GetPatronActiveLoansAsync(patronId)));
 
+    [HttpGet("my-loans/export")]
+    [Authorize]
+    public async Task<IActionResult> ExportMyActiveLoans()
+    {
+        if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId))
+            return Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."));
+
+        var loans = await _borrowService.GetPatronActiveLoansAsync(patronId);
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("GatePassCode,BookTitle,BorrowDate,DueDate,RenewalCount,Status");
+        foreach (var l in loans)
+        {
+            sb.AppendLine($"\"{l.GatePassCode}\",\"{l.Book?.Title?.Replace("\"", "\"\"")}\",\"{l.BorrowDate:yyyy-MM-dd}\",\"{l.DueDate:yyyy-MM-dd}\",{l.RenewalCount},\"{l.Status}\"");
+        }
+        var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        return File(bytes, "text/csv", $"Patron_Active_Loans_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+    }
+
     [HttpGet("my-history")]
-    [Authorize(Roles = "Customer")]
+    [Authorize]
     public async Task<IActionResult> GetMyLoanHistory() =>
         !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)
             ? Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."))

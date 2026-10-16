@@ -8,10 +8,14 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { getStoredUser, fetchCurrentProfile, logoutUser, AuthUser } from '../Endpoints/authApi';
 import { useNotification } from '../Hooks/useNotification';
 import { NotificationDropdownCard } from '../Shared/Components/NotificationDropdownCard';
+import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
 
-const LOGO_URL = 'https://lh3.googleusercontent.com/aida/AEtjO1ULKR2-At3mMWWJpVDPDjA9IJakzSkbSa5XSRuHMRp9FP_z4wgxPquvURNmIn7pBo3qDybcHoJ0p3aqPmqigbmTF6L8uMiO50Pn_nfngEvaB2NjtIdS-AF002Kn2J_crIGUvNLPtaqOw0hjLWWotFcCcF92I98d8Wdb2_hqAxLH6KeWVXAQwnwge43KAC_-90WpmcqP7BNWnSvNgOgU-gywUu5UvIZ3bWseH7DSvWX4pWq1MmSHAz_pUe4';
-
-const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1W-XmIunATvylcU6ZudrKG8B-mfq1yQQXyix8riDqwGsJnlxJCYiVDojqTon9vqRL7z8Ad5T_3ZtWukWO4SvHRgVsEoJhRTFRMfqoAFpjAge5_T4DgBP3Omz30PxQewMXcRRLUotFunX8pgenSaLE2I3uwjc2NliBlKaLmQjI2xKSwgLHM09oPggG5JwcO4RGHtUPm8rBuc97yjVx5rv1h5Avg0NuREUvT19ldKFdd8L99REO-e0i6Bkg';
+const getInitials = (name?: string): string => {
+  if (!name || !name.trim()) return 'US';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+};
 
 interface NavItem {
   label: string;
@@ -102,20 +106,39 @@ const CustomerHeader: React.FC = () => {
     navigate('/login');
   };
 
-  const avatarSrc = currentUser?.profilePictureUrl || DEFAULT_AVATAR;
+  const [avatarError, setAvatarError] = useState(false);
   const displayName = currentUser?.fullName || 'User Scholar';
+  const initials = getInitials(displayName);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [currentUser?.profilePictureUrl]);
+
+  const renderAvatar = (sizeClass = 'w-9 h-9', textClass = 'text-xs') => {
+    if (currentUser?.profilePictureUrl && !avatarError) {
+      return (
+        <img
+          alt={displayName}
+          className={`${sizeClass} rounded-full object-cover border border-action-green/30 shadow-sm`}
+          src={currentUser.profilePictureUrl}
+          onError={() => setAvatarError(true)}
+        />
+      );
+    }
+    return (
+      <div
+        className={`${sizeClass} rounded-full bg-gradient-to-tr from-primary to-accent text-on-primary font-bold flex items-center justify-center border border-white/20 shadow-sm ${textClass}`}
+      >
+        {initials}
+      </div>
+    );
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-chip-unselected-bg backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       <div className="h-20 w-full px-gutter flex items-center justify-between gap-space-md">
         {/* Logo + Brand */}
-        <div className="flex items-center gap-space-sm shrink-0">
-          <img alt="Katipuneros logo" className="h-8 w-auto object-contain" src={LOGO_URL} />
-          <div className="flex flex-col">
-            <span className="font-headline-4 text-headline-4 text-text-primary leading-tight">Katipuneros</span>
-            <span className="font-caption text-caption text-text-secondary">Academic &amp; Digital Stacks</span>
-          </div>
-        </div>
+        <KatipunanLogo variant="customer" />
 
         {/* Pill Navigation */}
         <nav className="hidden xl:flex items-center gap-space-xs px-space-xs py-space-xs bg-glass-surface rounded-full shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
@@ -216,11 +239,7 @@ const CustomerHeader: React.FC = () => {
               aria-expanded={isDropdownOpen}
               aria-label="User profile dropdown"
             >
-              <img
-                alt={displayName}
-                className="w-9 h-9 rounded-full object-cover border border-action-green/30 shadow-sm"
-                src={avatarSrc}
-              />
+              {renderAvatar('w-9 h-9', 'text-xs')}
               <span className="hidden lg:inline-block font-small text-small text-text-primary font-medium truncate max-w-[120px]">
                 {displayName}
               </span>
@@ -238,11 +257,7 @@ const CustomerHeader: React.FC = () => {
               <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-2xl py-2 z-50 animate-scale-up">
                 {/* User Summary Header */}
                 <div className="px-4 py-3 border-b border-surface-container-high flex items-center gap-3">
-                  <img
-                    alt={displayName}
-                    className="w-10 h-10 rounded-full object-cover border border-action-green/40 shadow-sm"
-                    src={avatarSrc}
-                  />
+                  {renderAvatar('w-10 h-10', 'text-sm')}
                   <div className="flex flex-col min-w-0">
                     <span className="font-small text-small font-bold text-text-primary truncate">
                       {displayName}

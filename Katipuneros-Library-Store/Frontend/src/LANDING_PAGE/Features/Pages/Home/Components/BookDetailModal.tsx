@@ -4,6 +4,7 @@
 import { FC } from 'react';
 
 export interface BookDetailData {
+  id?: string;
   title: string;
   author: string;
   category: string;

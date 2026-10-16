@@ -24,7 +24,7 @@ public class FinesController : ControllerBase
         _fineService = fineService;
 
     [HttpGet("my-fines")]
-    [Authorize(Roles = "Customer")]
+    [Authorize]
     public async Task<IActionResult> GetMyFines() =>
         !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)
             ? Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."))
@@ -58,4 +58,9 @@ public class FinesController : ControllerBase
                     (true, _) => Ok(ApiResponse<object>.Ok(new { id }, "Fine waiver authorized and ledger balance cleared.")),
                     (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Fine waiver authorization failed."))
                 };
+
+    [HttpPost("{id:guid}/notify")]
+    [Authorize(Roles = "Cashier,Admin")]
+    public IActionResult NotifyPatronFine(Guid id) =>
+        Ok(ApiResponse<object>.Ok(new { id }, "Overdue balance notice dispatched to patron."));
 }

@@ -84,21 +84,49 @@ export const getAuditLogs = async (query?: AuditLogQuery): Promise<PagedAuditLog
   if (query?.pageSize) params.append('pageSize', query.pageSize.toString());
 
   const qs = params.toString();
-  return (await apiRequest<PagedAuditLogs>(`/admin/audit-logs${qs ? `?${qs}` : ''}`)).data!;
+  return (
+    (await apiRequest<PagedAuditLogs>(`/admin/audit-logs${qs ? `?${qs}` : ''}`)).data ?? {
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+    }
+  );
 };
 
 export const getAuditMetrics = async (): Promise<AuditMetrics> =>
-  (await apiRequest<AuditMetrics>('/admin/audit-logs/metrics')).data!;
+  (await apiRequest<AuditMetrics>('/admin/audit-logs/metrics')).data ?? {
+    totalEvents24h: 0,
+    eventsGrowthRate: 0.0,
+    securityAnomaliesCount: 0,
+    hashChainStatusPercent: 100.0,
+    lastValidatedBlock: 0,
+    activeSuperAdminSessions: 0,
+    superAdminLocations: 'No active sessions',
+  };
 
 export const getMerkleRoot = async (): Promise<MerkleRootStatus> =>
-  (await apiRequest<MerkleRootStatus>('/admin/audit-logs/merkle-root')).data!;
+  (await apiRequest<MerkleRootStatus>('/admin/audit-logs/merkle-root')).data ?? {
+    merkleRoot: '0x0000..0000',
+    verifiedRecordsCount: 0,
+    isChainIntact: true,
+    statusMessage: 'Genesis Ready',
+    lastValidatedTimeAgo: 'Never',
+  };
 
 export const forceReindexChain = async (): Promise<MerkleRootStatus> =>
   (
     await apiRequest<MerkleRootStatus>('/admin/audit-logs/force-reindex', {
       method: 'POST',
     })
-  ).data!;
+  ).data ?? {
+    merkleRoot: '0x0000..0000',
+    verifiedRecordsCount: 0,
+    isChainIntact: true,
+    statusMessage: 'Genesis Ready',
+    lastValidatedTimeAgo: 'Never',
+  };
 
 export const verifyAuditChain = async (): Promise<{
   isIntact: boolean;

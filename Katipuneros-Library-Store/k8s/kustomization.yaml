@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: katipuneros-prod
+
+resources:
+  - 00-namespace.yaml
+  - 01-secrets.yaml
+  - 02-configmaps.yaml
+  - 03-persistent-volumes.yaml
+  - 04-layer7-primary-db.yaml
+  - 05-layer8-replica-db.yaml
+  - 06-layer6-redis.yaml
+  - 07-layer5-backend.yaml
+  - 08-layer1-landing.yaml
+  - 09-layer2-customer.yaml
+  - 10-layer3-cashier.yaml
+  - 11-layer4-admin.yaml
+  - 12-ingress.yaml

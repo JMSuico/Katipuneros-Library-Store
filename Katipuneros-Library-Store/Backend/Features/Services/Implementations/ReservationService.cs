@@ -24,13 +24,16 @@ public class ReservationService : IReservationService
     private readonly IReservationRepository _reservationRepository;
     private readonly IBookRepository _bookRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IEmailService _emailService;
+    private static readonly SemaphoreSlim _triageLock = new(1, 1);
 
     public ReservationService(
         IReservationRepository reservationRepository,
         IBookRepository bookRepository,
-        IUserRepository userRepository) =>
-        (_reservationRepository, _bookRepository, _userRepository) =
-        (reservationRepository, bookRepository, userRepository);
+        IUserRepository userRepository,
+        IEmailService emailService) =>
+        (_reservationRepository, _bookRepository, _userRepository, _emailService) =
+        (reservationRepository, bookRepository, userRepository, emailService);
 
     public async Task<List<Reservation>> GetPatronReservationsAsync(Guid patronId) =>
         await _reservationRepository.GetActiveByPatronIdAsync(patronId);
@@ -108,11 +111,12 @@ public class ReservationService : IReservationService
         if (book == null)
             return (false, null, "Book asset not found.");
 
-        var activeHolds = await _reservationRepository.GetActiveByPatronIdAsync(patronId);
+        var patronHolds = await _reservationRepository.GetActiveByPatronIdAsync(patronId);
+        var activeHolds = patronHolds.Where(h => h.Status == ReservationStatus.Pending || h.Status == ReservationStatus.StagedInLocker).ToList();
         if (activeHolds.Any(h => h.BookId == bookId))
             return (false, null, "You already have an active hold on this catalog title.");
 
-        int holdLimit = patron.Role == UserRole.Admin || patron.Department == "Research" ? 5 : 2;
+        int holdLimit = 5;
         if (activeHolds.Count >= holdLimit)
             return (false, null, $"Concurrent hold ceiling reached ({activeHolds.Count}/{holdLimit}). Overages queue for secondary Dean approval.");
 
@@ -127,11 +131,15 @@ public class ReservationService : IReservationService
             ExpiryDate = DateTime.UtcNow.AddHours(48),
             Status = ReservationStatus.Pending,
             PickupBranch = InputSanitizer.SanitizeText(pickupBranch ?? "Main Circulation Desk"),
-            QueuePosition = nextPosition
+            QueuePosition = nextPosition,
+            Patron = patron,
+            Book = book
         };
 
         await _reservationRepository.AddAsync(reservation);
         await _reservationRepository.SaveChangesAsync();
+
+        await _emailService.SendReservationNotificationAsync(reservation, "Submitted");
 
         return (true, reservation, null);
     }
@@ -151,15 +159,40 @@ public class ReservationService : IReservationService
 
     public async Task<(bool Success, string? Error)> TriageReservationAsync(Guid reservationId, bool approved, string? reason, bool priority)
     {
-        if (await _reservationRepository.GetByIdAsync(reservationId) is not { } reservation)
-            return (false, "Reservation hold not found.");
+        await _triageLock.WaitAsync();
+        try
+        {
+            if (await _reservationRepository.GetByIdAsync(reservationId) is not { } reservation)
+                return (false, "Reservation hold not found.");
 
-        reservation.Status = approved ? ReservationStatus.Pending : ReservationStatus.Cancelled;
-        if (priority) reservation.QueuePosition = 1;
+            if (reservation.Status != ReservationStatus.Pending)
+                return (false, $"Reservation has already been processed as {reservation.Status} and cannot be modified again.");
 
-        await _reservationRepository.UpdateAsync(reservation);
-        var saved = await _reservationRepository.SaveChangesAsync();
-        return (saved, saved ? null : "Failed to update triage decision.");
+            if (approved)
+            {
+                reservation.Status = ReservationStatus.StagedInLocker;
+                reservation.LockerBay = string.IsNullOrWhiteSpace(reservation.LockerBay) ? "Bay 01 Counter" : reservation.LockerBay;
+                reservation.LockerPin = string.IsNullOrWhiteSpace(reservation.LockerPin) ? Random.Shared.Next(1000, 9999).ToString() : reservation.LockerPin;
+                reservation.ExpiryDate = DateTime.UtcNow.AddHours(48);
+                if (priority) reservation.QueuePosition = 1;
+            }
+            else
+            {
+                reservation.Status = ReservationStatus.Cancelled;
+            }
+
+            await _reservationRepository.UpdateAsync(reservation);
+            var saved = await _reservationRepository.SaveChangesAsync();
+            if (saved)
+            {
+                await _emailService.SendReservationNotificationAsync(reservation, approved ? "Approved" : "Declined", reason);
+            }
+            return (saved, saved ? null : "Failed to update triage decision.");
+        }
+        finally
+        {
+            _triageLock.Release();
+        }
     }
 
     public async Task<(bool Success, string? Error)> UpdateStatusAsync(Guid reservationId, string newStatus, string? notes)
@@ -191,13 +224,16 @@ public class ReservationService : IReservationService
             switch (action.ToLowerInvariant())
             {
                 case "stage":
+                case "approve":
                     r.Status = ReservationStatus.StagedInLocker;
                     r.LockerBay = string.IsNullOrWhiteSpace(lockerBay) ? "Bay 01 Counter" : lockerBay;
-                    r.LockerPin = new Random().Next(1000, 9999).ToString();
+                    r.LockerPin = Random.Shared.Next(1000, 9999).ToString();
                     r.ExpiryDate = DateTime.UtcNow.AddHours(48);
                     count++;
                     break;
                 case "cancel":
+                case "decline":
+                case "reject":
                     r.Status = ReservationStatus.Cancelled;
                     count++;
                     break;

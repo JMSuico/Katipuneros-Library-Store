@@ -13,27 +13,46 @@ namespace Backend.Features.Repositories.Implementations;
 public class BookRepository : IBookRepository
 {
     private readonly AppDbContext _context;
+    private readonly AppDbContext _readOnlyContext;
 
-    public BookRepository(AppDbContext context) =>
+    public BookRepository(AppDbContext context, ReadOnlyAppDbContext? readOnlyContext = null)
+    {
         _context = context;
+        _readOnlyContext = (AppDbContext?)readOnlyContext ?? context;
+    }
 
     public async Task<Book?> GetByIdAsync(Guid id) =>
-        await _context.Books
+        await _readOnlyContext.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Id == id);
 
     public async Task<Book?> GetByIsbnAsync(string isbn) =>
-        await _context.Books
+        await _readOnlyContext.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Isbn == isbn);
 
-    public async Task<Book?> GetByBarcodeAsync(string barcode) =>
-        await _context.Books
+    public async Task<Book?> GetByBarcodeAsync(string barcode)
+    {
+        var cleanBarcode = barcode.Trim();
+        var stripped = cleanBarcode.Replace("-", "");
+        var isGuid = Guid.TryParse(cleanBarcode, out var bookId);
+
+        return await _readOnlyContext.Books
             .Include(b => b.Category)
-            .FirstOrDefaultAsync(b => b.IsbnBarcode == barcode || b.RfidTag == barcode || b.Isbn == barcode);
+            .FirstOrDefaultAsync(b =>
+                (isGuid && b.Id == bookId) ||
+                b.IsbnBarcode == cleanBarcode ||
+                b.IsbnBarcode == stripped ||
+                b.RfidTag == cleanBarcode ||
+                b.Isbn == cleanBarcode ||
+                b.Isbn == stripped);
+    }
+
+    public async Task<Guid> GetDefaultCategoryIdAsync() =>
+        await _readOnlyContext.Categories.Select(c => c.Id).FirstOrDefaultAsync();
 
     public async Task<List<Book>> GetAllAsync(Guid? categoryId = null, string? searchTerm = null, bool? isSpotlight = null) =>
-        await _context.Books
+        await _readOnlyContext.Books
             .Include(b => b.Category)
             .Where(b => !categoryId.HasValue || b.CategoryId == categoryId.Value)
             .Where(b => !isSpotlight.HasValue || b.IsSpotlight == isSpotlight.Value)

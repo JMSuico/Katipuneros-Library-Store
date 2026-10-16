@@ -22,11 +22,51 @@ var builder = WebApplication.CreateBuilder(args);
 // ==========================================
 // 1. Database & Cache Infrastructure
 // ==========================================
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+var primaryConn = builder.Configuration.GetConnectionString("PrimaryConnection")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=localhost;Database=KatipunerosLibraryDb;User Id=InventoryLibrary;Password=InventoryLibrary;TrustServerCertificate=True;MultipleActiveResultSets=true;";
 
+var replicaConn = builder.Configuration.GetConnectionString("ReplicaConnection")
+    ?? primaryConn;
+
+bool isPostgres = primaryConn.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
+                  primaryConn.Contains("Port=", StringComparison.OrdinalIgnoreCase);
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+{
+    if (isPostgres)
+    {
+        options.UseNpgsql(primaryConn);
+    }
+    else
+    {
+        options.UseSqlServer(primaryConn);
+    }
+});
+
+builder.Services.AddDbContext<ReadOnlyAppDbContext>(options =>
+{
+    if (isPostgres)
+    {
+        options.UseNpgsql(replicaConn);
+    }
+    else
+    {
+        options.UseSqlServer(replicaConn);
+    }
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
+
+// Redis Distributed Cache registration
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "Katipuneros_";
+    });
+}
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICacheService, CacheService>();
@@ -37,6 +77,7 @@ builder.Services.AddScoped<CacheInvalidation>();
 // ==========================================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
+builder.Services.AddScoped<IBookCopyRepository, BookCopyRepository>();
 builder.Services.AddScoped<IBorrowRepository, BorrowRepository>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
@@ -52,6 +93,7 @@ builder.Services.AddScoped<ICashierRepository, CashierRepository>();
 // ==========================================
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddScoped<IBookCopyService, BookCopyService>();
 builder.Services.AddScoped<IBorrowService, BorrowService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IFineService, FineService>();
@@ -68,6 +110,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ICashierService, CashierService>();
+builder.Services.AddSingleton<IEmailService, EmailService>();
 
 // ==========================================
 // 4. JWT Authentication & Authorization
@@ -111,12 +154,23 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5174",
-            "http://127.0.0.1:5174"
-        )
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            try
+            {
+                var uri = new Uri(origin);
+                var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+                return (uri.Host is "localhost" or "127.0.0.1" or "::1") ||
+                       uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+                       (uri.Port is 5173 or 5174 or 5175 or 5176 or 5000) ||
+                       configuredOrigins.Any(o => o.Equals(origin, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false;
+            }
+        })
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials();
@@ -142,12 +196,12 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 // ==========================================
-// 8. Middleware Pipeline (Strict AGENTS.md Order)
+// 8. Middleware Pipeline (CORS First for Preflight & Error Safety)
 // ==========================================
-app.UseMiddleware<GlobalExceptionMiddleware>();  // 1. Catch unhandled exceptions
-app.UseMiddleware<RateLimitMiddleware>();        // 2. Rate limiting per IP
-app.UseMiddleware<IdempotencyMiddleware>();      // 3. Duplicate POST protection
-app.UseCors("AllowFrontend");                    // 4. CORS headers
+app.UseCors("AllowFrontend");                    // 1. CORS headers FIRST so all responses & preflights succeed
+app.UseMiddleware<GlobalExceptionMiddleware>();  // 2. Catch unhandled exceptions
+app.UseMiddleware<RateLimitMiddleware>();        // 3. Rate limiting per IP
+app.UseMiddleware<IdempotencyMiddleware>();      // 4. Duplicate POST protection
 app.UseAuthentication();                         // 5. JWT token validation
 app.UseAuthorization();                          // 6. Role / policy checks
 app.UseMiddleware<JwtMiddleware>();              // 7. Identity context hydration
@@ -372,6 +426,7 @@ if (args.Length >= 1 && args[0].Equals("deleteallcliusers", StringComparison.Ord
 if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.OrdinalIgnoreCase) || 
                          args[0].Equals("createsuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("createcustomsuperadmin", StringComparison.OrdinalIgnoreCase) ||
+                         args[0].Equals("createcashiersuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("createcustomersuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("adduser", StringComparison.OrdinalIgnoreCase)))
 {
@@ -401,6 +456,13 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
         lastName = args.Length >= 6 ? args[5] : "Admin";
         department = args.Length >= 7 ? args[6] : "System Administration";
         role = Backend.Features.Data.Enums.UserRole.Admin;
+    }
+    else if (cmd == "createcashiersuperuseradmin")
+    {
+        firstName = args.Length >= 5 ? args[4] : "Cashier";
+        lastName = args.Length >= 6 ? args[5] : "Officer";
+        department = args.Length >= 7 ? args[6] : "Library Circulation Desk";
+        role = Backend.Features.Data.Enums.UserRole.Cashier;
     }
     else if (cmd == "createcustomersuperuseradmin")
     {
@@ -457,6 +519,20 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
 // ==========================================
 // 9. Database Auto-Seeder on Startup
 // ==========================================
+if (isPostgres)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        db.Database.EnsureCreated();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "PostgreSQL Database.EnsureCreated completed with non-fatal status.");
+    }
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();

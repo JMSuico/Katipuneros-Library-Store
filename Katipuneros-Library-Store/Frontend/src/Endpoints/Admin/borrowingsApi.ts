@@ -4,7 +4,7 @@
 // Strictly adheres to real-time data mandate: if database is empty, returns empty array / empty metrics.
 // DO NOT put UI rendering, business rules, or component state here.
 
-import { apiRequest } from '../apiClient';
+import { apiRequest, getApiBaseUrl } from '../apiClient';
 
 export interface BackendBorrowing {
   id: string;
@@ -109,5 +109,5 @@ export const getExportBorrowingsUrl = (params: ExportBorrowingsParams): string =
   if (params.idFilter) q.append('idFilter', params.idFilter);
   if (params.sortDirection) q.append('sortDirection', params.sortDirection);
   if (params.format) q.append('format', params.format);
-  return `/api/borrow/export?${q.toString()}`;
+  return `${getApiBaseUrl()}/borrow/export?${q.toString()}`;
 };

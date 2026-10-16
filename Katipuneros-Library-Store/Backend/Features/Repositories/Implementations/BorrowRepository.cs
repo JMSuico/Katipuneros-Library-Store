@@ -118,6 +118,18 @@ public class BorrowRepository : IBorrowRepository
         };
     }
 
+    public async Task<BorrowTransaction?> GetActiveByCopyIdOrBookIdAsync(Guid? copyId, Guid bookId) =>
+        await _context.BorrowTransactions
+            .Include(b => b.Book)
+            .Include(b => b.BookCopy)
+            .Include(b => b.Patron)
+            .Include(b => b.Cashier)
+            .Where(b => b.Status == TransactionStatus.Active &&
+                ((copyId.HasValue && b.BookCopyId == copyId.Value) || (b.BookId == bookId)))
+            .OrderByDescending(b => copyId.HasValue && b.BookCopyId == copyId.Value ? 1 : 0)
+            .ThenBy(b => b.BorrowDate)
+            .FirstOrDefaultAsync();
+
     public async Task AddAsync(BorrowTransaction transaction) =>
         await _context.BorrowTransactions.AddAsync(transaction);
 

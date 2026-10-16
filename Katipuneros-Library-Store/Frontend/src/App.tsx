@@ -10,6 +10,7 @@ import LandingLayout from './LayoutBars/LandingLayout';
 import CustomerLayout from './LayoutBars/CustomerLayout';
 import CashierLayout from './LayoutBars/CashierLayout';
 import AdminLayout from './LayoutBars/AdminLayout';
+import ProtectedRoute from './Shared/Components/ProtectedRoute';
 
 // ─── Landing Page ────────────────────────────────────────────
 const LandingPage = lazy(() => import('./LANDING_PAGE/Features/Pages/Home/Home'));
@@ -63,9 +64,39 @@ const AdminLoginPage = lazy(() => import('./Features/Auth/AdminLoginPage'));
 
 import { useAccountTheme } from './Hooks/useAccountTheme';
 
+const PortNotice = ({ targetPort, targetRole, targetPath }: { targetPort: string; targetRole: string; targetPath: string }) => {
+  const hostname = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1';
+  const targetUrl = `http://${hostname}:${targetPort}${targetPath}`;
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="max-w-md w-full p-8 rounded-3xl bg-surface-container border border-outline-variant shadow-xl text-center space-y-4">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-secondary-container flex items-center justify-center text-primary text-3xl">
+          <span className="material-symbols-outlined text-3xl">lan</span>
+        </div>
+        <h2 className="font-headline-2 text-headline-2 text-text-primary font-bold">
+          Dedicated {targetRole} Terminal
+        </h2>
+        <p className="font-body text-body text-text-secondary">
+          To maintain strict session security and prevent multi-role credential collisions, {targetRole} operations are hosted exclusively on dedicated <strong>Port {targetPort}</strong>.
+        </p>
+        <a
+          href={targetUrl}
+          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-2xl bg-primary text-on-primary font-body-medium font-bold shadow-md hover:bg-primary-hover transition-all"
+        >
+          <span>Open {targetRole} Portal (Port {targetPort})</span>
+          <span className="material-symbols-outlined text-lg">open_in_new</span>
+        </a>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   useAccountTheme();
-  const isPortAdmin = typeof window !== 'undefined' && window.location.port === '5174';
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const port = typeof window !== 'undefined' ? window.location.port : '';
+  const isPortAdmin = port === '5174' || host.startsWith('admin.');
+  const isPortCashier = port === '5175' || host.startsWith('cashier.');
 
   return (
     <Suspense
@@ -87,32 +118,64 @@ function App() {
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
-          {/* Admin Panel Layout */}
-          <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/books" element={<BooksManager />} />
-            <Route path="/admin/reservations" element={<AdminReservations />} />
-            <Route path="/admin/borrowings" element={<AdminBorrowings />} />
-            <Route path="/admin/returns" element={<AdminReturns />} />
-            <Route path="/admin/inventory" element={<Inventory />} />
-            <Route path="/admin/analytics" element={<Analytics />} />
-            <Route path="/admin/categories" element={<Categories />} />
-            <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/admin/notifications" element={<AdminNotifications />} />
-            <Route path="/admin/roles" element={<RolesPermissions />} />
-            <Route path="/admin/audit-logs" element={<AuditLogs />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/profile" element={<AdminProfile />} />
+          {/* Admin Panel Layout Protected */}
+          <Route element={<ProtectedRoute allowedRoles={['Admin']} redirectPath="/admin/login" />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<UserManagement />} />
+              <Route path="/admin/books" element={<BooksManager />} />
+              <Route path="/admin/reservations" element={<AdminReservations />} />
+              <Route path="/admin/borrowings" element={<AdminBorrowings />} />
+              <Route path="/admin/returns" element={<AdminReturns />} />
+              <Route path="/admin/inventory" element={<Inventory />} />
+              <Route path="/admin/analytics" element={<Analytics />} />
+              <Route path="/admin/categories" element={<Categories />} />
+              <Route path="/admin/reports" element={<Reports />} />
+              <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/admin/roles" element={<RolesPermissions />} />
+              <Route path="/admin/audit-logs" element={<AuditLogs />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/profile" element={<AdminProfile />} />
+            </Route>
           </Route>
 
           {/* Catch-all on port 5174 */}
           <Route path="*" element={<Navigate to="/admin/login" replace />} />
         </Routes>
+      ) : isPortCashier ? (
+        /* ═══════════════════════════════════════════════════════════
+           PORT 5175: Security-Isolated Cashier Circulation Terminal
+           ═══════════════════════════════════════════════════════════ */
+        <Routes>
+          <Route path="/" element={<Navigate to="/cashier/login" replace />} />
+          <Route path="/login" element={<Navigate to="/cashier/login" replace />} />
+          <Route path="/cashier/login" element={<CashierLoginPage />} />
+
+          {/* Cashier Panel Layout Protected */}
+          <Route element={<ProtectedRoute allowedRoles={['Cashier']} redirectPath="/cashier/login" />}>
+            <Route element={<CashierLayout />}>
+              <Route path="/cashier" element={<Navigate to="/cashier/dashboard" replace />} />
+              <Route path="/cashier/dashboard" element={<CashierDashboard />} />
+              <Route path="/cashier/pending-reservations" element={<PendingReservations />} />
+              <Route path="/cashier/checkout" element={<CheckoutBorrow />} />
+              <Route path="/cashier/returns" element={<ReturnsFines />} />
+              <Route path="/cashier/customers" element={<CustomerLookup />} />
+              <Route path="/cashier/book-availability" element={<BookAvailability />} />
+              <Route path="/cashier/schedules" element={<Schedules />} />
+              <Route path="/cashier/overdue-fines" element={<OverdueFines />} />
+              <Route path="/cashier/transactions" element={<CashierTransactions />} />
+              <Route path="/cashier/notifications" element={<CashierNotifications />} />
+              <Route path="/cashier/profile" element={<CashierProfile />} />
+            </Route>
+          </Route>
+
+          {/* Catch-all on port 5175 */}
+          <Route path="*" element={<Navigate to="/cashier/login" replace />} />
+        </Routes>
       ) : (
         /* ═══════════════════════════════════════════════════════════
-           PORT 5173: Public Landing, Customer & Cashier Desk Portal
+           PORT 5173: Public Landing & Dedicated Patron/Customer Portal
            ═══════════════════════════════════════════════════════════ */
         <Routes>
           {/* Landing Page */}
@@ -123,57 +186,28 @@ function App() {
             <Route path="/contact" element={<ContactPage />} />
           </Route>
 
-          {/* Public & Desk Authentication */}
+          {/* Customer Authentication */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/cashier/login" element={<CashierLoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 
-          {/* Customer Panel */}
-          <Route element={<CustomerLayout />}>
-            <Route path="/customer" element={<Navigate to="/customer/home" replace />} />
-            <Route path="/customer/home" element={<CustomerDashboard />} />
-            <Route path="/customer/catalog" element={<CatalogPage />} />
-            <Route path="/customer/borrowings" element={<BorrowingsPage />} />
-            <Route path="/customer/reservations" element={<ReservationsPage />} />
-            <Route path="/customer/favorites" element={<FavoritesPage />} />
-            <Route path="/customer/profile" element={<ProfileSettings />} />
-            <Route path="/customer/settings" element={<ProfileSettings />} />
-          </Route>
+          {/* Cross-Port Redirection Notices on Port 5173 */}
+          <Route path="/cashier/login" element={<PortNotice targetPort="5175" targetRole="Cashier Circulation" targetPath="/cashier/login" />} />
+          <Route path="/cashier/*" element={<PortNotice targetPort="5175" targetRole="Cashier Circulation" targetPath="/cashier/login" />} />
+          <Route path="/admin/login" element={<PortNotice targetPort="5174" targetRole="Administrator" targetPath="/admin/login" />} />
+          <Route path="/admin/*" element={<PortNotice targetPort="5174" targetRole="Administrator" targetPath="/admin/login" />} />
 
-          {/* Cashier Panel */}
-          <Route element={<CashierLayout />}>
-            <Route path="/cashier" element={<Navigate to="/cashier/dashboard" replace />} />
-            <Route path="/cashier/dashboard" element={<CashierDashboard />} />
-            <Route path="/cashier/pending-reservations" element={<PendingReservations />} />
-            <Route path="/cashier/checkout" element={<CheckoutBorrow />} />
-            <Route path="/cashier/returns" element={<ReturnsFines />} />
-            <Route path="/cashier/customers" element={<CustomerLookup />} />
-            <Route path="/cashier/book-availability" element={<BookAvailability />} />
-            <Route path="/cashier/schedules" element={<Schedules />} />
-            <Route path="/cashier/overdue-fines" element={<OverdueFines />} />
-            <Route path="/cashier/transactions" element={<CashierTransactions />} />
-            <Route path="/cashier/notifications" element={<CashierNotifications />} />
-            <Route path="/cashier/profile" element={<CashierProfile />} />
-          </Route>
-
-          {/* Admin Panel */}
-          <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/books" element={<BooksManager />} />
-            <Route path="/admin/reservations" element={<AdminReservations />} />
-            <Route path="/admin/borrowings" element={<AdminBorrowings />} />
-            <Route path="/admin/returns" element={<AdminReturns />} />
-            <Route path="/admin/inventory" element={<Inventory />} />
-            <Route path="/admin/analytics" element={<Analytics />} />
-            <Route path="/admin/categories" element={<Categories />} />
-            <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/admin/notifications" element={<AdminNotifications />} />
-            <Route path="/admin/roles" element={<RolesPermissions />} />
-            <Route path="/admin/audit-logs" element={<AuditLogs />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/profile" element={<AdminProfile />} />
+          {/* Customer Panel Protected */}
+          <Route element={<ProtectedRoute allowedRoles={['Customer']} redirectPath="/login" />}>
+            <Route element={<CustomerLayout />}>
+              <Route path="/customer" element={<Navigate to="/customer/home" replace />} />
+              <Route path="/customer/home" element={<CustomerDashboard />} />
+              <Route path="/customer/catalog" element={<CatalogPage />} />
+              <Route path="/customer/borrowings" element={<BorrowingsPage />} />
+              <Route path="/customer/reservations" element={<ReservationsPage />} />
+              <Route path="/customer/favorites" element={<FavoritesPage />} />
+              <Route path="/customer/profile" element={<ProfileSettings />} />
+              <Route path="/customer/settings" element={<ProfileSettings />} />
+            </Route>
           </Route>
 
           {/* Fallback Redirect */}

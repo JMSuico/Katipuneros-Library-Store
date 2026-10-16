@@ -41,8 +41,30 @@ public class NotificationService : INotificationService
         _reservationRepository = reservationRepository;
         _auditRepository = auditRepository;
         _userRepository = userRepository;
-
         EnsureSeedData();
+    }
+
+    public static void AddDispatchRecord(string recipientName, string recipientEmail, string triggerEvent, string channel, string statusSeverity)
+    {
+        lock (_dispatchTransactions)
+        {
+            _dispatchTransactions.Insert(0, new DispatchTransactionResponse
+            {
+                DispatchId = $"DSP-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(100, 999)}",
+                RecipientName = recipientName,
+                RecipientId = recipientEmail,
+                RecipientContact = recipientEmail,
+                TriggerEvent = triggerEvent,
+                Channel = channel,
+                DeliveryStatus = statusSeverity == "success" ? "Delivered" : "Queued",
+                StatusSeverity = statusSeverity,
+                TimestampFormatted = "Just now"
+            });
+            if (_dispatchTransactions.Count > 100)
+            {
+                _dispatchTransactions.RemoveAt(_dispatchTransactions.Count - 1);
+            }
+        }
     }
 
     private static void EnsureSeedData()

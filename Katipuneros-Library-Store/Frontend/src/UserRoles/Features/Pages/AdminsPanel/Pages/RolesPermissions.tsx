@@ -1171,7 +1171,7 @@ const RolesPermissions: FC = () => {
                         Hold Staging Clearance
                       </span>
                       <span className="font-caption text-caption text-text-secondary">
-                        Process arrival of books to express pickup lockers
+                        Process arrival of books to express counter pickup bays
                       </span>
                     </div>
                   </label>

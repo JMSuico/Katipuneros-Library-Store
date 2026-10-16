@@ -27,10 +27,18 @@ export const ProfileSettings: FC = () => {
   // User State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
   const [activeTab, setActiveTab] = useState<TabType>('personal');
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
 
-  // Form State
+  // Form State - All Profile Credentials
+  const [firstName, setFirstName] = useState<string>('');
+  const [middleName, setMiddleName] = useState<string>('');
+  const [lastName, setLastName] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [age, setAge] = useState<string>('');
+  const [employmentStatus, setEmploymentStatus] = useState<string>('Student');
   const [fullName, setFullName] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [department, setDepartment] = useState<string>('');
@@ -50,16 +58,27 @@ export const ProfileSettings: FC = () => {
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [isChangingPassword, setIsChangingPassword] = useState<boolean>(false);
 
+  const populateFormFields = (u: AuthUser) => {
+    setFirstName(u.firstName || '');
+    setMiddleName(u.middleName || '');
+    setLastName(u.lastName || '');
+    setUsername(u.username || '');
+    setEmail(u.email || '');
+    setAge(u.age ? String(u.age) : '');
+    setEmploymentStatus(u.employmentStatus || 'Student');
+    setFullName(u.fullName || '');
+    setPhoneNumber(u.phoneNumber || '');
+    setDepartment(u.department || 'College of Arts & Sciences');
+    setCurrentAddress(u.currentAddress || '');
+    setPermanentAddress(u.permanentAddress || '');
+  };
+
   // Load Fresh Profile
   useEffect(() => {
     fetchCurrentProfile().then((u) => {
       if (u) {
         setCurrentUser(u);
-        setFullName(u.fullName || '');
-        setPhoneNumber(u.phoneNumber || '');
-        setDepartment(u.department || 'College of Arts & Sciences');
-        setCurrentAddress(u.currentAddress || '');
-        setPermanentAddress(u.permanentAddress || '');
+        populateFormFields(u);
       }
     });
   }, []);
@@ -67,32 +86,46 @@ export const ProfileSettings: FC = () => {
   // Sync Form when currentUser updates
   useEffect(() => {
     if (currentUser) {
-      setFullName(currentUser.fullName || '');
-      setPhoneNumber(currentUser.phoneNumber || '');
-      setDepartment(currentUser.department || 'College of Arts & Sciences');
-      setCurrentAddress(currentUser.currentAddress || '');
-      setPermanentAddress(currentUser.permanentAddress || '');
+      populateFormFields(currentUser);
     }
   }, [currentUser]);
+
+  // Handle Cancel Edit
+  const handleCancelEdit = () => {
+    if (currentUser) {
+      populateFormFields(currentUser);
+    }
+    setIsEditing(false);
+  };
 
   // Handle Save Profile
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isEditing) return;
     setIsSavingProfile(true);
 
     try {
+      const computedFullName = `${firstName} ${middleName ? middleName + ' ' : ''}${lastName}`.trim() || fullName.trim();
       const payload: UpdateProfilePayload = {
-        fullName: fullName.trim(),
+        firstName: firstName.trim(),
+        middleName: middleName.trim() || undefined,
+        lastName: lastName.trim(),
+        fullName: computedFullName,
+        username: username.trim() || undefined,
+        email: email.trim() || undefined,
         phoneNumber: phoneNumber.trim(),
         department: department.trim(),
+        employmentStatus: employmentStatus.trim(),
         currentAddress: currentAddress.trim(),
         permanentAddress: permanentAddress.trim(),
+        age: age ? Number(age) : undefined,
       };
 
       const res = await updateUserProfile(payload);
       if (res.success) {
         addToast('Academic user profile and contact details saved.', 'success');
         setCurrentUser((prev) => (prev ? { ...prev, ...payload } : null));
+        setIsEditing(false);
         window.dispatchEvent(new CustomEvent('profile-updated', { detail: payload }));
         window.dispatchEvent(new CustomEvent('katipuneros-auth-changed'));
       } else {
@@ -336,49 +369,113 @@ export const ProfileSettings: FC = () => {
                         Academic User Identity
                       </h3>
                     </div>
-                    <span className="px-space-sm py-1 rounded-full bg-soft-blue text-secondary font-caption text-caption font-semibold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">lock</span>
-                      Registrar Verified
-                    </span>
+                    {isEditing ? (
+                      <span className="px-space-sm py-1 rounded-full bg-action-green/20 text-action-green font-caption text-caption font-semibold flex items-center gap-1 border border-action-green/30">
+                        <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                        Edit Mode Active
+                      </span>
+                    ) : (
+                      <span className="px-space-sm py-1 rounded-full bg-surface-container-high text-text-secondary font-caption text-caption font-semibold flex items-center gap-1 border border-outline-variant/20">
+                        <span className="material-symbols-outlined text-[14px]">lock</span>
+                        Profile Locked
+                      </span>
+                    )}
                   </div>
 
                   <form onSubmit={handleSaveProfile} className="flex flex-col gap-space-md">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md">
-                      {/* Full Legal Name */}
+                      {/* First Name */}
                       <div className="flex flex-col gap-1.5">
                         <label className="font-small text-small text-text-secondary font-medium">
-                          Full Legal Name
+                          First Name
                         </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            required
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            className="w-full h-11 px-space-md rounded-lg bg-surface-container-low text-text-primary font-body text-body focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 outline-none transition-colors border border-outline-variant/15"
-                          />
-                          <span className="material-symbols-outlined absolute right-3 top-2.5 text-text-secondary text-[20px]">
-                            person
-                          </span>
-                        </div>
+                        <input
+                          type="text"
+                          required
+                          disabled={!isEditing}
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
                       </div>
 
-                      {/* University Email */}
+                      {/* Middle Name */}
                       <div className="flex flex-col gap-1.5">
                         <label className="font-small text-small text-text-secondary font-medium">
-                          Institutional Email (SSO)
+                          Middle Name (Optional)
                         </label>
-                        <div className="relative">
-                          <input
-                            type="email"
-                            readOnly
-                            value={currentUser?.email || ''}
-                            className="w-full h-11 px-space-md rounded-lg bg-surface-container text-text-secondary font-body text-body outline-none cursor-not-allowed pr-10 border border-outline-variant/10"
-                          />
-                          <span className="material-symbols-outlined absolute right-3 top-2.5 text-status-available text-[20px]">
-                            verified
-                          </span>
-                        </div>
+                        <input
+                          type="text"
+                          disabled={!isEditing}
+                          value={middleName}
+                          onChange={(e) => setMiddleName(e.target.value)}
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Last Name */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="font-small text-small text-text-secondary font-medium">
+                          Last Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          disabled={!isEditing}
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Username */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="font-small text-small text-text-secondary font-medium">
+                          Username
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          disabled={!isEditing}
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Institutional Email */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="font-small text-small text-text-secondary font-medium">
+                          Institutional Email
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          disabled={!isEditing}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
                       </div>
 
                       {/* Mobile Number */}
@@ -386,18 +483,18 @@ export const ProfileSettings: FC = () => {
                         <label className="font-small text-small text-text-secondary font-medium">
                           Mobile Number (SMS Delivery)
                         </label>
-                        <div className="relative">
-                          <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="+63 9XX XXX XXXX"
-                            className="w-full h-11 px-space-md rounded-lg bg-surface-container-low text-text-primary font-body text-body focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 outline-none transition-colors border border-outline-variant/15"
-                          />
-                          <span className="material-symbols-outlined absolute right-3 top-2.5 text-secondary text-[20px]">
-                            smartphone
-                          </span>
-                        </div>
+                        <input
+                          type="tel"
+                          disabled={!isEditing}
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="+63 9XX XXX XXXX"
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
                       </div>
 
                       {/* Student ID */}
@@ -413,16 +510,58 @@ export const ProfileSettings: FC = () => {
                         />
                       </div>
 
+                      {/* Age */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="font-small text-small text-text-secondary font-medium">
+                          Age
+                        </label>
+                        <input
+                          type="number"
+                          disabled={!isEditing}
+                          value={age}
+                          onChange={(e) => setAge(e.target.value)}
+                          placeholder="e.g. 21"
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Status / Academic Classification */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="font-small text-small text-text-secondary font-medium">
+                          Academic Status / Classification
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!isEditing}
+                          value={employmentStatus}
+                          onChange={(e) => setEmploymentStatus(e.target.value)}
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
+                      </div>
+
                       {/* College & Department */}
-                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <div className="flex flex-col gap-1.5">
                         <label className="font-small text-small text-text-secondary font-medium">
                           Academic Unit / Department
                         </label>
                         <input
                           type="text"
+                          disabled={!isEditing}
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
-                          className="w-full h-11 px-space-md rounded-lg bg-surface-container-low text-text-primary font-body text-body focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 outline-none transition-colors border border-outline-variant/15"
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
                         />
                       </div>
 
@@ -433,10 +572,34 @@ export const ProfileSettings: FC = () => {
                         </label>
                         <input
                           type="text"
+                          disabled={!isEditing}
                           value={currentAddress}
                           onChange={(e) => setCurrentAddress(e.target.value)}
                           placeholder="e.g. Dormitory Bldg C, Room 204"
-                          className="w-full h-11 px-space-md rounded-lg bg-surface-container-low text-text-primary font-body text-body focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 outline-none transition-colors border border-outline-variant/15"
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Permanent Residential Address */}
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <label className="font-small text-small text-text-secondary font-medium">
+                          Permanent Residential Address
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!isEditing}
+                          value={permanentAddress}
+                          onChange={(e) => setPermanentAddress(e.target.value)}
+                          placeholder="e.g. 123 Katipunan Ave, Quezon City"
+                          className={`w-full h-11 px-space-md rounded-lg font-body text-body transition-colors border ${
+                            isEditing
+                              ? 'bg-surface-container-low text-text-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 border-outline-variant/20'
+                              : 'bg-surface-container text-text-secondary cursor-not-allowed border-outline-variant/10'
+                          }`}
                         />
                       </div>
                     </div>
@@ -453,17 +616,40 @@ export const ProfileSettings: FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex justify-end pt-space-sm">
-                      <button
-                        type="submit"
-                        disabled={isSavingProfile}
-                        className="h-11 px-space-lg rounded-full bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 font-small text-small font-semibold shadow-md transition-all flex items-center gap-space-xs cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-lg">
-                          {isSavingProfile ? 'progress_activity' : 'save'}
-                        </span>
-                        <span>{isSavingProfile ? 'Saving...' : 'Save Profile Changes'}</span>
-                      </button>
+                    {/* Action Buttons: Transform between Edit Profile and Save Changes + Cancel */}
+                    <div className="flex justify-end gap-3 pt-space-sm">
+                      {!isEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditing(true)}
+                          className="h-11 px-space-lg rounded-full bg-primary text-on-primary hover:bg-primary-hover font-small text-small font-semibold shadow-md transition-all flex items-center gap-space-xs cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                          <span>Edit Profile</span>
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            disabled={isSavingProfile}
+                            className="h-11 px-space-lg rounded-full bg-surface-container-high text-text-primary hover:bg-surface-container-highest font-small text-small font-semibold border border-outline-variant/20 transition-all flex items-center gap-space-xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-lg">close</span>
+                            <span>Cancel</span>
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isSavingProfile}
+                            className="h-11 px-space-lg rounded-full bg-action-green text-surface-container-lowest hover:brightness-105 disabled:opacity-50 font-small text-small font-semibold shadow-md transition-all flex items-center gap-space-xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-lg">
+                              {isSavingProfile ? 'progress_activity' : 'check_circle'}
+                            </span>
+                            <span>{isSavingProfile ? 'Saving...' : 'Save Changes'}</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </form>
                 </div>

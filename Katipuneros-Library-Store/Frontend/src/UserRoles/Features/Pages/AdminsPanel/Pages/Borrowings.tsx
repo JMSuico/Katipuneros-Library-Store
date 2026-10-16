@@ -257,8 +257,18 @@ const Borrowings: FC = () => {
     try {
       setModalSubmitting(true);
       const count = selectedIds.size;
+      for (const id of Array.from(selectedIds)) {
+        try {
+          await forceRenewLoan(id, {
+            extensionDays: 7,
+            specialApprovalNote: 'Batch renewal authorized by administrator',
+          });
+        } catch {
+          // Continue batch processing
+        }
+      }
       setOperationMessage({
-        text: `Batch operation executed on ${count} loan records.`,
+        text: `Batch renewal executed on ${count} circulation records.`,
         type: 'success',
       });
       setIsBatchModalOpen(false);

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katipuneros-landing
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-landing
+    layer: "1"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: katipuneros-landing
+  template:
+    metadata:
+      labels:
+        app: katipuneros-landing
+        layer: "1"
+    spec:
+      containers:
+        - name: landing
+          image: katipuneros-landing:prod
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-landing-svc
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: katipuneros-landing
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: katipuneros-landing-hpa
+  namespace: katipuneros-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: katipuneros-landing
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75

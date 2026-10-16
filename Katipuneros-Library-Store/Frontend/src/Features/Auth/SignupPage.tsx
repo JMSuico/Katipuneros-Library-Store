@@ -33,8 +33,8 @@ export const SignupPage: React.FC = () => {
 
   // Status & Feedback States
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [modalStatus, setModalStatus] = useState<'loading' | 'success'>('loading');
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Phase 1 Validation: All required personal info fields must be populated
   const isPhase1Valid = Boolean(
@@ -101,9 +101,7 @@ export const SignupPage: React.FC = () => {
       return;
     }
 
-    // Launch floating modal card with loading animation
-    setModalStatus('loading');
-    setShowSuccessModal(true);
+    setIsLoading(true);
 
     try {
       const res = await registerUser({
@@ -119,19 +117,17 @@ export const SignupPage: React.FC = () => {
       });
 
       if (res.success) {
-        // Reflect successful DB registration in floating modal
-        setModalStatus('success');
+        setSuccessMessage('Account created successfully! Redirecting to login...');
         setTimeout(() => {
-          setShowSuccessModal(false);
-          navigate('/customer/home');
-        }, 1800);
+          navigate(`/login?registered=true&username=${encodeURIComponent(username.trim())}`);
+        }, 1200);
       } else {
-        setShowSuccessModal(false);
         setErrorMessage(res.message || 'Registration failed.');
       }
     } catch {
-      setShowSuccessModal(false);
-      setErrorMessage('Network connection failure. Ensure the .NET 10 API backend is online.');
+      setErrorMessage('Network connection failure. Unable to reach library API at port 5000.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -192,6 +188,14 @@ export const SignupPage: React.FC = () => {
               : 'Configure your institutional email, unique username, and private access password.'}
           </p>
         </div>
+
+        {/* Success Alert */}
+        {successMessage && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-action-green/20 border border-action-green/50 text-text-primary text-small flex items-start gap-2.5 animate-fade-in shadow-sm">
+            <span className="material-symbols-outlined text-action-green text-[20px] shrink-0 mt-0.5">check_circle</span>
+            <span>{successMessage}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMessage && (
@@ -458,10 +462,20 @@ export const SignupPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="px-8 py-3 rounded-2xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-small font-bold transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-2"
+                  disabled={isLoading}
+                  className="px-8 py-3 rounded-2xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-small font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-[18px]">person_add</span>
-                  <span>CREATE</span>
+                  {isLoading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                      <span>CREATING ACCOUNT...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[18px]">person_add</span>
+                      <span>CREATE ACCOUNT</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -469,55 +483,22 @@ export const SignupPage: React.FC = () => {
         </div>
 
         {/* Card Footer */}
-        <div className="mt-8 pt-4 border-t border-surface-container-high text-center">
+        <div className="mt-8 pt-4 border-t border-surface-container-high flex flex-col items-center gap-3 text-center">
           <p className="font-small text-small text-text-secondary">
             Already have an active library card?{' '}
             <Link to="/login" className="text-primary font-bold hover:underline">
               Sign In to your account
             </Link>
           </p>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-text-secondary hover:text-primary font-small text-small font-medium transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            <span>Return to Library Home</span>
+          </Link>
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════════
-          FLOATING MODAL CARD WITH LOADING ANIMATION & SUCCESS STATUS
-          ═══════════════════════════════════════════════════════════ */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-sm p-8 bg-surface-container-lowest/95 backdrop-blur-2xl rounded-3xl border border-white/80 shadow-2xl flex flex-col items-center text-center">
-            {/* Ambient Top Glow */}
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-action-green to-secondary rounded-t-3xl" />
-
-            {modalStatus === 'loading' ? (
-              <div className="flex flex-col items-center py-6 gap-4">
-                <div className="w-14 h-14 border-4 border-action-green border-t-transparent rounded-full animate-spin shadow-md" />
-                <div>
-                  <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold">
-                    Creating Account...
-                  </h3>
-                  <p className="font-small text-small text-text-secondary mt-1">
-                    Storing customer entity in database and provisioning user clearance...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center py-6 gap-4 animate-scale-up">
-                <div className="w-16 h-16 rounded-full bg-action-green/20 text-action-green flex items-center justify-center border border-action-green/40 shadow-inner">
-                  <span className="material-symbols-outlined text-4xl">check_circle</span>
-                </div>
-                <div>
-                  <h3 className="font-headline-3 text-headline-3 text-text-primary font-bold">
-                    Account Created Successfully
-                  </h3>
-                  <p className="font-small text-small text-text-secondary mt-1">
-                    Welcome to Katipuneros Library! Redirecting to your user dashboard...
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -25,6 +25,11 @@ public class BorrowTransaction
     [ForeignKey(nameof(BookId))]
     public Book? Book { get; set; }
 
+    public Guid? BookCopyId { get; set; }
+
+    [ForeignKey(nameof(BookCopyId))]
+    public BookCopy? BookCopy { get; set; }
+
     public Guid? CashierId { get; set; }
 
     [ForeignKey(nameof(CashierId))]

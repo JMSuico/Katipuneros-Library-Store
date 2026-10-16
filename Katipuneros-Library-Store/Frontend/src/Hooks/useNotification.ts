@@ -261,3 +261,33 @@ export const useNotification = (userRole?: 'Admin' | 'Cashier' | 'Customer'): Us
     refresh,
   };
 };
+
+export const dispatchCirculationNotification = (
+  roleTarget: 'Admin' | 'Cashier' | 'Customer' | 'All',
+  title: string,
+  message: string,
+  type: NotificationSeverity = 'info',
+  actionUrl?: string,
+  actionLabel?: string
+): void => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const existing: NotificationItem[] = raw ? JSON.parse(raw) : DEFAULT_ROLE_NOTIFICATIONS;
+    const newItem: NotificationItem = {
+      id: `notif-circ-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      message,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      type,
+      roleTarget,
+      actionUrl,
+      actionLabel,
+    };
+    const updated = [newItem, ...existing];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('katipuneros-notification-event', { detail: updated }));
+  } catch {
+    // quota guard
+  }
+};

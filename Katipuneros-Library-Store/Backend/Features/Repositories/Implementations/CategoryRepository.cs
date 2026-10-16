@@ -13,17 +13,21 @@ namespace Backend.Features.Repositories.Implementations;
 public class CategoryRepository : ICategoryRepository
 {
     private readonly AppDbContext _context;
+    private readonly AppDbContext _readOnlyContext;
 
-    public CategoryRepository(AppDbContext context) =>
+    public CategoryRepository(AppDbContext context, ReadOnlyAppDbContext? readOnlyContext = null)
+    {
         _context = context;
+        _readOnlyContext = (AppDbContext?)readOnlyContext ?? context;
+    }
 
     public async Task<Category?> GetByIdAsync(Guid id) =>
-        await _context.Categories
+        await _readOnlyContext.Categories
             .Include(c => c.Books)
             .FirstOrDefaultAsync(c => c.Id == id);
 
     public async Task<List<Category>> GetAllAsync() =>
-        await _context.Categories
+        await _readOnlyContext.Categories
             .Include(c => c.Books)
             .OrderBy(c => c.DeweyRange)
             .ToListAsync();

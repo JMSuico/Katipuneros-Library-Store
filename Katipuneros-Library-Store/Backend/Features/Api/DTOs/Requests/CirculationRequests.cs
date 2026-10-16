@@ -24,6 +24,10 @@ public class ReturnRequest
     [Required]
     public string Barcode { get; set; } = string.Empty;
 
+    public Guid? BookCopyId { get; set; }
+
+    public string? Condition { get; set; } = "Good";
+
     public string? ConditionNotes { get; set; }
 
     [Range(0, 5000)]

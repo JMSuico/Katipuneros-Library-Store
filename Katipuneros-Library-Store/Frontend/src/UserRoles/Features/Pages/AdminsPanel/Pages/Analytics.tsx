@@ -477,7 +477,7 @@ const Analytics: FC = () => {
       totalCopies: 5,
       bayLocation: 'Bay 01 · Shelf 1A',
       description: '',
-      rfidTag: `RFID-${Math.floor(1000 + Math.random() * 9000)}`,
+      rfidTag: `KP-ACC-${Math.floor(1000 + Math.random() * 9000)}`,
     });
     setIsCreateBookModalOpen(true);
   };
@@ -926,7 +926,7 @@ const Analytics: FC = () => {
           <div className="mt-space-md pt-space-sm border-t border-outline-variant/15 flex items-center justify-between text-text-secondary font-caption text-caption">
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-[16px] text-primary">sync</span>
-              <span>{density?.inventoryAuditStatusText ?? density?.rfidStatusText ?? 'Physical stacks census idle'}</span>
+              <span>{density?.inventoryAuditStatusText ?? 'Physical stacks census idle'}</span>
             </span>
             <button
               type="button"

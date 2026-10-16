@@ -36,7 +36,7 @@ export const PendingReservations: FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Search, Filter & Sort
-  const [filterTab, setFilterTab] = useState<'all' | 'today' | 'tomorrow' | 'scholastic' | 'waitlist'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved' | 'declined' | 'today' | 'tomorrow' | 'scholastic' | 'waitlist'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sortOption, setSortOption] = useState<'pickup' | 'newest' | 'standing'>('pickup');
@@ -62,7 +62,7 @@ export const PendingReservations: FC = () => {
   const loadData = useCallback(async () => {
     try {
       const [listRes, metricsRes] = await Promise.all([
-        getAdminReservations('Pending'),
+        getAdminReservations(),
         getReservationMetrics(),
       ]);
       setReservations(listRes);
@@ -199,11 +199,34 @@ export const PendingReservations: FC = () => {
     addToast('Intake queue sheet export initiated.', 'info');
   };
 
+  // Hold Status Counts
+  const counts = useMemo(() => {
+    let pending = 0;
+    let approved = 0;
+    let declined = 0;
+    reservations.forEach((r) => {
+      const st = String(r.status);
+      if (st === 'Pending' || st === '1') pending++;
+      else if (st === 'StagedInLocker' || st === '2') approved++;
+      else if (st === 'Cancelled' || st === '4') declined++;
+    });
+    return { pending, approved, declined, total: reservations.length };
+  }, [reservations]);
+
   // Filter & Sort
   const filteredReservations = useMemo(() => {
     return reservations
       .filter((r) => {
         // Tab Filter
+        if (filterTab === 'pending') {
+          return r.status === 'Pending' || r.status === '1';
+        }
+        if (filterTab === 'approved') {
+          return r.status === 'StagedInLocker' || r.status === '2';
+        }
+        if (filterTab === 'declined') {
+          return r.status === 'Cancelled' || r.status === '4';
+        }
         if (filterTab === 'today') {
           const isToday = r.expiryDate?.toLowerCase().includes('today') || r.reservationDate?.toLowerCase().includes('today');
           return isToday;
@@ -402,7 +425,43 @@ export const PendingReservations: FC = () => {
                 }`}
                 type="button"
               >
-                All Pending ({reservations.length})
+                All Holds ({counts.total})
+              </button>
+              <button
+                onClick={() => setFilterTab('pending')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  filterTab === 'pending'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+                }`}
+                type="button"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <span>Pending Review ({counts.pending})</span>
+              </button>
+              <button
+                onClick={() => setFilterTab('approved')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  filterTab === 'approved'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100'
+                }`}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-xs">verified</span>
+                <span>Approved ({counts.approved})</span>
+              </button>
+              <button
+                onClick={() => setFilterTab('declined')}
+                className={`px-3.5 py-1.5 rounded-full font-small text-small font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  filterTab === 'declined'
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100'
+                }`}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-xs">cancel</span>
+                <span>Declined ({counts.declined})</span>
               </button>
               <button
                 onClick={() => setFilterTab('today')}
@@ -546,7 +605,7 @@ export const PendingReservations: FC = () => {
                         <th className="py-3 px-4" scope="col">Requested Volume</th>
                         <th className="py-3 px-4" scope="col">Stacks &amp; Staging</th>
                         <th className="py-3 px-4" scope="col">Hold Schedule</th>
-                        <th className="py-3 px-4" scope="col">Standing</th>
+                        <th className="py-3 px-4" scope="col">Status / Standing</th>
                         <th className="py-3 px-4 text-right" scope="col">Actions</th>
                       </tr>
                     </thead>
@@ -662,47 +721,79 @@ export const PendingReservations: FC = () => {
                               </div>
                             </td>
                             <td className="py-4 px-4 align-top">
-                              <div className="flex flex-col gap-1">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-caption bg-status-available/15 text-status-available font-bold w-max">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-status-available"></span>
-                                  Good Standing
-                                </span>
-                                <span className="text-caption font-caption text-text-secondary">
-                                  Quota Active
+                              <div className="flex flex-col gap-1.5">
+                                {r.status === 'Pending' || r.status === '1' ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-amber-100 text-amber-900 border border-amber-300 w-max shadow-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    PENDING REVIEW
+                                  </span>
+                                ) : r.status === 'StagedInLocker' || r.status === '2' ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 w-max shadow-sm">
+                                    <span className="material-symbols-outlined text-xs">verified</span>
+                                    APPROVED (READY)
+                                  </span>
+                                ) : r.status === 'Cancelled' || r.status === '4' ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-caption font-bold bg-rose-100 text-rose-900 border border-rose-300 w-max shadow-sm">
+                                    <span className="material-symbols-outlined text-xs">cancel</span>
+                                    DECLINED
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-caption font-bold bg-surface-container text-text-secondary border border-outline/20 w-max">
+                                    {r.status}
+                                  </span>
+                                )}
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-caption bg-surface-container text-text-secondary w-max">
+                                  Standing: Good
                                 </span>
                               </div>
                             </td>
                             <td className="py-4 px-4 align-top text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={(e) => handleIssuePhysicalLoan(r, e)}
-                                  className="p-1.5 rounded-lg bg-surface-container text-primary hover:bg-soft-blue transition-colors cursor-pointer"
-                                  title="Issue Physical Loan (Checkout)"
-                                  type="button"
-                                >
-                                  <span className="material-symbols-outlined text-base">shopping_cart_checkout</span>
-                                </button>
-                                <button
-                                  onClick={(e) => handleSingleApprove(r, e)}
-                                  disabled={isProcessing}
-                                  className="p-1.5 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover transition-colors cursor-pointer"
-                                  title="Quick Approve"
-                                  type="button"
-                                >
-                                  <span className="material-symbols-outlined text-base">check</span>
-                                </button>
-                                <button
-                                  onClick={(e) => handleOpenRejectModal(r, undefined, e)}
-                                  disabled={isProcessing}
-                                  className="p-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container transition-colors cursor-pointer"
-                                  title="Quick Reject"
-                                  type="button"
-                                >
-                                  <span className="material-symbols-outlined text-base">close</span>
-                                </button>
+                                {r.status === 'Pending' || r.status === '1' ? (
+                                  <>
+                                    <button
+                                      onClick={(e) => handleSingleApprove(r, e)}
+                                      disabled={isProcessing}
+                                      className="p-1.5 rounded-lg bg-action-green text-text-primary hover:bg-action-green-hover transition-colors cursor-pointer shadow-sm"
+                                      title="Approve Reservation Hold (Once Only)"
+                                      type="button"
+                                    >
+                                      <span className="material-symbols-outlined text-base">check</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => handleOpenRejectModal(r, undefined, e)}
+                                      disabled={isProcessing}
+                                      className="p-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container transition-colors cursor-pointer shadow-sm"
+                                      title="Decline Reservation Hold (Once Only)"
+                                      type="button"
+                                    >
+                                      <span className="material-symbols-outlined text-base">close</span>
+                                    </button>
+                                  </>
+                                ) : r.status === 'StagedInLocker' || r.status === '2' ? (
+                                  <>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-300">
+                                      <span className="material-symbols-outlined text-xs">verified</span>
+                                      APPROVED (ONCE)
+                                    </span>
+                                    <button
+                                      onClick={(e) => handleIssuePhysicalLoan(r, e)}
+                                      className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary-container transition-colors cursor-pointer shadow-sm"
+                                      title="Issue Physical Loan (Checkout)"
+                                      type="button"
+                                    >
+                                      <span className="material-symbols-outlined text-base">shopping_cart_checkout</span>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2 py-1 rounded border border-rose-300">
+                                    <span className="material-symbols-outlined text-xs">cancel</span>
+                                    DECLINED (ONCE)
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => setActiveReservationId(r.id)}
-                                  className="p-1.5 rounded-lg bg-surface-container text-primary hover:bg-soft-blue transition-colors cursor-pointer"
+                                  className="p-1.5 rounded-lg bg-surface-container text-primary hover:bg-soft-blue transition-colors cursor-pointer shadow-sm"
                                   title="View Full Inspection"
                                   type="button"
                                 >
@@ -731,7 +822,7 @@ export const PendingReservations: FC = () => {
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <input
                               checked={isChecked}
                               onChange={(e) => handleToggleSelectRow(r.id, e as unknown as React.MouseEvent)}
@@ -742,6 +833,26 @@ export const PendingReservations: FC = () => {
                             <span className="font-mono font-bold text-primary text-small">
                               #{r.id.substring(0, 8).toUpperCase()}
                             </span>
+                            {r.status === 'Pending' || r.status === '1' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-caption font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                PENDING
+                              </span>
+                            ) : r.status === 'StagedInLocker' || r.status === '2' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-caption font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                <span className="material-symbols-outlined text-xs">verified</span>
+                                APPROVED
+                              </span>
+                            ) : r.status === 'Cancelled' || r.status === '4' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-caption font-bold bg-rose-100 text-rose-900 border border-rose-300">
+                                <span className="material-symbols-outlined text-xs">cancel</span>
+                                DECLINED
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-caption font-caption font-bold bg-surface-container text-text-secondary border border-outline/20">
+                                {r.status}
+                              </span>
+                            )}
                           </div>
                           {r.priorityLabel && (
                             <span className="text-caption font-caption px-1.5 py-0.5 rounded bg-status-danger/10 text-status-danger font-bold">
@@ -790,31 +901,56 @@ export const PendingReservations: FC = () => {
                         </div>
 
                         <div className="pt-2 border-t border-surface-container flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => handleIssuePhysicalLoan(r, e)}
-                            className="px-3 py-1.5 rounded-lg bg-surface-container text-primary font-caption text-caption font-bold hover:bg-soft-blue transition-colors cursor-pointer flex items-center gap-1"
-                            title="Issue Physical Loan (Checkout)"
-                            type="button"
-                          >
-                            <span className="material-symbols-outlined text-sm">shopping_cart_checkout</span>
-                            <span>Checkout</span>
-                          </button>
-                          <button
-                            onClick={(e) => handleSingleApprove(r, e)}
-                            disabled={isProcessing}
-                            className="px-3 py-1.5 rounded-lg bg-action-green text-text-primary font-caption text-caption font-bold hover:bg-action-green-hover transition-colors cursor-pointer"
-                            type="button"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={(e) => handleOpenRejectModal(r, undefined, e)}
-                            disabled={isProcessing}
-                            className="px-3 py-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container font-caption text-caption font-bold transition-colors cursor-pointer"
-                            type="button"
-                          >
-                            Reject
-                          </button>
+                          {r.status === 'Pending' || r.status === '1' ? (
+                            <>
+                              <button
+                                onClick={(e) => handleIssuePhysicalLoan(r, e)}
+                                className="px-3 py-1.5 rounded-lg bg-surface-container text-primary font-caption text-caption font-bold hover:bg-soft-blue transition-colors cursor-pointer flex items-center gap-1"
+                                title="Issue Physical Loan (Checkout)"
+                                type="button"
+                              >
+                                <span className="material-symbols-outlined text-sm">shopping_cart_checkout</span>
+                                <span>Checkout</span>
+                              </button>
+                              <button
+                                onClick={(e) => handleSingleApprove(r, e)}
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 rounded-lg bg-action-green text-text-primary font-caption text-caption font-bold hover:bg-action-green-hover transition-colors cursor-pointer shadow-sm"
+                                type="button"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={(e) => handleOpenRejectModal(r, undefined, e)}
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 rounded-lg bg-surface-container text-status-danger hover:bg-error-container font-caption text-caption font-bold transition-colors cursor-pointer shadow-sm"
+                                type="button"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : r.status === 'StagedInLocker' || r.status === '2' ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300">
+                                <span className="material-symbols-outlined text-xs">verified</span>
+                                APPROVED (ONCE)
+                              </span>
+                              <button
+                                onClick={(e) => handleIssuePhysicalLoan(r, e)}
+                                className="px-3 py-1.5 rounded-lg bg-primary text-white font-caption text-caption font-bold hover:bg-primary-container transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+                                title="Issue Physical Loan (Checkout)"
+                                type="button"
+                              >
+                                <span className="material-symbols-outlined text-sm">shopping_cart_checkout</span>
+                                <span>Checkout</span>
+                              </button>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2.5 py-1 rounded border border-rose-300">
+                              <span className="material-symbols-outlined text-xs">cancel</span>
+                              DECLINED (ONCE)
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -995,54 +1131,95 @@ export const PendingReservations: FC = () => {
                   </div>
                 </div>
 
-                {/* Information Notice */}
-                <div className="p-3 bg-soft-blue/30 rounded-xl flex items-start gap-2.5">
-                  <span className="material-symbols-outlined text-primary text-lg flex-shrink-0">info</span>
-                  <p className="font-caption text-caption text-text-primary leading-tight">
-                    Approving this hold dispatches accession voucher code and confirms Staging Bay assignment for counter pickup.
-                  </p>
-                </div>
-
-                {/* Primary Confirmation Actions */}
-                <div className="pt-2 space-y-2.5">
-                  <button
-                    onClick={() => handleIssuePhysicalLoan(activeReservation)}
-                    className="w-full py-3 px-4 bg-surface-container hover:bg-soft-blue text-primary font-body-medium text-body-medium font-bold rounded-xl border border-primary/20 shadow-sm transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
-                    type="button"
-                  >
-                    <span className="material-symbols-outlined text-xl">shopping_cart_checkout</span>
-                    <span>Issue Physical Loan (Checkout)</span>
-                  </button>
-                  <button
-                    onClick={() => handleSingleApprove(activeReservation)}
-                    disabled={isProcessing}
-                    className="w-full py-3 px-4 bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer disabled:opacity-50"
-                    type="button"
-                  >
-                    <span className="material-symbols-outlined text-xl">mark_email_read</span>
-                    <span>Confirm Approval &amp; Dispatch Voucher</span>
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
+                {activeReservation.status === 'StagedInLocker' || activeReservation.status === '2' ? (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3">
+                    <div className="flex items-center gap-2 font-bold text-sm text-emerald-800">
+                      <span className="material-symbols-outlined text-xl">verified</span>
+                      <span>RESERVATION APPROVED (ONCE)</span>
+                    </div>
+                    <div className="text-xs space-y-1.5 bg-white/70 p-3 rounded-lg border border-emerald-200">
+                      <div className="flex justify-between">
+                        <span className="text-emerald-800">Staging Bay:</span>
+                        <strong className="font-mono text-emerald-950">{activeReservation.lockerBay || 'Bay 01 Counter'}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-emerald-800">Pickup PIN:</span>
+                        <strong className="font-mono text-emerald-950">{activeReservation.lockerPin || 'N/A'}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-emerald-800">Expiry Window:</span>
+                        <span className="font-bold text-emerald-900">48 Hours from Approval</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700 italic pt-1 border-t border-emerald-200">
+                        This reservation has been approved and permanently locked (once-only). Patron has been issued smart voucher credentials.
+                      </p>
+                    </div>
                     <button
-                      onClick={() => handleOpenRejectModal(activeReservation, 'Physical copy damaged during pull / unreadable barcode')}
-                      disabled={isProcessing}
-                      className="py-2.5 px-3 bg-surface-container hover:bg-error-container text-status-danger hover:text-on-error-container font-caption text-caption font-bold rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      onClick={() => handleIssuePhysicalLoan(activeReservation)}
+                      className="w-full py-3 px-4 bg-primary hover:bg-primary-container text-white font-body-medium text-body-medium font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                       type="button"
                     >
-                      <span className="material-symbols-outlined text-sm">broken_image</span>
-                      <span>Reject: Damaged</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenRejectModal(activeReservation, 'User exceeded maximum concurrent loan allowance')}
-                      disabled={isProcessing}
-                      className="py-2.5 px-3 bg-surface-container hover:bg-error-container text-status-danger hover:text-on-error-container font-caption text-caption font-bold rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                      type="button"
-                    >
-                      <span className="material-symbols-outlined text-sm">block</span>
-                      <span>Reject: Limit Hit</span>
+                      <span className="material-symbols-outlined text-xl">shopping_cart_checkout</span>
+                      <span>Proceed to Circulation Checkout</span>
                     </button>
                   </div>
-                </div>
+                ) : activeReservation.status === 'Cancelled' || activeReservation.status === '4' ? (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-sm text-rose-800">
+                      <span className="material-symbols-outlined text-xl">cancel</span>
+                      <span>RESERVATION DECLINED (ONCE)</span>
+                    </div>
+                    <div className="text-xs bg-white/70 p-3 rounded-lg border border-rose-200 space-y-1">
+                      <p className="text-rose-900 font-semibold">Triage Decision: Declined</p>
+                      <p className="text-[11px] text-rose-700">
+                        This reservation was declined by library staff and is permanently closed (once-only). It cannot be approved or re-triaged.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Information Notice */}
+                    <div className="p-3 bg-soft-blue/30 rounded-xl flex items-start gap-2.5">
+                      <span className="material-symbols-outlined text-primary text-lg flex-shrink-0">info</span>
+                      <p className="font-caption text-caption text-text-primary leading-tight">
+                        Approving this hold dispatches accession voucher code and confirms Staging Bay assignment for counter pickup. Triage decisions are permanent (once-only).
+                      </p>
+                    </div>
+
+                    {/* Primary Confirmation Actions */}
+                    <div className="pt-2 space-y-2.5">
+                      <button
+                        onClick={() => handleSingleApprove(activeReservation)}
+                        disabled={isProcessing}
+                        className="w-full py-3 px-4 bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer disabled:opacity-50"
+                        type="button"
+                      >
+                        <span className="material-symbols-outlined text-xl">mark_email_read</span>
+                        <span>Confirm Approval &amp; Dispatch Voucher (Once Only)</span>
+                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleOpenRejectModal(activeReservation, 'Physical copy damaged during pull / unreadable barcode')}
+                          disabled={isProcessing}
+                          className="py-2.5 px-3 bg-surface-container hover:bg-error-container text-status-danger hover:text-on-error-container font-caption text-caption font-bold rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          type="button"
+                        >
+                          <span className="material-symbols-outlined text-sm">broken_image</span>
+                          <span>Decline: Damaged</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenRejectModal(activeReservation, 'User exceeded maximum concurrent loan allowance')}
+                          disabled={isProcessing}
+                          className="py-2.5 px-3 bg-surface-container hover:bg-error-container text-status-danger hover:text-on-error-container font-caption text-caption font-bold rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          type="button"
+                        >
+                          <span className="material-symbols-outlined text-sm">block</span>
+                          <span>Decline: Limit Hit</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <div className="py-12 flex flex-col items-center justify-center text-center p-4">

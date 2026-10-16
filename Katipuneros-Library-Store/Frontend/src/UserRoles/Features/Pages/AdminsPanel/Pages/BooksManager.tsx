@@ -33,6 +33,13 @@ import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { useFluidResposiveness } from '../../../../../Hooks/useFluidResposiveness';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import {
+  getBookCopies,
+  createBookCopy,
+  deleteBookCopy,
+  BookCopyDto,
+} from '../../../../../Endpoints/Admin/bookCopiesApi';
+import { BookCopyQrSticker } from '../../../../../Shared/BookCopyQrSticker';
 
 // Empty seed catalog records adhering to real-time zero-data mandate
 const INITIAL_SEED_BOOKS: BackendBook[] = [];
@@ -82,6 +89,13 @@ const BooksManager: FC = () => {
   const [bookToDelete, setBookToDelete] = useState<BackendBook | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string>('');
 
+  // Physical Volume Copies & QR States
+  const [bookCopies, setBookCopies] = useState<BookCopyDto[]>([]);
+  const [isLoadingCopies, setIsLoadingCopies] = useState<boolean>(false);
+  const [newCopyBayLocation, setNewCopyBayLocation] = useState<string>('');
+  const [isAddingCopy, setIsAddingCopy] = useState<boolean>(false);
+  const [copiesActiveTab, setCopiesActiveTab] = useState<'ledger' | 'stickers'>('ledger');
+
   // Modal Forms
   const [addForm, setAddForm] = useState<CreateBookDto>({
     title: '',
@@ -94,6 +108,7 @@ const BooksManager: FC = () => {
     bayLocation: 'Bay A-01',
     description: '',
     rfidTag: '',
+    coverImage: '',
   });
 
   const [editForm, setEditForm] = useState<CreateBookDto>({
@@ -107,6 +122,7 @@ const BooksManager: FC = () => {
     bayLocation: '',
     description: '',
     rfidTag: '',
+    coverImage: '',
   });
 
   const [batchIsbnInput, setBatchIsbnInput] = useState('');
@@ -308,51 +324,47 @@ const BooksManager: FC = () => {
     try {
       const res = await createCatalogBook({
         ...addForm,
-        categoryId: addForm.categoryId || (categories[0]?.id ?? 'cs-cat-01'),
+        categoryId: addForm.categoryId || (categories[0]?.id ?? ''),
       });
       if (res.success && res.data) {
         setBooks((prev) => [res.data as BackendBook, ...prev]);
         setSelectedBook(res.data as BackendBook);
         showToast('New book successfully accessioned into catalog!');
+        setIsAddModalOpen(false);
+        setAddForm({
+          title: '',
+          author: '',
+          isbn: '',
+          deweyCode: '',
+          categoryId: categories[0]?.id ?? '',
+          publishedYear: new Date().getFullYear(),
+          totalCopies: 1,
+          bayLocation: 'Bay A-01',
+          description: '',
+          rfidTag: '',
+          coverImage: '',
+        });
+        loadData();
       } else {
-        // Optimistic addition
-        const newLocalBook: BackendBook = {
-          id: `book-${Date.now()}`,
-          ...addForm,
-          deweyCode: addForm.deweyCode || '',
-          availableCopies: addForm.totalCopies,
-          isSpotlight: false,
-          isArchived: false,
-          createdAt: new Date().toISOString(),
-          category: categories.find((c) => c.id === addForm.categoryId) || {
-            id: addForm.categoryId,
-            name: 'General',
-            deweyRange: '000-999',
-            description: '',
-            shelfBayLocation: addForm.bayLocation,
-          },
-        };
-        setBooks((prev) => [newLocalBook, ...prev]);
-        setSelectedBook(newLocalBook);
-        showToast('Book created and saved to active catalog session!');
+        showToast(res.message || res.errors?.[0] || 'Failed to accession book into catalog.');
       }
-      setIsAddModalOpen(false);
-      setAddForm({
-        title: '',
-        author: '',
-        isbn: '',
-        deweyCode: '',
-        categoryId: categories[0]?.id ?? '',
-        publishedYear: new Date().getFullYear(),
-        totalCopies: 1,
-        bayLocation: 'Bay A-01',
-        description: '',
-        rfidTag: '',
-      });
-      loadData();
     } catch {
-      showToast('Error accessioning book. Please verify network connection.');
+      showToast('Network error while communicating with library API server.');
     }
+  };
+
+  // Cover Image File Handler
+  const handleCoverImageFile = (file: File, target: 'add' | 'edit') => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      if (target === 'add') {
+        setAddForm((prev) => ({ ...prev, coverImage: base64 }));
+      } else {
+        setEditForm((prev) => ({ ...prev, coverImage: base64 }));
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // CRUD Handler: Open Edit Modal
@@ -369,6 +381,7 @@ const BooksManager: FC = () => {
       bayLocation: book.bayLocation,
       description: book.description || '',
       rfidTag: book.rfidTag || '',
+      coverImage: book.coverImage || '',
     });
     setIsEditModalOpen(true);
   };
@@ -428,22 +441,73 @@ const BooksManager: FC = () => {
     }
   };
 
+  // Load physical copies
+  const loadBookCopies = useCallback(
+    async (bookId: string) => {
+      setIsLoadingCopies(true);
+      try {
+        const res = await getBookCopies(bookId);
+        if (res.success && res.data) {
+          setBookCopies(res.data);
+        }
+      } catch {
+        showToast('Failed to load physical volume copies ledger.');
+      } finally {
+        setIsLoadingCopies(false);
+      }
+    },
+    [showToast]
+  );
+
+  useEffect(() => {
+    if (isManageCopiesModalOpen && selectedBook) {
+      loadBookCopies(selectedBook.id);
+      setNewCopyBayLocation(selectedBook.bayLocation || '');
+      setCopiesActiveTab('ledger');
+    }
+  }, [isManageCopiesModalOpen, selectedBook, loadBookCopies]);
+
+  const handleAddVolumeCopy = async () => {
+    if (!selectedBook) return;
+    setIsAddingCopy(true);
+    try {
+      const res = await createBookCopy(selectedBook.id, {
+        bayLocation: newCopyBayLocation || selectedBook.bayLocation,
+        condition: 'Good',
+      });
+      if (res.success && res.data) {
+        showToast(`Volume Copy #${res.data.copyNumber} (${res.data.accessionNumber}) generated with unique QR.`);
+        await loadBookCopies(selectedBook.id);
+        await loadData();
+      } else {
+        showToast(res.message || 'Failed to add physical copy.');
+      }
+    } catch {
+      showToast('Error registering new copy volume.');
+    } finally {
+      setIsAddingCopy(false);
+    }
+  };
+
+  const handleDeleteVolumeCopy = async (copyId: string, copyNum: number) => {
+    if (!selectedBook) return;
+    try {
+      const res = await deleteBookCopy(copyId);
+      if (res.success) {
+        showToast(`Volume Copy #${copyNum} removed from inventory.`);
+        await loadBookCopies(selectedBook.id);
+        await loadData();
+      } else {
+        showToast(res.message || 'Failed to remove physical copy.');
+      }
+    } catch {
+      showToast('Error de-accessioning physical copy.');
+    }
+  };
+
   // Manage Copies Handler
   const handleSaveCopies = () => {
     if (!selectedBook) return;
-    const diff = manageCopiesCount - selectedBook.totalCopies;
-    const newAvailable = Math.max(0, selectedBook.availableCopies + diff);
-
-    const updated = {
-      ...selectedBook,
-      totalCopies: manageCopiesCount,
-      availableCopies: newAvailable,
-      bayLocation: manageBayLocation,
-    };
-
-    setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? updated : b)));
-    setSelectedBook(updated);
-    showToast(`Physical inventory updated: ${manageCopiesCount} total copies registered.`);
     setIsManageCopiesModalOpen(false);
   };
 
@@ -1698,6 +1762,45 @@ const BooksManager: FC = () => {
             />
           </div>
 
+          {/* Book Cover Image */}
+          <div className="flex flex-col gap-2 p-3 bg-surface-container-low/50 rounded-xl border border-outline-variant/20">
+            <label className="block text-caption font-caption text-text-secondary uppercase font-bold">
+              Book Cover Image (Upload or URL)
+            </label>
+            <div className="flex items-center gap-3">
+              {addForm.coverImage ? (
+                <img
+                  src={addForm.coverImage}
+                  alt="Cover Preview"
+                  className="w-14 h-20 object-cover rounded-lg shadow-sm border border-outline-variant/30 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-20 bg-surface-container rounded-lg border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-text-secondary flex-shrink-0">
+                  <span className="material-symbols-outlined text-xl">auto_stories</span>
+                  <span className="text-[10px] mt-0.5">No Cover</span>
+                </div>
+              )}
+              <div className="flex flex-col gap-2 flex-1 min-w-0">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCoverImageFile(file, 'add');
+                  }}
+                  className="text-caption text-text-secondary file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-caption file:font-semibold file:bg-surface-container-high file:text-text-primary hover:file:bg-primary/20 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={addForm.coverImage || ''}
+                  onChange={(e) => setAddForm({ ...addForm, coverImage: e.target.value })}
+                  placeholder="Or paste cover image URL (https://...)"
+                  className="w-full bg-surface-container-low px-3 py-1.5 rounded-lg text-caption font-caption text-text-primary border border-outline-variant/20 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-caption font-caption text-text-secondary uppercase mb-1">
               Bibliographic Summary / Notes
@@ -1808,6 +1911,45 @@ const BooksManager: FC = () => {
             </div>
           </div>
 
+          {/* Book Cover Image */}
+          <div className="flex flex-col gap-2 p-3 bg-surface-container-low/50 rounded-xl border border-outline-variant/20">
+            <label className="block text-caption font-caption text-text-secondary uppercase font-bold">
+              Book Cover Image (Upload or URL)
+            </label>
+            <div className="flex items-center gap-3">
+              {editForm.coverImage ? (
+                <img
+                  src={editForm.coverImage}
+                  alt="Cover Preview"
+                  className="w-14 h-20 object-cover rounded-lg shadow-sm border border-outline-variant/30 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-20 bg-surface-container rounded-lg border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-text-secondary flex-shrink-0">
+                  <span className="material-symbols-outlined text-xl">auto_stories</span>
+                  <span className="text-[10px] mt-0.5">No Cover</span>
+                </div>
+              )}
+              <div className="flex flex-col gap-2 flex-1 min-w-0">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCoverImageFile(file, 'edit');
+                  }}
+                  className="text-caption text-text-secondary file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-caption file:font-semibold file:bg-surface-container-high file:text-text-primary hover:file:bg-primary/20 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={editForm.coverImage || ''}
+                  onChange={(e) => setEditForm({ ...editForm, coverImage: e.target.value })}
+                  placeholder="Or paste cover image URL (https://...)"
+                  className="w-full bg-surface-container-low px-3 py-1.5 rounded-lg text-caption font-caption text-text-primary border border-outline-variant/20 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20">
             <button
               type="button"
@@ -1911,59 +2053,261 @@ const BooksManager: FC = () => {
         )}
       </DefaultFloatingModalCard>
 
-      {/* 4. MANAGE COPIES MODAL */}
+      {/* 4. MANAGE COPIES & QR CODES MODAL */}
       <DefaultFloatingModalCard
         isOpen={isManageCopiesModalOpen}
         onClose={() => setIsManageCopiesModalOpen(false)}
-        title="Manage Physical Copies &amp; Shelf Bay"
-        maxWidth="max-w-lg"
+        title="Physical Copies &amp; QR Label Printing Center"
+        maxWidth="max-w-4xl"
       >
-        <div className="flex flex-col gap-4">
-          <p className="text-small text-text-secondary">
-            Adjust physical copy allocation and designated shelf bay coordinates for{' '}
-            <span className="font-bold text-text-primary">{selectedBook?.title}</span>.
-          </p>
+        <div className="flex flex-col gap-5">
+          {/* Top Title & Catalog Meta Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface-container-low rounded-xl border border-outline-variant/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-14 bg-soft-blue text-primary rounded-lg flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm overflow-hidden">
+                {selectedBook?.coverImage ? (
+                  <img src={selectedBook.coverImage} alt={selectedBook.title} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-xl">auto_stories</span>
+                )}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-bold text-text-primary text-body-medium line-clamp-1">{selectedBook?.title}</span>
+                <span className="text-caption text-text-secondary">
+                  By {selectedBook?.author} • ISBN: {selectedBook?.isbn} • Dewey: {selectedBook?.deweyCode || '000 GEN'}
+                </span>
+                <span className="text-[11px] text-text-secondary mt-0.5">
+                  Default Bay: <strong className="text-text-primary">{selectedBook?.bayLocation || 'General Stacks'}</strong>
+                </span>
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-caption font-caption text-text-secondary uppercase mb-1">
-              Total Physical Copies Registered
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={manageCopiesCount}
-              onChange={(e) => setManageCopiesCount(Math.max(1, Number(e.target.value)))}
-              className="w-full bg-surface-container-low px-3 py-2 rounded-xl text-small font-small text-text-primary border border-outline-variant/20"
-            />
+            {/* Quick Metrics Ribbon */}
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant/10 flex flex-col items-center">
+                <span className="text-[10px] uppercase font-bold text-text-secondary">Total Volumes</span>
+                <span className="text-small font-bold text-text-primary">{bookCopies.length}</span>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-action-green/10 border border-action-green/20 flex flex-col items-center">
+                <span className="text-[10px] uppercase font-bold text-action-green">Available</span>
+                <span className="text-small font-bold text-action-green">
+                  {bookCopies.filter((c) => c.status === 'Available').length}
+                </span>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-status-pending/10 border border-status-pending/20 flex flex-col items-center">
+                <span className="text-[10px] uppercase font-bold text-status-pending">On Loan</span>
+                <span className="text-small font-bold text-status-pending">
+                  {bookCopies.filter((c) => c.status === 'Borrowed' || c.isBorrowed).length}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-caption font-caption text-text-secondary uppercase mb-1">
-              Shelf Bay Location / Stacks
-            </label>
-            <input
-              type="text"
-              value={manageBayLocation}
-              onChange={(e) => setManageBayLocation(e.target.value)}
-              placeholder="e.g. Bay 14 · Shelf 3B"
-              className="w-full bg-surface-container-low px-3 py-2 rounded-xl text-small font-small text-text-primary border border-outline-variant/20"
-            />
+          {/* Sub-Tabs: Ledger vs Printable QR Stickers */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-container pb-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCopiesActiveTab('ledger')}
+                className={`px-4 py-2 rounded-xl text-caption font-caption font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  copiesActiveTab === 'ledger'
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">list_alt</span>
+                <span>Individual Copies ({bookCopies.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCopiesActiveTab('stickers')}
+                className={`px-4 py-2 rounded-xl text-caption font-caption font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  copiesActiveTab === 'stickers'
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'bg-surface-container text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">qr_code_2</span>
+                <span>Printable QR Stickers</span>
+              </button>
+            </div>
+
+            {/* Quick Add Volume Form */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Bay coordinates (optional)..."
+                value={newCopyBayLocation}
+                onChange={(e) => setNewCopyBayLocation(e.target.value)}
+                className="h-9 px-3 rounded-xl bg-surface-container-low text-text-primary text-[11px] outline-none border border-outline-variant/20 w-44"
+              />
+              <button
+                type="button"
+                onClick={handleAddVolumeCopy}
+                disabled={isAddingCopy}
+                className="h-9 px-3.5 rounded-xl bg-action-green hover:bg-action-green/80 text-text-primary text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-sm">{isAddingCopy ? 'autorenew' : 'add'}</span>
+                <span>{isAddingCopy ? 'Adding...' : 'Add Volume'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20">
+          {/* Tab 1: Physical Copies Ledger Table */}
+          {copiesActiveTab === 'ledger' && (
+            <div className="flex flex-col gap-3">
+              {isLoadingCopies ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-text-secondary">
+                  <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
+                  <span className="text-caption font-semibold">Loading physical volume ledger...</span>
+                </div>
+              ) : bookCopies.length === 0 ? (
+                <div className="p-8 text-center bg-surface-container-low rounded-xl flex flex-col items-center justify-center">
+                  <span className="material-symbols-outlined text-4xl text-text-secondary/40 mb-2">inventory_2</span>
+                  <p className="text-small font-bold text-text-primary">No physical copies registered yet</p>
+                  <p className="text-caption text-text-secondary mt-1">
+                    Click "Add Volume" above to register physical copies for this title.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest max-h-80 overflow-y-auto">
+                  <table className="w-full text-left border-collapse min-w-[650px]">
+                    <thead className="sticky top-0 bg-surface-container-low text-caption font-caption text-text-secondary font-bold uppercase tracking-wider z-10">
+                      <tr className="border-b border-surface-container">
+                        <th className="py-2.5 px-3">Vol #</th>
+                        <th className="py-2.5 px-3">Accession Number</th>
+                        <th className="py-2.5 px-3">Shelf Bay</th>
+                        <th className="py-2.5 px-3">Condition</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Current Borrower</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-container text-[12px] text-text-secondary">
+                      {bookCopies.map((copy) => {
+                        const isBorrowed = copy.status === 'Borrowed' || copy.isBorrowed;
+                        return (
+                          <tr key={copy.id} className="hover:bg-surface-container-low/50 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-text-primary">Copy #{copy.copyNumber}</td>
+                            <td className="py-2.5 px-3 font-mono font-bold text-primary">{copy.accessionNumber}</td>
+                            <td className="py-2.5 px-3">{copy.bayLocation || 'General Stacks'}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="px-2 py-0.5 rounded bg-surface-container font-medium text-text-primary">
+                                {copy.condition || 'Good'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                  copy.status === 'Available'
+                                    ? 'bg-action-green/20 text-action-green'
+                                    : copy.status === 'Borrowed'
+                                    ? 'bg-status-pending/20 text-status-pending'
+                                    : copy.status === 'Damaged'
+                                    ? 'bg-status-danger/20 text-status-danger'
+                                    : 'bg-surface-container text-text-secondary'
+                                }`}
+                              >
+                                {copy.status}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {copy.currentBorrower ? (
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-text-primary truncate">
+                                    {copy.currentBorrower.patronName}
+                                  </span>
+                                  <span className="text-[10px] text-text-secondary">
+                                    Due: {new Date(copy.currentBorrower.dueDate).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-text-secondary/60 italic">In Stacks</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setCopiesActiveTab('stickers')}
+                                  className="p-1 rounded text-primary hover:bg-soft-blue transition-colors cursor-pointer"
+                                  title="View QR Sticker"
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
+                                </button>
+                                {!isBorrowed && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteVolumeCopy(copy.id, copy.copyNumber)}
+                                    className="p-1 rounded text-status-danger hover:bg-status-danger/10 transition-colors cursor-pointer"
+                                    title="De-accession Volume Copy"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 2: Printable QR Stickers Grid */}
+          {copiesActiveTab === 'stickers' && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-caption text-text-secondary">
+                  High-contrast QR labels formatted for inside book cover pasting. Compatible with thermal sticker and desktop printers.
+                </span>
+                <span className="text-caption font-bold text-primary">
+                  {bookCopies.length} Label{bookCopies.length === 1 ? '' : 's'} Ready
+                </span>
+              </div>
+
+              {isLoadingCopies ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-text-secondary">
+                  <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
+                  <span className="text-caption font-semibold">Generating QR stickers...</span>
+                </div>
+              ) : bookCopies.length === 0 ? (
+                <div className="p-8 text-center bg-surface-container-low rounded-xl">
+                  <p className="text-small font-bold text-text-primary">No copies available to generate labels</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
+                  {bookCopies.map((copy) => (
+                    <BookCopyQrSticker
+                      key={copy.id}
+                      bookTitle={selectedBook?.title || copy.bookTitle}
+                      bookAuthor={selectedBook?.author || copy.bookAuthor}
+                      deweyCode={selectedBook?.deweyCode || copy.deweyCode}
+                      copyNumber={copy.copyNumber}
+                      accessionNumber={copy.accessionNumber}
+                      qrCodeData={copy.qrCodeData}
+                      bayLocation={copy.bayLocation || selectedBook?.bayLocation}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Modal Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20">
+            <span className="text-caption text-text-secondary">
+              Returns checked in at Cashier desk immediately sync here in real time.
+            </span>
             <button
               type="button"
               onClick={() => setIsManageCopiesModalOpen(false)}
-              className="px-4 py-2 rounded-xl bg-surface-container text-text-secondary font-semibold hover:bg-surface-container-high transition-colors cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-surface-container text-text-primary font-bold hover:bg-surface-container-high transition-colors cursor-pointer"
             >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveCopies}
-              className="px-5 py-2 rounded-xl bg-primary text-on-primary font-bold hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              Update Inventory
+              Done
             </button>
           </div>
         </div>

@@ -59,11 +59,25 @@ public class ReservationsController : ControllerBase
 
     [HttpGet("my-holds")]
     [HttpGet("my-reservations")]
-    [Authorize(Roles = "Customer")]
+    [Authorize]
     public async Task<IActionResult> GetMyReservations() =>
         !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)
             ? Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."))
             : Ok(ApiResponse<object>.Ok(await _reservationService.GetPatronReservationsAsync(patronId)));
+
+    [HttpGet("{id:guid}/pass")]
+    [Authorize]
+    public async Task<IActionResult> GetPickupPass(Guid id) =>
+        !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)
+            ? Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."))
+            : (await _reservationService.GetPatronReservationsAsync(patronId)).Find(r => r.Id == id) is { } res
+                ? Ok(ApiResponse<object>.Ok(new
+                {
+                    barcode = $"HLD-{res.Id.ToString()[..8].ToUpperInvariant()}",
+                    pin = res.LockerPin ?? "0000",
+                    expiryDate = res.ExpiryDate.ToString("o")
+                }))
+                : NotFound(ApiResponse<object>.Fail("Reservation hold record not found."));
 
     [HttpGet("pending")]
     [Authorize(Roles = "Cashier,Admin")]
@@ -82,6 +96,7 @@ public class ReservationsController : ControllerBase
             };
 
     [HttpPut("{id:guid}/fulfill")]
+    [HttpPost("{id:guid}/fulfill")]
     [Authorize(Roles = "Cashier,Admin")]
     public async Task<IActionResult> FulfillReservation(Guid id) =>
         await _reservationService.FulfillReservationAsync(id) switch
@@ -91,6 +106,7 @@ public class ReservationsController : ControllerBase
         };
 
     [HttpPut("{id:guid}/triage")]
+    [HttpPost("{id:guid}/triage")]
     [Authorize(Roles = "Cashier,Admin")]
     public async Task<IActionResult> Triage(Guid id, [FromBody] TriageReservationRequest request) =>
         !ModelState.IsValid

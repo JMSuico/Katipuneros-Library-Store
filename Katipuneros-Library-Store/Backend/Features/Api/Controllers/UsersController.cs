@@ -44,6 +44,10 @@ namespace Backend.Features.Api.Controllers
                 u.Department,
                 u.PhoneNumber,
                 Address = u.CurrentAddress,
+                u.CurrentAddress,
+                u.PermanentAddress,
+                u.EmploymentStatus,
+                u.ProfilePictureUrl,
                 u.Age,
                 u.IsActive,
                 u.IsProtected,
@@ -71,6 +75,10 @@ namespace Backend.Features.Api.Controllers
                     user.Department,
                     user.PhoneNumber,
                     Address = user.CurrentAddress,
+                    user.CurrentAddress,
+                    user.PermanentAddress,
+                    user.EmploymentStatus,
+                    user.ProfilePictureUrl,
                     user.Age,
                     user.IsActive,
                     user.IsProtected,
@@ -106,7 +114,7 @@ namespace Backend.Features.Api.Controllers
         public async Task<IActionResult> UpdateOwnProfile([FromBody] UpdateProfileRequest request) =>
             !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var currentUserId)
                 ? Unauthorized(ApiResponse<object>.Fail("Invalid user identity token."))
-                : await _userService.UpdateProfileAsync(currentUserId, request.FullName, request.Phone, request.Department) switch
+                : await _userService.UpdateDetailedProfileAsync(currentUserId, request) switch
                 {
                     (true, _) => Ok(ApiResponse<object>.Ok(new { UserId = currentUserId }, "Profile updated successfully.")),
                     (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update profile."))

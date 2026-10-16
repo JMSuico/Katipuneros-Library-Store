@@ -10,6 +10,10 @@ namespace Backend.Features.Data;
 
 public class AppDbContext : DbContext
 {
+    public AppDbContext(DbContextOptions options) : base(options)
+    {
+    }
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
@@ -17,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Book> Books => Set<Book>();
+    public DbSet<BookCopy> BookCopies => Set<BookCopy>();
     public DbSet<BorrowTransaction> BorrowTransactions => Set<BorrowTransaction>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<FineTransaction> FineTransactions => Set<FineTransaction>();
@@ -55,11 +60,26 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // BookCopy configurations
+        modelBuilder.Entity<BookCopy>(entity =>
+        {
+            entity.HasIndex(bc => bc.BookId);
+            entity.HasIndex(bc => bc.AccessionNumber).IsUnique();
+            entity.HasIndex(bc => bc.QrCodeData);
+            entity.HasIndex(bc => bc.Status);
+
+            entity.HasOne(bc => bc.Book)
+                  .WithMany(b => b.Copies)
+                  .HasForeignKey(bc => bc.BookId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // BorrowTransaction configurations
         modelBuilder.Entity<BorrowTransaction>(entity =>
         {
             entity.HasIndex(bt => bt.PatronId);
             entity.HasIndex(bt => bt.BookId);
+            entity.HasIndex(bt => bt.BookCopyId);
             entity.HasIndex(bt => bt.Status);
             entity.HasIndex(bt => bt.DueDate);
 
@@ -72,6 +92,11 @@ public class AppDbContext : DbContext
                   .WithMany(b => b.BorrowTransactions)
                   .HasForeignKey(bt => bt.BookId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(bt => bt.BookCopy)
+                  .WithMany(bc => bc.BorrowTransactions)
+                  .HasForeignKey(bt => bt.BookCopyId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Reservation configurations

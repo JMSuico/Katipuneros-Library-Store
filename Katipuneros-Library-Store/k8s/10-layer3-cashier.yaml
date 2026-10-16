@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katipuneros-cashier
+  namespace: katipuneros-prod
+  labels:
+    app: katipuneros-cashier
+    layer: "3"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: katipuneros-cashier
+  template:
+    metadata:
+      labels:
+        app: katipuneros-cashier
+        layer: "3"
+    spec:
+      containers:
+        - name: cashier
+          image: katipuneros-cashier:prod
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katipuneros-cashier-svc
+  namespace: katipuneros-prod
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: katipuneros-cashier

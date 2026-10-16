@@ -15,11 +15,14 @@ public class LoginRequest
 
     public string? UsernameOrEmail { get; set; }
 
+    public string? Identifier { get; set; }
+
     [Required]
     public string Password { get; set; } = string.Empty;
 
     public string GetIdentifier() =>
-        !string.IsNullOrWhiteSpace(UsernameOrEmail) ? UsernameOrEmail.Trim()
+        !string.IsNullOrWhiteSpace(Identifier) ? Identifier.Trim()
+        : !string.IsNullOrWhiteSpace(UsernameOrEmail) ? UsernameOrEmail.Trim()
         : !string.IsNullOrWhiteSpace(Email) ? Email.Trim()
         : !string.IsNullOrWhiteSpace(Username) ? Username.Trim()
         : string.Empty;
@@ -101,12 +104,26 @@ public class UpdateProfileRequest
     public string? Phone => PhoneNumber;
 
     public string? Department { get; set; }
+
+    [MaxLength(100)]
+    public string? Username { get; set; }
+
+    [EmailAddress]
+    [MaxLength(150)]
+    public string? Email { get; set; }
+
+    public int? Age { get; set; }
 }
 
 public class UpdateProfilePictureRequest
 {
-    [Required]
-    public string PictureData { get; set; } = string.Empty;
+    public string? PictureData { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+
+    public string GetPictureData() =>
+        !string.IsNullOrWhiteSpace(PictureData) ? PictureData
+        : !string.IsNullOrWhiteSpace(ProfilePictureUrl) ? ProfilePictureUrl
+        : string.Empty;
 }
 
 public class CreateCashierByAdminRequest
@@ -170,6 +187,10 @@ public class AdminUpdateUserRequest
 
     public string? PhoneNumber { get; set; }
     public string? CurrentAddress { get; set; }
+    public string? PermanentAddress { get; set; }
+    public string? EmploymentStatus { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+    public string? Email { get; set; }
     public string? Age { get; set; }
     public string? Password { get; set; }
 }
@@ -206,6 +227,9 @@ public class AdminCreateUserRequest
 
     public string? PhoneNumber { get; set; }
     public string? CurrentAddress { get; set; }
+    public string? PermanentAddress { get; set; }
+    public string? EmploymentStatus { get; set; }
+    public string? ProfilePictureUrl { get; set; }
     public string? Age { get; set; }
 }
 

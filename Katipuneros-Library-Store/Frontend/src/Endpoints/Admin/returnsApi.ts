@@ -3,7 +3,7 @@
 // Bridges frontend React UI to ASP.NET Core 10 Web API (/api/returns).
 // DO NOT put business logic or UI rendering here.
 
-import { apiRequest } from '../apiClient';
+import { apiRequest, getApiBaseUrl } from '../apiClient';
 
 export interface ReturnsMetrics {
   volumesCheckedIn: number;
@@ -87,7 +87,7 @@ export interface ExportReturnsFilterQuery {
 }
 
 export const getReturnsMetrics = async (): Promise<ReturnsMetrics> =>
-  (await apiRequest<ReturnsMetrics>('/api/returns/metrics')).data ?? {
+  (await apiRequest<ReturnsMetrics>('/returns/metrics')).data ?? {
     volumesCheckedIn: 0,
     capacityPercent: 0,
     trendingVsAvg: 0,
@@ -110,22 +110,22 @@ export const getReturnsJournal = async (params?: { status?: string; query?: stri
   if (params?.status) queryParams.set('status', params.status);
   if (params?.query) queryParams.set('query', params.query);
   const qs = queryParams.toString();
-  const url = qs ? `/api/returns/journal?${qs}` : '/api/returns/journal';
+  const url = qs ? `/returns/journal?${qs}` : '/returns/journal';
   return (await apiRequest<ReturnJournalItem[]>(url)).data ?? [];
 };
 
 export const getActiveDamagedCase = async (): Promise<DamagedAssessmentCase | null> =>
-  (await apiRequest<DamagedAssessmentCase>('/api/returns/active-damaged-case')).data ?? null;
+  (await apiRequest<DamagedAssessmentCase>('/returns/active-damaged-case')).data ?? null;
 
 export const submitRoutingAction = async (payload: RoutingActionPayload): Promise<{ success: boolean; message: string }> => {
   const endpointMap: Record<string, string> = {
-    RouteBindery: '/api/returns/route-bindery',
-    OrderReplacement: '/api/returns/order-replacement',
-    DeaccessionSalvage: '/api/returns/deaccession-salvage',
-    AuthorizeRouting: '/api/returns/authorize-routing',
-    Hold: '/api/returns/hold',
+    RouteBindery: '/returns/route-bindery',
+    OrderReplacement: '/returns/order-replacement',
+    DeaccessionSalvage: '/returns/deaccession-salvage',
+    AuthorizeRouting: '/returns/authorize-routing',
+    Hold: '/returns/hold',
   };
-  const url = endpointMap[payload.action] || '/api/returns/route-bindery';
+  const url = endpointMap[payload.action] || '/returns/route-bindery';
   const response = await apiRequest<{ status: string }>(url, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -134,7 +134,7 @@ export const submitRoutingAction = async (payload: RoutingActionPayload): Promis
 };
 
 export const processBulkCheckin = async (payload: BulkCheckinPayload): Promise<{ success: boolean; count: number; message: string }> => {
-  const response = await apiRequest<{ count: number }>('/api/returns/bulk-checkin', {
+  const response = await apiRequest<{ count: number }>('/returns/bulk-checkin', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -153,5 +153,5 @@ export const getExportReturnsUrl = (query: ExportReturnsFilterQuery): string => 
   if (query.idFilter) params.append('idFilter', query.idFilter);
   if (query.sortDirection) params.append('sortDirection', query.sortDirection);
   if (query.format) params.append('format', query.format);
-  return `/api/returns/export?${params.toString()}`;
+  return `${getApiBaseUrl()}/returns/export?${params.toString()}`;
 };

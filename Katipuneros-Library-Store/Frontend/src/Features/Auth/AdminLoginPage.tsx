@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../../Endpoints/authApi';
+import { loginUser, getStoredUser } from '../../Endpoints/authApi';
+import { getAuthToken } from '../../Endpoints/apiClient';
 import 'altcha';
 
 // TypeScript declaration for the altcha-widget Web Component
@@ -40,11 +41,26 @@ declare global {
   }
 }
 
-const API_BASE = 'http://localhost:5000';
+const getAdminApiBase = () => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  }
+  return 'http://localhost:5000';
+};
+
+const API_BASE = getAdminApiBase();
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const altchaRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const user = getStoredUser();
+    if (token && user?.role === 'Admin') {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   // ALTCHA Verification State
   const [isHumanVerified, setIsHumanVerified] = useState(false);

@@ -1,0 +1,69 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: katipuneros-ingress
+  namespace: katipuneros-prod
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+spec:
+  tls:
+    - hosts:
+        - library.local
+        - customer.library.local
+        - cashier.library.local
+        - admin.library.local
+        - api.library.local
+      secretName: katipuneros-tls-cert
+  rules:
+    - host: library.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: katipuneros-landing-svc
+                port:
+                  number: 80
+    - host: customer.library.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: katipuneros-customer-svc
+                port:
+                  number: 80
+    - host: cashier.library.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: katipuneros-cashier-svc
+                port:
+                  number: 80
+    - host: admin.library.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: katipuneros-admin-svc
+                port:
+                  number: 80
+    - host: api.library.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: katipuneros-backend-svc
+                port:
+                  number: 5000

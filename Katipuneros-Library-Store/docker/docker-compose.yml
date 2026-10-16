@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  # Layer 7: Primary Database (Read-Write)
+  katipuneros-db-primary:
+    image: postgres:16-alpine
+    container_name: katipuneros-db-primary
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: KatipunerosLibraryDb
+      POSTGRES_USER: katipuneros_admin
+      POSTGRES_PASSWORD: KatipunerosDbPassword_2026!
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: KatipunerosReplPass_2026!
+    volumes:
+      - primary-data:/var/lib/postgresql/data
+      - ./postgres/primary-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./postgres/postgresql-primary.conf:/etc/postgresql/postgresql.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    networks:
+      - katipuneros-net
+
+  # Layer 8: Replica Database (Read-Only Hot Standby)
+  katipuneros-db-replica:
+    image: postgres:16-alpine
+    container_name: katipuneros-db-replica
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: KatipunerosLibraryDb
+      POSTGRES_USER: katipuneros_admin
+      POSTGRES_PASSWORD: KatipunerosDbPassword_2026!
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: KatipunerosReplPass_2026!
+    volumes:
+      - replica-data:/var/lib/postgresql/data
+      - ./postgres/replica-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./postgres/postgresql-replica.conf:/etc/postgresql/postgresql.conf:ro
+    entrypoint: >
+      bash -c "
+        until pg_isready -h katipuneros-db-primary -p 5432 -U katipuneros_admin; do
+          echo 'Waiting for Primary DB to be ready...';
+          sleep 2;
+        done;
+        if [ ! -f /var/lib/postgresql/data/standby.signal ]; then
+          echo 'Cloning from primary via pg_basebackup...';
+          rm -rf /var/lib/postgresql/data/*;
+          PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v;
+          touch /var/lib/postgresql/data/standby.signal;
+          chmod 700 /var/lib/postgresql/data;
+        fi;
+        exec docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf
+      "
+    depends_on:
+      - katipuneros-db-primary
+    networks:
+      - katipuneros-net
+
+  # Layer 6: Redis Distributed Cache
+  katipuneros-redis:
+    image: redis:7.2-alpine
+    container_name: katipuneros-redis
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "KatipunerosRedisSecret_2026!"]
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - katipuneros-net
+
+  # Layer 5: Backend API (.NET 10)
+  katipuneros-backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: katipuneros-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__PrimaryConnection=Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Include Error Detail=true;
+      - ConnectionStrings__ReplicaConnection=Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Application Name=Katipuneros_ReadReplica;
+      - Redis__ConnectionString=katipuneros-redis:6379,password=KatipunerosRedisSecret_2026!
+    depends_on:
+      - katipuneros-db-primary
+      - katipuneros-db-replica
+      - katipuneros-redis
+    networks:
+      - katipuneros-net
+
+  # Layer 1: Landing Page
+  katipuneros-landing:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      target: landing
+    container_name: katipuneros-landing
+    restart: unless-stopped
+    depends_on:
+      - katipuneros-backend
+    networks:
+      - katipuneros-net
+
+  # Layer 2: Customer Portal
+  katipuneros-customer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      target: customer
+    container_name: katipuneros-customer
+    restart: unless-stopped
+    depends_on:
+      - katipuneros-backend
+    networks:
+      - katipuneros-net
+
+  # Layer 3: Cashier Desk
+  katipuneros-cashier:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      target: cashier
+    container_name: katipuneros-cashier
+    restart: unless-stopped
+    depends_on:
+      - katipuneros-backend
+    networks:
+      - katipuneros-net
+
+  # Layer 4: Chief Admin Console
+  katipuneros-admin:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      target: admin
+    container_name: katipuneros-admin
+    restart: unless-stopped
+    depends_on:
+      - katipuneros-backend
+    networks:
+      - katipuneros-net
+
+networks:
+  katipuneros-net:
+    driver: bridge
+
+volumes:
+  primary-data:
+  replica-data:
+  redis-data:

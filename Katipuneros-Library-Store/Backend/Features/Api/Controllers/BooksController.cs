@@ -56,7 +56,8 @@ public class BooksController : ControllerBase
                 request.TotalCopies,
                 request.BayLocation,
                 request.Description,
-                request.RfidTag
+                request.RfidTag,
+                request.CoverImage
             ) is { } created
                 ? CreatedAtAction(nameof(GetBookById), new { id = created.Id }, ApiResponse<object>.Ok(created, "Book accessioned into catalog."))
                 : BadRequest(ApiResponse<object>.Fail("Failed to accession book."));
@@ -77,7 +78,8 @@ public class BooksController : ControllerBase
                 request.TotalCopies,
                 request.BayLocation,
                 request.Description,
-                request.RfidTag
+                request.RfidTag,
+                request.CoverImage
             ) switch
             {
                 (true, _) => Ok(ApiResponse<object>.Ok(new { id }, "Catalog entry updated successfully.")),

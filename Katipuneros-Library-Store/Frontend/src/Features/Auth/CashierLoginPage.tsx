@@ -3,12 +3,22 @@
 // Cashier authentication only -- NO public registration interface.
 // Expresses all sync and async routines via clean lambda expressions.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { loginUser } from '../../Endpoints/authApi';
+import { loginUser, getStoredUser } from '../../Endpoints/authApi';
+import { getAuthToken } from '../../Endpoints/apiClient';
 
 export const CashierLoginPage: React.FC = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const user = getStoredUser();
+    if (token && user?.role === 'Cashier') {
+      navigate('/cashier/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -68,7 +78,7 @@ export const CashierLoginPage: React.FC = () => {
             </div>
           </Link>
           <span className="font-caption text-caption font-bold px-3 py-1 rounded-full bg-action-green/20 text-action-green border border-action-green/30">
-            CASHIER ONLY
+            PORT 5175 • CASHIER ONLY
           </span>
         </div>
 
