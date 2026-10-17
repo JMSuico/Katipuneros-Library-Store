@@ -74,8 +74,7 @@ public static class SecretConfiguration
 
         var requiredKeys = new[]
         {
-            "Jwt:SecretKey",
-            "Altcha:HmacSecret"
+            "Jwt:SecretKey"
         };
 
         foreach (var key in requiredKeys)

@@ -17,7 +17,7 @@ public class AltchaController : ControllerBase
     private readonly string _hmacSecret;
 
     public AltchaController(IConfiguration configuration) =>
-        _hmacSecret = SecretConfiguration.Require(configuration, "Altcha:HmacSecret");
+        _hmacSecret = SecretConfiguration.RequireIfConfigured(configuration, "Altcha:HmacSecret") ?? "katipuneros-default-altcha-fallback-secret-2026";
 
     /// <summary>
     /// GET /api/altcha/challenge

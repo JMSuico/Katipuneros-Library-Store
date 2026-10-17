@@ -14,18 +14,23 @@ export const getApiBaseUrl = (): string => {
   // If explicitly configured in Vite environment, respect that configuration
   const envUrl = (import.meta.env?.VITE_API_BASE_URL as string | undefined) ??
                  (import.meta.env?.VITE_API_URL as string | undefined);
-  if (envUrl) {
-    return envUrl;
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.trim().replace(/\/+$/, '');
   }
 
-  // In browser runtime, synchronize with the current client hostname (localhost vs 127.0.0.1)
+  // In browser runtime
   if (typeof window !== 'undefined' && window.location?.hostname) {
     const host = window.location.hostname;
-    const protocol = window.location.protocol || 'http:';
-    return `${protocol}//${host}:5000/api`;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
+    if (isLocal) {
+      const protocol = window.location.protocol || 'http:';
+      return `${protocol}//${host}:5000/api`;
+    }
+    // Any cloud deployment (Render, Vercel, preview domains, custom domains)
+    return 'https://katipuneros-backend.onrender.com/api';
   }
 
-  return 'http://localhost:5000/api';
+  return 'https://katipuneros-backend.onrender.com/api';
 };
 
 export const API_BASE_URL: string = getApiBaseUrl();
