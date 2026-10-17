@@ -1,3 +1,5 @@
+![Katipuneros Library Store](assets/banner.jpg)
+
 # 📚 Katipuneros Library Store
 
 A full-stack library management system with a public landing page and three role-based portals
