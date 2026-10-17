@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser, getStoredUser } from '../../Endpoints/authApi';
-import { getAuthToken } from '../../Endpoints/apiClient';
+import { getAuthToken, isTokenValid, clearAuthSession } from '../../Endpoints/apiClient';
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,8 +13,10 @@ export const AdminLoginPage: React.FC = () => {
   useEffect(() => {
     const token = getAuthToken();
     const user = getStoredUser();
-    if (token && user?.role === 'Admin') {
+    if (token && isTokenValid(token) && user?.role === 'Admin') {
       navigate('/admin/dashboard', { replace: true });
+    } else if (token && !isTokenValid(token)) {
+      clearAuthSession();
     }
   }, [navigate]);
 
@@ -46,7 +48,7 @@ export const AdminLoginPage: React.FC = () => {
           );
           return;
         }
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
         setErrorMessage(res.message || 'Invalid administrator credentials.');
       }
@@ -97,6 +99,7 @@ export const AdminLoginPage: React.FC = () => {
                 type="text"
                 required
                 autoFocus
+                autoComplete="username"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="admin or admin@katipuneros.edu.ph"
@@ -117,6 +120,7 @@ export const AdminLoginPage: React.FC = () => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"

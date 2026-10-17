@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
-import { getAuthToken, clearAuthSession } from '../../Endpoints/apiClient';
+import { getAuthToken, clearAuthSession, isTokenValid } from '../../Endpoints/apiClient';
 import { getStoredUser, AuthUser } from '../../Endpoints/authApi';
 
 export interface ProtectedRouteProps {
@@ -14,28 +14,6 @@ export interface ProtectedRouteProps {
   redirectPath?: string;
   children?: React.ReactNode;
 }
-
-const isTokenValid = (token: string): boolean => {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    const payload = JSON.parse(jsonPayload) as { exp?: number };
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
-      return false; // Token is expired
-    }
-    return true;
-  } catch {
-    // Malformed token
-    return false;
-  }
-};
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowedRoles,
@@ -62,7 +40,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // 2. Validate User Object Exists and Matches Required Role
-  if (!user || !user.role || !allowedRoles.includes(user.role)) {
+  const hasAllowedRole = Boolean(
+    user?.role && allowedRoles.some((r) => r.toLowerCase() === user.role.toLowerCase())
+  );
+
+  if (!user || !user.role || !hasAllowedRole) {
+    if (!user) {
+      clearAuthSession();
+    }
     // Unauthorized access attempt for this role
     const fallbackPath = redirectPath || (
       allowedRoles.includes('Admin')

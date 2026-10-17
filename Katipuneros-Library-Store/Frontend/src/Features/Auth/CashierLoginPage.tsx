@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser, getStoredUser } from '../../Endpoints/authApi';
-import { getAuthToken } from '../../Endpoints/apiClient';
+import { getAuthToken, isTokenValid, clearAuthSession } from '../../Endpoints/apiClient';
 
 export const CashierLoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,8 +14,10 @@ export const CashierLoginPage: React.FC = () => {
   useEffect(() => {
     const token = getAuthToken();
     const user = getStoredUser();
-    if (token && user?.role === 'Cashier') {
+    if (token && isTokenValid(token) && user?.role === 'Cashier') {
       navigate('/cashier/dashboard', { replace: true });
+    } else if (token && !isTokenValid(token)) {
+      clearAuthSession();
     }
   }, [navigate]);
 

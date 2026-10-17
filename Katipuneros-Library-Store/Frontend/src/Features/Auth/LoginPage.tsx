@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { loginUser, getStoredUser } from '../../Endpoints/authApi';
-import { getAuthToken } from '../../Endpoints/apiClient';
+import { getAuthToken, isTokenValid, clearAuthSession } from '../../Endpoints/apiClient';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,8 +17,10 @@ export const LoginPage: React.FC = () => {
   useEffect(() => {
     const token = getAuthToken();
     const user = getStoredUser();
-    if (token && user?.role === 'Customer') {
+    if (token && isTokenValid(token) && user?.role === 'Customer') {
       navigate('/customer/home', { replace: true });
+    } else if (token && !isTokenValid(token)) {
+      clearAuthSession();
     }
   }, [navigate]);
 

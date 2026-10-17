@@ -3,7 +3,7 @@
 // Dispatches login and registration requests to /api/auth on .NET 10 Web API.
 // Expresses all sync and async routines via clean lambda expressions.
 
-import { apiRequest, setAuthToken, clearAuthSession, getAuthToken, getStoredUserKey } from './apiClient';
+import { apiRequest, setAuthToken, clearAuthSession, getAuthToken, getStoredUserKey, getUserInfoKey } from './apiClient';
 
 export interface LoginRequest {
   email?: string;
@@ -82,23 +82,44 @@ export interface CreateCashierRequest {
   libraryCardNumber?: string;
 }
 
-export const isCurrentPortAdmin = (): boolean =>
-  typeof window !== 'undefined' && (
-    window.location.port === '5174' ||
-    window.location.pathname.startsWith('/admin') ||
-    Boolean(import.meta.env?.PROD && window.location.pathname.startsWith('/admin'))
+export const isCurrentPortAdmin = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname.toLowerCase();
+  const port = window.location.port;
+  const portalEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL ? String(import.meta.env.VITE_PORTAL).toLowerCase() : '');
+  return (
+    portalEnv === 'admin' ||
+    port === '5174' ||
+    host.startsWith('admin.') ||
+    host.includes('-admin.') ||
+    host.includes('admin') ||
+    window.location.pathname.startsWith('/admin')
   );
+};
 
-export const isCurrentPortCashier = (): boolean =>
-  typeof window !== 'undefined' && (
-    window.location.port === '5175' ||
+export const isCurrentPortCashier = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname.toLowerCase();
+  const port = window.location.port;
+  const portalEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL ? String(import.meta.env.VITE_PORTAL).toLowerCase() : '');
+  return (
+    portalEnv === 'cashier' ||
+    port === '5175' ||
+    host.startsWith('cashier.') ||
+    host.includes('-cashier.') ||
+    host.includes('cashier') ||
     window.location.pathname.startsWith('/cashier')
   );
+};
 
 export const getStoredUser = (): AuthUser | null => {
   try {
     const key = getStoredUserKey();
-    const raw = localStorage.getItem(key) || localStorage.getItem('katipuneros_user_data');
+    const raw =
+      localStorage.getItem(key) ||
+      localStorage.getItem('katipuneros_user_data') ||
+      localStorage.getItem(getUserInfoKey()) ||
+      localStorage.getItem('katipuneros_user');
     return raw ? (JSON.parse(raw) as AuthUser) : null;
   } catch {
     return null;
@@ -108,9 +129,12 @@ export const getStoredUser = (): AuthUser | null => {
 export const saveAuthSession = (token: string, user: AuthUser): void => {
   setAuthToken(token);
   try {
+    const serialized = JSON.stringify(user);
     const key = getStoredUserKey();
-    localStorage.setItem(key, JSON.stringify(user));
-    localStorage.setItem('katipuneros_user_data', JSON.stringify(user));
+    localStorage.setItem(key, serialized);
+    localStorage.setItem('katipuneros_user_data', serialized);
+    localStorage.setItem(getUserInfoKey(), serialized);
+    localStorage.setItem('katipuneros_user', serialized);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('katipuneros-auth-changed', { detail: user }));
     }
@@ -124,9 +148,12 @@ export const updateStoredUser = (updates: Partial<AuthUser>): AuthUser | null =>
   if (!current) return null;
   const merged: AuthUser = { ...current, ...updates };
   try {
+    const serialized = JSON.stringify(merged);
     const key = getStoredUserKey();
-    localStorage.setItem(key, JSON.stringify(merged));
-    localStorage.setItem('katipuneros_user_data', JSON.stringify(merged));
+    localStorage.setItem(key, serialized);
+    localStorage.setItem('katipuneros_user_data', serialized);
+    localStorage.setItem(getUserInfoKey(), serialized);
+    localStorage.setItem('katipuneros_user', serialized);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('katipuneros-auth-changed', { detail: merged }));
     }
@@ -142,6 +169,8 @@ export const logoutUser = (): void => {
     const key = getStoredUserKey();
     localStorage.removeItem(key);
     localStorage.removeItem('katipuneros_user_data');
+    localStorage.removeItem(getUserInfoKey());
+    localStorage.removeItem('katipuneros_user');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('katipuneros-auth-changed', { detail: null }));
     }
@@ -159,41 +188,49 @@ export const loginUser = async (
   });
 
   if (res.success && res.data?.token) {
+    const userRole = (
+      res.data.role?.toLowerCase() === 'admin'
+        ? 'Admin'
+        : res.data.role?.toLowerCase() === 'cashier'
+          ? 'Cashier'
+          : 'Customer'
+    ) as 'Admin' | 'Cashier' | 'Customer';
+
     // Check Admin separation: Public customer portal login cannot authenticate Admin accounts
-    if (res.data.role === 'Admin' && !isCurrentPortAdmin()) {
+    if (userRole === 'Admin' && !isCurrentPortAdmin()) {
       clearAuthSession();
       return {
         success: false,
         message:
-          'Admin access is restricted to the Administrator Console on port 5174 (http://127.0.0.1:5174/admin/login). Public customer portal login is not permitted.',
+          'Admin access is restricted to the Administrator Console (http://127.0.0.1:5174/admin/login or https://katipuneros-admin.onrender.com). Public customer portal login is not permitted.',
       };
     }
 
     // Check Admin separation: Administrator portal is restricted to Administrators only
-    if (isCurrentPortAdmin() && res.data.role !== 'Admin') {
+    if (isCurrentPortAdmin() && userRole !== 'Admin') {
       clearAuthSession();
       return {
         success: false,
-        message: `Access Denied: The Administrator Console on port 5174 is restricted to Chief Administrators only. Account [${res.data.email}] has role '${res.data.role}'.`,
+        message: `Access Denied: The Administrator Console is restricted to Chief Administrators only. Account [${res.data.email}] has role '${res.data.role}'.`,
       };
     }
 
-    // Check Cashier separation: Cashier terminal on port 5175 is restricted to Cashiers only
-    if (isCurrentPortCashier() && res.data.role !== 'Cashier' && res.data.role !== 'Admin') {
+    // Check Cashier separation: Cashier terminal is restricted to Cashiers only
+    if (isCurrentPortCashier() && userRole !== 'Cashier' && userRole !== 'Admin') {
       clearAuthSession();
       return {
         success: false,
-        message: `Access Denied: The Circulation Desk Terminal on port 5175 is restricted to Cashier desk staff only. Account [${res.data.email}] has role '${res.data.role}'.`,
+        message: `Access Denied: The Circulation Desk Terminal is restricted to Cashier desk staff only. Account [${res.data.email}] has role '${res.data.role}'.`,
       };
     }
 
-    // Check Customer separation: If user is on customer port (5173), disallow Cashier login
-    const isPort5173 = typeof window !== 'undefined' && (window.location.port === '5173' || (!isCurrentPortAdmin() && !isCurrentPortCashier()));
-    if (isPort5173 && res.data.role === 'Cashier') {
+    // Check Customer separation: If user is on customer portal, disallow Cashier login
+    const isCustomerPortal = typeof window !== 'undefined' && (window.location.port === '5173' || (!isCurrentPortAdmin() && !isCurrentPortCashier()));
+    if (isCustomerPortal && userRole === 'Cashier') {
       clearAuthSession();
       return {
         success: false,
-        message: 'Cashier circulation desk staff must sign in at the dedicated Circulation Terminal on port 5175 (http://127.0.0.1:5175/cashier/login).',
+        message: 'Cashier circulation desk staff must sign in at the dedicated Circulation Terminal (http://127.0.0.1:5175/cashier/login).',
       };
     }
 
@@ -205,9 +242,7 @@ export const loginUser = async (
       lastName: res.data.lastName,
       username: res.data.username,
       email: res.data.email,
-      role: (res.data.role === 'Admin' || res.data.role === 'Cashier'
-        ? res.data.role
-        : 'Customer') as 'Admin' | 'Cashier' | 'Customer',
+      role: userRole,
       libraryCardNumber: res.data.libraryCardNumber,
       department: res.data.department,
       employmentStatus: res.data.employmentStatus,

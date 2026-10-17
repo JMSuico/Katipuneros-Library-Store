@@ -57,6 +57,29 @@ export const getAuthTokenKey = (): string => `katipuneros_token${getPortSuffix()
 export const getUserInfoKey = (): string => `katipuneros_user${getPortSuffix()}`;
 export const getStoredUserKey = (): string => `katipuneros_user_data${getPortSuffix()}`;
 
+export const isTokenValid = (token: string | null | undefined): boolean => {
+  if (!token) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const payload = JSON.parse(jsonPayload) as { exp?: number };
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return false; // Token is expired
+    }
+    return true;
+  } catch {
+    // Malformed token
+    return false;
+  }
+};
+
 export const getAuthToken = (): string | null => {
   try {
     const partitioned = localStorage.getItem(getAuthTokenKey());
