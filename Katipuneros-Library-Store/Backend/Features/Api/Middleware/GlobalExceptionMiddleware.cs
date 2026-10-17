@@ -38,11 +38,19 @@ public class GlobalExceptionMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
+        var details = new List<string> { exception.Message };
+        var inner = exception.InnerException;
+        while (inner != null)
+        {
+            details.Add(inner.Message);
+            inner = inner.InnerException;
+        }
+
         var response = new ApiErrorResponse
         {
             Success = false,
             Error = "An unexpected internal server error occurred. Please try again later.",
-            Details = new List<string> { exception.Message },
+            Details = details,
             TraceId = context.TraceIdentifier
         };
 

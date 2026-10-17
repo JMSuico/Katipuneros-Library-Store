@@ -147,8 +147,11 @@ export const apiRequest = async <T>(
 
     try {
       const parsed = JSON.parse(text);
-      if (parsed !== null && typeof parsed === 'object' && ('data' in parsed || 'success' in parsed)) {
+      if (parsed !== null && typeof parsed === 'object' && ('data' in parsed || 'success' in parsed || 'error' in parsed)) {
         json = parsed as ApiResponse<T>;
+        if (!json.message && (parsed.error || parsed.details?.[0] || parsed.errors?.[0])) {
+          json.message = parsed.error || parsed.details?.[0] || parsed.errors?.[0];
+        }
       } else {
         json = {
           success: response.ok,

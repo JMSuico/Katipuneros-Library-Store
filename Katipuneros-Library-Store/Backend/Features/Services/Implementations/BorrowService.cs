@@ -158,12 +158,12 @@ public class BorrowService : IBorrowService
                 DueDate = dueDate > DateTime.UtcNow ? dueDate : DateTime.UtcNow.AddDays(14),
                 Status = TransactionStatus.Active,
                 RenewalCount = 0,
-                GatePassCode = $"KP-TXN-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
-                Patron = patron,
-                Book = book
+                GatePassCode = $"KP-TXN-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}"
             };
 
             await _borrowRepository.AddAsync(transaction);
+            transaction.Patron = patron;
+            transaction.Book = book;
             created.Add(transaction);
         }
 

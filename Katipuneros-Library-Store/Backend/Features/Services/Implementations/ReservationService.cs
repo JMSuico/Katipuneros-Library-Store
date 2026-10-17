@@ -131,13 +131,14 @@ public class ReservationService : IReservationService
             ExpiryDate = DateTime.UtcNow.AddHours(48),
             Status = ReservationStatus.Pending,
             PickupBranch = InputSanitizer.SanitizeText(pickupBranch ?? "Main Circulation Desk"),
-            QueuePosition = nextPosition,
-            Patron = patron,
-            Book = book
+            QueuePosition = nextPosition
         };
 
         await _reservationRepository.AddAsync(reservation);
         await _reservationRepository.SaveChangesAsync();
+
+        reservation.Patron = patron;
+        reservation.Book = book;
 
         await _emailService.SendReservationNotificationAsync(reservation, "Submitted");
 
