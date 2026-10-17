@@ -32,6 +32,20 @@ var replicaConn = builder.Configuration.GetConnectionString("ReplicaConnection")
 bool isPostgres = primaryConn.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
                   primaryConn.Contains("Port=", StringComparison.OrdinalIgnoreCase);
 
+if (isPostgres)
+{
+    primaryConn = System.Text.RegularExpressions.Regex.Replace(
+        primaryConn, 
+        @"Trust\s*Server\s*Certificate", 
+        "TrustServerCertificate", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    replicaConn = System.Text.RegularExpressions.Regex.Replace(
+        replicaConn, 
+        @"Trust\s*Server\s*Certificate", 
+        "TrustServerCertificate", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (isPostgres)
