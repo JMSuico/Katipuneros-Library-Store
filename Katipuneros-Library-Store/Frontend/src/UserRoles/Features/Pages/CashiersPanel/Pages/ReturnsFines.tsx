@@ -4,8 +4,9 @@
 // Strictly adheres to real-time data mandate: zero hardcoded mock values, clean empty states when N=0.
 // Universal lambda syntax (=>), zero browser alert().
 
-import { FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { FC, useState, useEffect, useCallback, useMemo, useRef, FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
+import jsQR from 'jsqr';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { processBookReturn } from '../../../../../Endpoints/Cashier/transactionApi';
 import { getAdminBorrowings, BackendBorrowing } from '../../../../../Endpoints/Admin/borrowingsApi';
@@ -16,6 +17,8 @@ import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { dispatchCirculationNotification } from '../../../../../Shared/Utils/notificationBus';
+import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
+
 
 export interface ReturnReceiptData {
   reference: string;
@@ -54,16 +57,17 @@ export const ReturnsFines: FC = () => {
   const [completedReceipt, setCompletedReceipt] = useState<ReturnReceiptData | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState<boolean>(false);
 
-  // Camera Barcode/QR Scanner State
+  // 3-Option Return Desk Workflow State
+  const [activeReturnTab, setActiveReturnTab] = useState<'scan' | 'input' | 'upload'>('scan');
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
-  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
+  const [manualSlipInput, setManualSlipInput] = useState<string>('');
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [inputErrorCode, setInputErrorCode] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<number | null>(null);
+  const manualInputRef = useRef<HTMLInputElement | null>(null);
+  const slipFileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   // Active Loans List Filters & Controls
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -110,39 +114,123 @@ export const ReturnsFines: FC = () => {
     };
   }, [loadData]);
 
-  // Camera Devices Enumeration
-  const getCameraDevices = useCallback(async () => {
+  // Synthesizes a clean audio chime via Web Audio API
+  const playChimeSound = () => {
     try {
-      if (!navigator.mediaDevices?.enumerateDevices) return;
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-      setCameraDevices(videoInputs);
-      if (videoInputs.length > 0 && !selectedDeviceId) {
-        setSelectedDeviceId(videoInputs[0].deviceId);
-      }
-    } catch {
-      // Ignore enumeration errors
-    }
-  }, [selectedDeviceId]);
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
 
-  const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      const now = ctx.currentTime;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1318.5, now + 0.1);
+
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.22);
+
+      setTimeout(() => {
+        ctx.close().catch(() => {});
+      }, 350);
+    } catch {
+      // Audio muted or blocked
     }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+  };
+
+  // Comprehensive multi-identifier loan resolver
+  const findLoanMatch = (loans: BackendBorrowing[], rawCode: string): BackendBorrowing | undefined => {
+    const code = rawCode.trim();
+    if (!code) return undefined;
+    const lower = code.toLowerCase();
+
+    // If code is JSON from generated slip QR payload: {"expressCode":"...", "loanCode":"..."}
+    if (code.startsWith('{') && code.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(code);
+        const innerCode =
+          parsed.expressCode || parsed.code || parsed.loanCode || parsed.barcode || parsed.reference || parsed.id;
+        if (innerCode && typeof innerCode === 'string') {
+          const innerMatch = findLoanMatch(loans, innerCode);
+          if (innerMatch) return innerMatch;
+        }
+      } catch {
+        // Not valid JSON
+      }
     }
-  }, []);
+
+    const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '').trim() : '';
+    const kpTxnId = lower.startsWith('kp-txn-') ? lower.replace('kp-txn-', '').trim() : '';
+    const passId = lower.startsWith('pass-') ? lower.replace('pass-', '').trim() : '';
+    const lnId = lower.startsWith('ln-') ? lower.replace('ln-', '').trim() : '';
+    const gpId = lower.startsWith('gp-') ? lower.replace('gp-', '').trim() : '';
+
+    return loans.find((l) => {
+      const lIdLower = (l.id || '').toLowerCase();
+      const lIdCompact = lIdLower.replace(/-/g, '');
+      const lCodeLower = (l.loanCode || '').toLowerCase();
+      const lBarcodeLower = (l.bookBarcode || '').toLowerCase();
+      const lPatronIdLower = (l.patronLibraryId || '').toLowerCase();
+      const lPatronNameLower = (l.patronName || '').toLowerCase();
+      const lTitleLower = (l.bookTitle || '').toLowerCase();
+
+      // Direct exact matches
+      if (lBarcodeLower === lower || lCodeLower === lower || lIdLower === lower) return true;
+      if (lIdCompact === lower) return true;
+      if (lPatronIdLower === lower) return true;
+
+      // ExpressCode / SCAN-BAY-XXXXXX matches
+      if (expressId) {
+        if (lIdCompact.includes(expressId) || lIdLower.includes(expressId)) return true;
+        if (lCodeLower.includes(expressId)) return true;
+      }
+
+      // KP-TXN-XXXXXXXX matches
+      if (kpTxnId) {
+        if (lIdCompact.includes(kpTxnId) || lIdLower.includes(kpTxnId)) return true;
+        if (lCodeLower.includes(kpTxnId)) return true;
+      }
+
+      // Standard institutional prefixes
+      if (passId && (lPatronIdLower.includes(passId) || lCodeLower.includes(passId))) return true;
+      if (lnId && (lCodeLower.includes(lnId) || lIdCompact.includes(lnId))) return true;
+      if (gpId && (lCodeLower.includes(gpId) || lIdCompact.includes(gpId))) return true;
+
+      // Barcode substring matches
+      if (lBarcodeLower && (lower.includes(lBarcodeLower) || lBarcodeLower.includes(lower))) return true;
+
+      // Title or patron name search
+      if (lTitleLower.includes(lower) || lPatronNameLower.includes(lower)) return true;
+
+      return false;
+    });
+  };
 
   const handleCodeLookup = useCallback(
-    async (rawCode: string) => {
+    async (rawCode: string): Promise<boolean> => {
       const code = rawCode.trim();
-      if (!code) return;
+      if (!code) return false;
 
       setScannerInput(code);
+      setManualSlipInput(code);
       setIsProcessing(true);
+      setInputError(null);
+      setInputErrorCode(null);
+
       try {
         const res = await scanBookCopy(code);
         if (res.success && res.data) {
@@ -178,114 +266,121 @@ export const ReturnsFines: FC = () => {
                 notes: copy.conditionNotes,
               });
             }
+            playChimeSound();
             addToast(`Scanned Copy ${copy.accessionNumber}: Active loan loaded for "${copy.bookTitle}".`, 'success');
+            document.getElementById('return-inspection-section')?.scrollIntoView({ behavior: 'smooth' });
+            return true;
           } else {
             setSelectedLoan(null);
             addToast(
               `Physical copy ${copy.accessionNumber} verified (${copy.status}). No active circulation loan pending.`,
               'info'
             );
+            return true;
           }
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          return;
         }
       } catch {
-        // Fallback to local match in activeLoans
+        // Fallback to activeLoans search
       } finally {
         setIsProcessing(false);
       }
 
-      const lower = code.toLowerCase();
-      const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
-      const passId = lower.startsWith('pass-') ? lower.replace('pass-', '') : '';
+      let matched = findLoanMatch(activeLoans, code);
 
-      const matched = activeLoans.find(
-        (l) =>
-          l.bookBarcode?.toLowerCase() === lower ||
-          l.loanCode?.toLowerCase() === lower ||
-          l.bookTitle?.toLowerCase().includes(lower) ||
-          l.patronLibraryId?.toLowerCase() === lower ||
-          l.patronName?.toLowerCase().includes(lower) ||
-          l.id.toLowerCase() === lower ||
-          (expressId && (l.id.toLowerCase().includes(expressId) || l.loanCode?.toLowerCase().includes(expressId))) ||
-          (passId && (l.patronLibraryId?.toLowerCase().includes(passId) || l.loanCode?.toLowerCase().includes(passId))) ||
-          (l.bookBarcode && lower.includes(l.bookBarcode.toLowerCase())) ||
-          (l.bookBarcode && l.bookBarcode.toLowerCase().includes(lower))
-      );
+      if (!matched) {
+        try {
+          const refreshed = await getAdminBorrowings('Active');
+          setActiveLoans(refreshed);
+          matched = findLoanMatch(refreshed, code);
+        } catch {
+          // Ignore refresh error
+        }
+      }
 
       if (matched) {
         setSelectedLoan(matched);
         setScannedCopy(null);
+        playChimeSound();
         addToast(`Loan record loaded for "${matched.bookTitle}".`, 'success');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('return-inspection-section')?.scrollIntoView({ behavior: 'smooth' });
+        return true;
       } else {
+        setInputError(
+          'Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.'
+        );
+        setInputErrorCode(code);
         addToast(`No active borrowing record or physical book copy found matching "${code}".`, 'warning');
+        return false;
       }
     },
     [activeLoans, addToast]
   );
 
-  const startCamera = useCallback(
-    async (deviceId?: string) => {
-      setIsCameraStarting(true);
-      setCameraError(null);
-      try {
-        stopCamera();
+  // Option 3: Decode User Slip PNG using jsQR on offscreen canvas
+  const handleImageSlipUpload = async (file: File) => {
+    if (!file) return;
+    setIsProcessing(true);
+    setInputError(null);
+    setInputErrorCode(null);
 
-        const constraints: MediaStreamConstraints = {
-          video: deviceId
-            ? { deviceId: { exact: deviceId } }
-            : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        };
+    try {
+      const img = new Image();
+      const reader = new FileReader();
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-
-        await getCameraDevices();
-
-        // Check for BarcodeDetector API
-        if ('BarcodeDetector' in window) {
-          const barcodeDetector = new (window as any).BarcodeDetector({
-            formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
-          });
-          scanIntervalRef.current = window.setInterval(async () => {
-            if (!videoRef.current || videoRef.current.readyState < 2) return;
-            try {
-              const barcodes = await barcodeDetector.detect(videoRef.current);
-              if (barcodes.length > 0 && barcodes[0].rawValue) {
-                const code = barcodes[0].rawValue;
-                stopCamera();
-                setIsCameraOpen(false);
-                handleCodeLookup(code);
-              }
-            } catch {
-              // Frame detection error ignored
+      reader.onload = (e) => {
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) {
+              addToast('Could not initialize canvas context for QR decoding.', 'error');
+              setIsProcessing(false);
+              return;
             }
-          }, 350);
-        }
-      } catch (err: any) {
-        setCameraError(err.message || 'Unable to access camera. Please verify device permissions or connect a USB webcam.');
-      } finally {
-        setIsCameraStarting(false);
-      }
-    },
-    [getCameraDevices, stopCamera, handleCodeLookup]
-  );
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'attemptBoth',
+            });
 
-  useEffect(() => {
-    if (isCameraOpen) {
-      startCamera(selectedDeviceId);
-    } else {
-      stopCamera();
+            if (qrCode && qrCode.data) {
+              playChimeSound();
+              addToast(`Slip QR code decoded: "${qrCode.data}". Resolving loan...`, 'success');
+              handleCodeLookup(qrCode.data.trim());
+            } else {
+              setInputError(
+                'Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.'
+              );
+              setInputErrorCode(file.name);
+              addToast(
+                'No readable QR code found in uploaded slip image. Please verify slip image or use Option 2.',
+                'warning'
+              );
+            }
+          } catch (decodeErr: any) {
+            addToast(decodeErr?.message || 'Error decoding QR from image.', 'error');
+          } finally {
+            setIsProcessing(false);
+          }
+        };
+        img.onerror = () => {
+          addToast('Failed to load image file for QR decoding.', 'error');
+          setIsProcessing(false);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => {
+        addToast('Error reading image file.', 'error');
+        setIsProcessing(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setIsProcessing(false);
+      addToast(err?.message || 'Error processing slip image.', 'error');
     }
-    return () => {
-      stopCamera();
-    };
-  }, [isCameraOpen, selectedDeviceId, startCamera, stopCamera]);
+  };
 
   // Check URL barcode query param
   useEffect(() => {
@@ -300,6 +395,13 @@ export const ReturnsFines: FC = () => {
     e.preventDefault();
     if (!scannerInput.trim()) return;
     handleCodeLookup(scannerInput.trim());
+  };
+
+  const handleManualInputSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = manualSlipInput.trim();
+    if (!code) return;
+    await handleCodeLookup(code);
   };
 
   const handleSelectLoanForReturn = (loan: BackendBorrowing) => {
@@ -419,13 +521,13 @@ export const ReturnsFines: FC = () => {
 
         // Broadcast notification across multi-portal notification bus
         dispatchCirculationNotification({
-          id: `notif-return-${Date.now()}`,
+          id: `notif-${Date.now()}`,
           type: 'return_confirmed',
-          reference: res.transaction?.gatePassCode || res.transaction?.id || transactionRef,
-          title: selectedReturnItem.title,
-          patronName: selectedReturnItem.patronName,
+          reference: res.transaction?.gatePassCode || selectedLoan.loanCode || `KP-TXN-${selectedLoan.id.slice(0, 8)}`,
+          title: selectedLoan.bookTitle,
+          patronName: selectedLoan.patronName,
           timestamp: new Date().toISOString(),
-          message: `Return recorded for "${selectedReturnItem.title}" by ${selectedReturnItem.patronName}. Ref: ${transactionRef}${assessedFine > 0 ? ` (Penalty: ₱${assessedFine.toFixed(2)})` : ''}`,
+          message: `Book "${selectedLoan.bookTitle}" returned by ${selectedLoan.patronName}. Status: Cleared.`,
           recipientRoles: ['Customer', 'Cashier', 'Admin'],
         });
 
@@ -459,6 +561,7 @@ export const ReturnsFines: FC = () => {
 
         setCompletedReceipt(returnReceipt);
         setIsReceiptModalOpen(true);
+        playChimeSound();
 
         addToast(
           `Book "${selectedLoan.bookTitle}" returned successfully! Reference: ${transactionRef}. Total settled: ₱${assessedFine.toFixed(2)}.`,
@@ -468,6 +571,9 @@ export const ReturnsFines: FC = () => {
         setSelectedLoan(null);
         setScannedCopy(null);
         setScannerInput('');
+        setManualSlipInput('');
+        setInputError(null);
+        setInputErrorCode(null);
         setCondition('good');
         window.dispatchEvent(new CustomEvent('cashier-refresh-kpis'));
         await loadData();
@@ -530,6 +636,9 @@ export const ReturnsFines: FC = () => {
     setSelectedLoan(null);
     setScannedCopy(null);
     setScannerInput('');
+    setManualSlipInput('');
+    setInputError(null);
+    setInputErrorCode(null);
     setCondition('good');
     setCompletedReceipt(null);
     addToast('Desk counter cleared. Ready for next intake.', 'info');
@@ -650,61 +759,325 @@ export const ReturnsFines: FC = () => {
           </div>
         </section>
 
-        {/* QR & ExpressCode Intake Scanner Bar */}
-        <section className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <form onSubmit={handleScanSubmit} className="flex-1 relative flex items-center gap-2">
-            <div className="flex-1">
-              <SearchBar
-                placeholder="Scan QR Code, ExpressCode, or Accession Number..."
-                value={scannerInput}
-                onChange={(v) => setScannerInput(v)}
-                shortcutKey=""
-              />
+        {/* Circulation Returns Desk: 3-Option Intake Workflow */}
+        <section className="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline/10 flex flex-col space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-surface-container">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-2xl">assignment_return</span>
+                <h2 className="font-headline-3 text-headline-3 text-text-primary font-bold">
+                  Returns Processing Desk: 3-Option Intake
+                </h2>
+              </div>
+              <p className="font-caption text-caption text-text-secondary mt-0.5">
+                Choose optical camera scanning, manual slip code entry, or slip image upload to resolve loan.
+              </p>
             </div>
+
+            {/* Drop-Box Toggle */}
+            <div className="flex items-center justify-between sm:justify-end gap-3 px-3.5 py-2 bg-surface-container-low rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-xl">move_to_inbox</span>
+                <div className="flex flex-col">
+                  <span className="font-small text-small font-bold text-text-primary leading-tight">
+                    Counter Drop Slot Mode
+                  </span>
+                  <span className="font-caption text-caption text-text-secondary">Auto-clear late fines under 24 hrs courtesy grace</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  checked={isAfterHoursCounterSlot}
+                  onChange={(e) => setIsAfterHoursCounterSlot(e.target.checked)}
+                  className="sr-only peer"
+                  type="checkbox"
+                />
+                <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-action-green"></div>
+              </label>
+            </div>
+          </div>
+
+          {/* 3-Option Navigation Tabs */}
+          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-surface-container-low rounded-xl">
             <button
-              type="submit"
-              className="px-4 py-2.5 bg-primary text-on-primary font-caption text-caption font-bold rounded-xl hover:bg-primary-container transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+              type="button"
+              onClick={() => {
+                setActiveReturnTab('scan');
+                setInputError(null);
+                setInputErrorCode(null);
+              }}
+              className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeReturnTab === 'scan'
+                  ? 'bg-surface-container-lowest text-primary shadow-sm ring-1 ring-primary/20'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
             >
               <span className="material-symbols-outlined text-base">qr_code_scanner</span>
-              <span>Intake Scan</span>
+              <span>Option 1: BY SCAN (Live Camera)</span>
             </button>
             <button
               type="button"
-              onClick={() => setIsCameraOpen(true)}
-              className="px-4 py-2.5 bg-soft-blue text-primary hover:bg-soft-blue/80 font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm border border-primary/20"
+              onClick={() => {
+                setActiveReturnTab('input');
+                setTimeout(() => manualInputRef.current?.focus(), 50);
+              }}
+              className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeReturnTab === 'input'
+                  ? 'bg-surface-container-lowest text-primary shadow-sm ring-1 ring-primary/20'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
             >
-              <span className="material-symbols-outlined text-base">photo_camera</span>
-              <span className="hidden sm:inline">Camera QR</span>
+              <span className="material-symbols-outlined text-base">keyboard</span>
+              <span>Option 2: BY INPUT (Written Slip)</span>
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveReturnTab('upload');
+                setInputError(null);
+                setInputErrorCode(null);
+              }}
+              className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeReturnTab === 'upload'
+                  ? 'bg-surface-container-lowest text-primary shadow-sm ring-1 ring-primary/20'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">image</span>
+              <span>Option 3: BY SLIP IMAGE / ROSTER</span>
+            </button>
+          </div>
 
-          {/* Drop-Box Toggle */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 px-3 py-2 bg-surface-container-low rounded-xl">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">move_to_inbox</span>
+          {/* OPTION 1: BY SCAN PANEL */}
+          {activeReturnTab === 'scan' && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-xl bg-surface-container-low/70 border border-outline/10 animate-in fade-in duration-150">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-2xl">qr_code_scanner</span>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-body-large text-body-large font-bold text-text-primary">
+                      Live Optical QR &amp; Barcode Scanner
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-action-green/20 text-action-green">
+                      Multi-Engine Ready
+                    </span>
+                  </div>
+                  <p className="font-caption text-caption text-text-secondary mt-0.5">
+                    Align User Slip QR Code (<span className="font-mono font-bold text-primary">SCAN-BAY-XXXXXX</span>), ExpressCode, transaction code (<span className="font-mono font-bold text-primary">KP-TXN-...</span>), or book barcode in front of the lens.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCameraOpen(true)}
+                className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg flex-shrink-0"
+              >
+                <span className="material-symbols-outlined text-xl">photo_camera</span>
+                <span>Open Camera Scanner</span>
+              </button>
+            </div>
+          )}
+
+          {/* OPTION 2: BY INPUT (Written in slip) PANEL */}
+          {activeReturnTab === 'input' && (
+            <div className="flex flex-col gap-4 p-5 rounded-xl bg-surface-container-low/70 border border-outline/10 animate-in fade-in duration-150">
               <div className="flex flex-col">
-                <span className="font-small text-small font-bold text-text-primary leading-tight">
-                  Counter Drop Slot Mode
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-xl">edit_note</span>
+                  <span className="font-body-large text-body-large font-bold text-text-primary">
+                    Manual Slip Code &amp; ExpressCode Resolution
+                  </span>
+                </div>
+                <p className="font-caption text-caption text-text-secondary mt-0.5">
+                  Type what has been written or printed on the User Slip to resolve the active borrowing record.
+                </p>
+              </div>
+
+              <form onSubmit={handleManualInputSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <div className="flex-1 relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-lg">
+                    pin
+                  </span>
+                  <input
+                    ref={manualInputRef}
+                    type="text"
+                    value={manualSlipInput}
+                    onChange={(e) => {
+                      setManualSlipInput(e.target.value);
+                      if (inputError) setInputError(null);
+                    }}
+                    placeholder="Type ExpressCode (SCAN-BAY-XXXXXX), KP-TXN-..., PIN, or Accession #"
+                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-lowest text-text-primary font-mono text-small outline-none border border-outline/20 focus:border-primary shadow-inner"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isProcessing || !manualSlipInput.trim()}
+                  className="px-6 py-2.5 bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 flex-shrink-0"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {isProcessing ? 'autorenew' : 'assignment_turned_in'}
+                  </span>
+                  <span>Resolve Return</span>
+                </button>
+                {manualSlipInput && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualSlipInput('');
+                      setInputError(null);
+                      setInputErrorCode(null);
+                      manualInputRef.current?.focus();
+                    }}
+                    className="px-3.5 py-2.5 bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-caption text-caption font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1"
+                    title="Clear input"
+                  >
+                    <span className="material-symbols-outlined text-base">clear</span>
+                  </button>
+                )}
+              </form>
+
+              {/* Mistake Function / Error Recovery Inline Alert */}
+              {inputError && (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2.5">
+                    <span className="material-symbols-outlined text-xl flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400">warning</span>
+                    <div className="text-caption font-medium">
+                      <p className="font-bold">Return Resolution Failed</p>
+                      <p>Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.</p>
+                      {inputErrorCode && (
+                        <p className="font-mono text-[11px] mt-1 opacity-80">Searched code: "{inputErrorCode}"</p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputError(null);
+                      setInputErrorCode(null);
+                      setManualSlipInput('');
+                      manualInputRef.current?.focus();
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-caption text-caption font-bold rounded-lg transition-colors cursor-pointer flex-shrink-0 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-sm">restart_alt</span>
+                    <span>Clear &amp; Try Again</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* OPTION 3: BY SLIP IMAGE / ACTIVE LOANS SELECTION PANEL */}
+          {activeReturnTab === 'upload' && (
+            <div className="flex flex-col gap-4 p-5 rounded-xl bg-surface-container-low/70 border border-outline/10 animate-in fade-in duration-150">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-xl">upload_file</span>
+                  <span className="font-body-large text-body-large font-bold text-text-primary">
+                    User Slip PNG Upload &amp; Active Roster Quick-Select
+                  </span>
+                </div>
+                <p className="font-caption text-caption text-text-secondary mt-0.5">
+                  Upload User Slip PNG (<span className="font-mono font-bold text-primary">Katipuneros_Pickup_Slip_*.png</span>) or customer photo to auto-decode QR via jsQR, or pick directly from the circulating loans table.
+                </p>
+              </div>
+
+              {/* Slip PNG Dropzone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(true);
+                }}
+                onDragLeave={() => setIsDraggingFile(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleImageSlipUpload(file);
+                }}
+                onClick={() => slipFileInputRef.current?.click()}
+                className={`p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  isDraggingFile
+                    ? 'border-primary bg-primary/5'
+                    : 'border-outline/20 bg-surface-container-lowest hover:border-primary/50 hover:bg-surface-container-low'
+                }`}
+              >
+                <input
+                  ref={slipFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageSlipUpload(file);
+                  }}
+                />
+                <div className="w-12 h-12 rounded-full bg-soft-blue text-primary flex items-center justify-center mb-2">
+                  <span className="material-symbols-outlined text-2xl">receipt</span>
+                </div>
+                <span className="font-body-medium text-body-medium font-bold text-text-primary">
+                  Drop Pickup Slip PNG here or click to browse
                 </span>
-                <span className="font-caption text-caption text-text-secondary">Auto-clear late fines under 24 hrs courtesy grace</span>
+                <span className="font-caption text-caption text-text-secondary mt-1 max-w-sm">
+                  Decodes QR code from Katipuneros_Pickup_Slip_*.png or receipt images instantly on an offscreen canvas via jsQR.
+                </span>
+              </div>
+
+              {/* Inline Mistake Alert if image decoding failed */}
+              {inputError && (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2.5">
+                    <span className="material-symbols-outlined text-xl flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400">warning</span>
+                    <div className="text-caption font-medium">
+                      <p className="font-bold">Image Resolution Issue</p>
+                      <p>Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.</p>
+                      {inputErrorCode && (
+                        <p className="font-mono text-[11px] mt-1 opacity-80">Uploaded file: "{inputErrorCode}"</p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputError(null);
+                      setInputErrorCode(null);
+                      setActiveReturnTab('input');
+                      setTimeout(() => manualInputRef.current?.focus(), 50);
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-caption text-caption font-bold rounded-lg transition-colors cursor-pointer flex-shrink-0 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-sm">keyboard</span>
+                    <span>Switch to Input Option</span>
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1 border-t border-surface-container">
+                <span className="text-caption font-caption text-text-secondary">
+                  Or select directly from active circulation loans in the queue below:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById('circulating-loans-roster')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="px-3.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-caption text-caption font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-sm">table_rows</span>
+                  <span>Jump to Active Loans Roster</span>
+                </button>
               </div>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                checked={isAfterHoursCounterSlot}
-                onChange={(e) => setIsAfterHoursCounterSlot(e.target.checked)}
-                className="sr-only peer"
-                type="checkbox"
-              />
-              <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-action-green"></div>
-            </label>
-          </div>
+          )}
         </section>
 
         {/* Main Grid: Active Loan Audit + Dynamic Calculation Engine */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Left Column: Active Loan Return Audit & Physical Condition */}
-          <div className="xl:col-span-7 flex flex-col space-y-6">
+          <div id="return-inspection-section" className="xl:col-span-7 flex flex-col space-y-6">
             {/* Completed Return Clearance Docket Banner */}
             {completedReceipt && !selectedLoan && (
               <div className="bg-surface-container-lowest rounded-xl shadow-md p-5 border border-action-green/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-200">
@@ -1089,11 +1462,12 @@ export const ReturnsFines: FC = () => {
                   disabled={isProcessing || !selectedLoan}
                   className="w-full py-3.5 px-4 bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   type="button"
+                  title="Complete Return"
                 >
                   <span className="material-symbols-outlined text-2xl">
                     {isProcessing ? 'autorenew' : 'assignment_turned_in'}
                   </span>
-                  <span>{isProcessing ? 'Processing Return...' : 'Finalize Return & Restock Stacks'}</span>
+                  <span>{isProcessing ? 'Processing Return...' : 'Complete Return & Restock Stacks'}</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -1121,7 +1495,7 @@ export const ReturnsFines: FC = () => {
         </div>
 
         {/* STANDARDIZED CIRCULATING LOANS QUEUE SECTION */}
-        <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-md border border-outline/10 flex flex-col space-y-4">
+        <section id="circulating-loans-roster" className="bg-surface-container-lowest rounded-2xl p-6 shadow-md border border-outline/10 flex flex-col space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <h2 className="font-headline-3 text-headline-3 text-text-primary font-bold">
@@ -1627,145 +2001,19 @@ export const ReturnsFines: FC = () => {
         </div>
       )}
 
-      {/* Live Camera Barcode & QR Scanner Modal */}
-      {isCameraOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline/10 overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-2xl">qr_code_scanner</span>
-                <div>
-                  <h3 className="font-headline-4 text-headline-4 text-text-primary">Camera QR &amp; ExpressCode Scanner</h3>
-                  <p className="font-caption text-caption text-text-secondary">Position the book's physical QR sticker inside the reticle</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  stopCamera();
-                  setIsCameraOpen(false);
-                }}
-                className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-xl">close</span>
-              </button>
-            </div>
+      {/* Unified Optical Camera & QR Scanner Modal */}
+      <OpticalCameraScanner
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onScan={(code) => {
+          setIsCameraOpen(false);
+          handleCodeLookup(code);
+        }}
+        title="Circulation Returns Optical Scanner"
+        subtitle="Align User Slip QR (SCAN-BAY-XXXXXX), ExpressCode, KP-TXN-... gate pass, or book barcode inside the viewfinder."
+        reticleLabel="Position QR Code or Barcode in reticle"
+      />
 
-            {/* Camera Device Switcher */}
-            {cameraDevices.length > 1 && (
-              <div className="px-4 py-2 bg-surface-container-lowest border-b border-surface-container flex items-center gap-2">
-                <span className="material-symbols-outlined text-text-secondary text-sm">videocam</span>
-                <span className="font-caption text-caption text-text-secondary font-semibold">Camera Source:</span>
-                <select
-                  value={selectedDeviceId}
-                  onChange={(e) => setSelectedDeviceId(e.target.value)}
-                  className="flex-1 h-8 px-2 rounded-lg bg-surface-container text-text-primary font-caption text-caption outline-none cursor-pointer border border-outline/10"
-                >
-                  {cameraDevices.map((dev, idx) => (
-                    <option key={dev.deviceId || idx} value={dev.deviceId}>
-                      {dev.label || `Camera ${idx + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Video Viewfinder Container */}
-            <div className="relative bg-black flex items-center justify-center overflow-hidden aspect-video">
-              {isCameraStarting && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-white bg-black/70 gap-2">
-                  <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
-                  <span className="font-caption text-caption font-bold">Activating Camera Stream...</span>
-                </div>
-              )}
-
-              {cameraError ? (
-                <div className="p-6 text-center text-on-error-container max-w-sm">
-                  <span className="material-symbols-outlined text-4xl text-status-danger mb-2">videocam_off</span>
-                  <p className="font-body-medium font-bold text-white mb-1">Camera Access Issue</p>
-                  <p className="font-caption text-caption text-text-secondary mb-3">{cameraError}</p>
-                  <button
-                    type="button"
-                    onClick={() => startCamera(selectedDeviceId)}
-                    className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-caption text-caption font-bold"
-                  >
-                    Retry Camera
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Holographic Scanner Overlay Frame */}
-                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="relative w-56 h-56 border-2 border-primary border-dashed rounded-2xl shadow-[0_0_20px_rgba(30,58,138,0.5)] flex items-center justify-center">
-                      <div className="w-full h-0.5 bg-primary absolute top-1/2 left-0 animate-pulse shadow-[0_0_10px_#2563eb]"></div>
-                      <span className="absolute bottom-2 text-[10px] uppercase font-bold tracking-wider text-white bg-black/60 px-2 py-0.5 rounded">
-                        Aim at Physical QR Code
-                      </span>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Quick Manual Code Fallback & Modal Footer */}
-            <div className="p-4 bg-surface-container-low border-t border-surface-container flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Scan QR Code, ExpressCode, or Accession Number (e.g. SCAN-BAY-XXXXXX, KLS-XXXX-CX)..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const val = (e.target as HTMLInputElement).value.trim();
-                      if (val) {
-                        stopCamera();
-                        setIsCameraOpen(false);
-                        handleCodeLookup(val);
-                      }
-                    }
-                  }}
-                  className="flex-1 h-9 px-3 rounded-xl bg-surface-container-lowest text-text-primary font-caption text-caption outline-none border border-outline/20 focus:border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    const input = (e.currentTarget.previousElementSibling as HTMLInputElement)?.value.trim();
-                    if (input) {
-                      stopCamera();
-                      setIsCameraOpen(false);
-                      handleCodeLookup(input);
-                    }
-                  }}
-                  className="px-3 py-2 bg-primary text-on-primary font-caption text-caption font-bold rounded-xl cursor-pointer"
-                >
-                  Verify
-                </button>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-text-secondary px-1">
-                <span>Compatible with laptop webcams, USB cameras, and 2D QR / barcode imagers</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    stopCamera();
-                    setIsCameraOpen(false);
-                  }}
-                  className="text-text-primary hover:underline font-bold cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Floating Notifications Toast Container */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">

@@ -16,20 +16,7 @@ import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
-
-// Native browser BarcodeDetector (Chromium / Edge / Android). Typed locally, no external dependency.
-interface DetectedBarcode {
-  rawValue: string;
-}
-interface BarcodeDetectorLike {
-  detect: (source: CanvasImageSource) => Promise<DetectedBarcode[]>;
-}
-type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => BarcodeDetectorLike;
-
-const getBarcodeDetectorCtor = (): BarcodeDetectorCtor | null =>
-  typeof window !== 'undefined'
-    ? (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector ?? null
-    : null;
+import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
 
 export const CheckoutBorrow: FC = () => {
   const location = useLocation();
@@ -55,27 +42,23 @@ export const CheckoutBorrow: FC = () => {
   const [allReservations, setAllReservations] = useState<BackendReservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState<boolean>(false);
 
-  // Handover Verification Modal & Multi-Driver Camera Scanner State
+  // Unified Optical Camera Scanner state
+  const [isOpticalScannerOpen, setIsOpticalScannerOpen] = useState<boolean>(false);
+
+  // Handover Verification Modal State
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState<boolean>(false);
   const [handoverReservation, setHandoverReservation] = useState<BackendReservation | null>(null);
   const [pinDigits, setPinDigits] = useState<string[]>(['', '', '', '']);
-  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
-  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [manualCodeInput, setManualCodeInput] = useState<string>('');
+  const [manualCodeError, setManualCodeError] = useState<string | null>(null);
 
   // Verified Hold Details for checkout submission & custom event
   const [verifiedPickupPin, setVerifiedPickupPin] = useState<string | undefined>(undefined);
   const [verifiedReservationId, setVerifiedReservationId] = useState<string | undefined>(undefined);
   const [verifiedBay, setVerifiedBay] = useState<string | undefined>(undefined);
 
-  // Camera & PIN Input Refs
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<number | null>(null);
+  // PIN Input Refs
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Staged Books State
@@ -199,40 +182,12 @@ export const CheckoutBorrow: FC = () => {
   };
 
   // Camera Devices Enumeration
-  const getCameraDevices = useCallback(async () => {
-    try {
-      if (!navigator.mediaDevices?.enumerateDevices) return;
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-      setCameraDevices(videoInputs);
-      if (videoInputs.length > 0 && !selectedCameraId) {
-        setSelectedCameraId(videoInputs[0].deviceId);
-      }
-    } catch {
-      // Ignore enumeration errors
-    }
-  }, [selectedCameraId]);
-
-  const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, []);
-
-  // Open Handover Verification Modal (Option 2: Manual Search & PIN Entry)
+  // Open Handover Verification Modal (Manual Search & PIN Entry)
   const openHandoverModal = useCallback((res: BackendReservation) => {
     setHandoverReservation(res);
     setPinDigits(['', '', '', '']);
     setPinError(null);
-    setIsCameraActive(false);
+    setManualCodeError(null);
 
     const patronMatch = allUsers.find(
       (u) =>
@@ -254,7 +209,7 @@ export const CheckoutBorrow: FC = () => {
     openHandoverModal(res);
   }, [openHandoverModal]);
 
-  // Optical Code Resolution (Option 1: Optical Camera Scanner / QR / ExpressCode)
+  // Optical Code Resolution (QR / ExpressCode / SCAN-BAY / Patron / Accession)
   const handleScannedCode = useCallback(
     async (rawCode: string) => {
       const code = rawCode.trim();
@@ -263,7 +218,7 @@ export const CheckoutBorrow: FC = () => {
       const lower = code.toLowerCase();
       const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
 
-      // 1. Try matching active hold reservations
+      // 1. Match active hold reservations
       let matchedRes = allReservations.find(
         (r) =>
           r.id.toLowerCase() === lower ||
@@ -287,13 +242,14 @@ export const CheckoutBorrow: FC = () => {
       }
 
       if (matchedRes) {
-        stopCamera();
-        setIsCameraActive(false);
+        setIsOpticalScannerOpen(false);
         setHandoverReservation(matchedRes);
         setIsHandoverModalOpen(true);
         setPinError(null);
+        setManualCodeError(null);
         setPinDigits(['', '', '', '']);
 
+        // Automatically resolve the patron
         const patronMatch = allUsers.find(
           (u) =>
             u.id.toLowerCase() === matchedRes!.patronId?.toLowerCase() ||
@@ -328,11 +284,11 @@ export const CheckoutBorrow: FC = () => {
             r.patronLibraryId?.toLowerCase() === patronMatch.libraryCardNumber?.toLowerCase()
         );
         if (patronRes) {
-          stopCamera();
-          setIsCameraActive(false);
+          setIsOpticalScannerOpen(false);
           setHandoverReservation(patronRes);
           setIsHandoverModalOpen(true);
           setPinError(null);
+          setManualCodeError(null);
           setPinDigits(['', '', '', '']);
           addToast(`Patron ${patronMatch.fullName || patronMatch.name} identified with active hold.`, 'info');
           setTimeout(() => {
@@ -347,105 +303,69 @@ export const CheckoutBorrow: FC = () => {
         return;
       }
 
-      // 3. Check if code matches a book copy
+      // 3. Check if code matches a book copy (Accession #)
       try {
         const copyScanRes = await scanBookCopy(code);
         if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
-          stopCamera();
-          setIsCameraActive(false);
-          setIsHandoverModalOpen(false);
-          setBookBarcodeQuery(copyScanRes.data.copy.accessionNumber);
-          addToast(`Book copy ${copyScanRes.data.copy.accessionNumber} scanned into staging bar.`, 'success');
+          setIsOpticalScannerOpen(false);
+          const bookId = copyScanRes.data.copy.bookId;
+          const catalogBooks = await getCatalogBooks();
+          const matchedBook = catalogBooks.find((b) => b.id.toLowerCase() === bookId.toLowerCase());
+          if (matchedBook) {
+            setStagedBooks((prev) => {
+              if (prev.some((b) => b.id === matchedBook.id)) {
+                addToast(`Book "${matchedBook.title}" is already staged.`, 'warning');
+                return prev;
+              }
+              addToast(`"${matchedBook.title}" (Accession: ${copyScanRes.data.copy.accessionNumber}) staged successfully.`, 'success');
+              return [...prev, matchedBook];
+            });
+            return;
+          }
+        }
+      } catch {
+        // Fallback
+      }
+
+      // 4. Fallback: check direct catalog books query
+      try {
+        const books = await getCatalogBooks(undefined, code);
+        const matchedBook = books.find(
+          (b) =>
+            b.isbnBarcode?.toLowerCase() === lower ||
+            b.isbn?.toLowerCase() === lower ||
+            b.id.toLowerCase() === lower
+        );
+        if (matchedBook) {
+          setIsOpticalScannerOpen(false);
+          setStagedBooks((prev) => {
+            if (prev.some((b) => b.id === matchedBook.id)) {
+              addToast(`Book "${matchedBook.title}" is already staged.`, 'warning');
+              return prev;
+            }
+            addToast(`"${matchedBook.title}" staged successfully.`, 'success');
+            return [...prev, matchedBook];
+          });
           return;
         }
       } catch {
         // Fallback
       }
 
-      addToast(`Scanned code "${code}" does not match an active hold reservation.`, 'warning');
+      addToast(`Scanned code "${code}" does not match an active hold reservation or catalog accession.`, 'warning');
     },
-    [allReservations, allUsers, stopCamera, addToast]
-  );
-
-  const startCamera = useCallback(
-    async (deviceId?: string) => {
-      setIsCameraStarting(true);
-      setCameraError(null);
-      try {
-        stopCamera();
-
-        const constraints: MediaStreamConstraints = {
-          video: deviceId
-            ? { deviceId: { exact: deviceId } }
-            : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-
-        await getCameraDevices();
-
-        const Ctor = getBarcodeDetectorCtor();
-        if (Ctor) {
-          const detector = new Ctor({
-            formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
-          });
-          scanIntervalRef.current = window.setInterval(async () => {
-            if (!videoRef.current || videoRef.current.readyState < 2) return;
-            try {
-              const barcodes = await detector.detect(videoRef.current);
-              if (barcodes.length > 0 && barcodes[0].rawValue) {
-                const code = barcodes[0].rawValue;
-                handleScannedCode(code);
-              }
-            } catch {
-              // Frame detection error ignored
-            }
-          }, 350);
-        }
-      } catch (err: unknown) {
-        const errorMsg =
-          err instanceof Error
-            ? err.message
-            : 'Unable to access camera. Please verify device permissions or connect a USB webcam.';
-        setCameraError(errorMsg);
-      } finally {
-        setIsCameraStarting(false);
-      }
-    },
-    [getCameraDevices, stopCamera, handleScannedCode]
+    [allReservations, allUsers, addToast]
   );
 
   const handleOpenCameraScanner = () => {
-    setIsHandoverModalOpen(true);
-    setIsCameraActive(true);
+    setIsOpticalScannerOpen(true);
   };
 
   const handleCloseHandoverModal = () => {
-    stopCamera();
-    setIsCameraActive(false);
     setIsHandoverModalOpen(false);
     setPinError(null);
+    setManualCodeError(null);
   };
-
-  // Synchronize live camera stream with modal visibility & mode
-  useEffect(() => {
-    if (isHandoverModalOpen && isCameraActive) {
-      startCamera(selectedCameraId);
-    } else {
-      stopCamera();
-    }
-  }, [isHandoverModalOpen, isCameraActive, selectedCameraId, startCamera, stopCamera]);
-
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, [stopCamera]);
 
   // 4-Digit Monospace PIN Inputs Handlers
   const handlePinDigitChange = (index: number, val: string) => {
@@ -496,6 +416,15 @@ export const CheckoutBorrow: FC = () => {
     pinInputRefs.current[focusTarget]?.focus();
   };
 
+  // Mistake Recovery: Clear PIN and retry
+  const handleRetryPin = () => {
+    setPinDigits(['', '', '', '']);
+    setPinError(null);
+    setTimeout(() => {
+      pinInputRefs.current[0]?.focus();
+    }, 100);
+  };
+
   // Validate 4-digit PIN and stage book
   const handleConfirmPinVerification = async () => {
     if (!handoverReservation) {
@@ -511,7 +440,7 @@ export const CheckoutBorrow: FC = () => {
 
     const expectedPin = handoverReservation.lockerPin?.trim();
     if (expectedPin && expectedPin !== enteredPin) {
-      setPinError(`Incorrect PIN (${enteredPin}). The pickup PIN does not match this hold.`);
+      setPinError("Incorrect 4-digit PIN for this hold. Please check the patron's slip.");
       addToast('Verification failed: Invalid 4-digit pickup PIN.', 'error');
       return;
     }
@@ -519,7 +448,13 @@ export const CheckoutBorrow: FC = () => {
     // PIN validated! Store verified pickupPin, reservationId, and bay
     setVerifiedPickupPin(enteredPin);
     setVerifiedReservationId(handoverReservation.id);
-    setVerifiedBay(handoverReservation.lockerBay ? `Bay ${handoverReservation.lockerBay}` : 'Bay 01 Counter');
+    setVerifiedBay(
+      handoverReservation.lockerBay
+        ? (handoverReservation.lockerBay.toLowerCase().startsWith('bay')
+            ? handoverReservation.lockerBay
+            : `Bay ${handoverReservation.lockerBay}`)
+        : 'Bay 01 Counter'
+    );
 
     // Auto-select patron if not already selected
     const patronMatch = allUsers.find(
@@ -549,15 +484,124 @@ export const CheckoutBorrow: FC = () => {
       // Graceful fallback
     }
 
-    stopCamera();
-    setIsCameraActive(false);
     setIsHandoverModalOpen(false);
     setPinError(null);
+    setPinDigits(['', '', '', '']);
 
     addToast(
       `Handover verified! "${handoverReservation.bookTitle}" staged with verified PIN for ${handoverReservation.patronName}.`,
       'success'
     );
+  };
+
+  // Manual Code Input Handler (SCAN-BAY-XXXXXX, Accession #, or PIN with mistake recovery)
+  const handleClearManualCode = () => {
+    setManualCodeInput('');
+    setManualCodeError(null);
+  };
+
+  const handleManualCodeSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = manualCodeInput.trim();
+    if (!query) return;
+
+    setManualCodeError(null);
+    const lower = query.toLowerCase();
+    const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '') : '';
+
+    // A. If 4 digits numeric and a handoverReservation is active -> treat as PIN
+    if (/^\d{4}$/.test(query) && handoverReservation) {
+      const digits = query.split('');
+      setPinDigits(digits);
+      const expectedPin = handoverReservation.lockerPin?.trim();
+      if (expectedPin && expectedPin !== query) {
+        setPinError("Incorrect 4-digit PIN for this hold. Please check the patron's slip.");
+        setManualCodeError("Incorrect 4-digit PIN for this hold. Please check the patron's slip.");
+        addToast('Verification failed: Invalid 4-digit pickup PIN.', 'error');
+        return;
+      }
+      setManualCodeInput('');
+      handleConfirmPinVerification();
+      return;
+    }
+
+    // B. Check if it matches an ExpressCode (SCAN-BAY-XXXXXX) or Hold Reservation ID
+    let matchedRes = allReservations.find(
+      (r) =>
+        r.id.toLowerCase() === lower ||
+        (expressId && r.id.toLowerCase().includes(expressId)) ||
+        `scan-bay-${r.id.slice(0, 6).toLowerCase()}` === lower
+    );
+
+    if (!matchedRes) {
+      try {
+        const latest = await getAdminReservations();
+        setAllReservations(latest);
+        matchedRes = latest.find(
+          (r) =>
+            r.id.toLowerCase() === lower ||
+            (expressId && r.id.toLowerCase().includes(expressId)) ||
+            `scan-bay-${r.id.slice(0, 6).toLowerCase()}` === lower
+        );
+      } catch {
+        // Ignore
+      }
+    }
+
+    if (matchedRes) {
+      setHandoverReservation(matchedRes);
+      setPinError(null);
+      setManualCodeError(null);
+      setPinDigits(['', '', '', '']);
+      setManualCodeInput('');
+      const patronMatch = allUsers.find(
+        (u) =>
+          u.id.toLowerCase() === matchedRes!.patronId?.toLowerCase() ||
+          u.libraryCardNumber?.toLowerCase() === matchedRes!.patronLibraryId?.toLowerCase()
+      );
+      if (patronMatch) {
+        setSelectedPatron(patronMatch);
+      }
+      addToast(
+        `Hold volume identified for ${matchedRes.patronName} - "${matchedRes.bookTitle}". Enter 4-digit PIN.`,
+        'info'
+      );
+      setTimeout(() => {
+        pinInputRefs.current[0]?.focus();
+      }, 150);
+      return;
+    }
+
+    // C. Check if Accession # or Barcode via scanBookCopy
+    try {
+      const copyScanRes = await scanBookCopy(query);
+      if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
+        const bookId = copyScanRes.data.copy.bookId;
+        const catalogBooks = await getCatalogBooks();
+        const matchedBook = catalogBooks.find((b) => b.id.toLowerCase() === bookId.toLowerCase());
+        if (matchedBook) {
+          if (stagedBooks.some((b) => b.id === matchedBook.id)) {
+            addToast(`Book "${matchedBook.title}" is already staged.`, 'warning');
+          } else {
+            setStagedBooks((prev) => [...prev, matchedBook]);
+            addToast(
+              `"${matchedBook.title}" (Accession: ${copyScanRes.data.copy.accessionNumber}) staged successfully.`,
+              'success'
+            );
+          }
+          setManualCodeInput('');
+          return;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // D. Mistake recovery error
+    setManualCodeError(
+      `Code "${query}" could not be resolved. Please verify the code format: SCAN-BAY-XXXXXX, Accession #, or 4-digit PIN.`
+    );
+    addToast(`Could not resolve "${query}". Please check the slip code or retry.`, 'warning');
   };
 
   const handlePatronSearchSubmit = (e: React.FormEvent) => {
@@ -1756,7 +1800,7 @@ export const CheckoutBorrow: FC = () => {
         </div>
       )}
 
-      {/* HANDOVER VERIFICATION MODAL */}
+      {/* HANDOVER 4-DIGIT PIN VERIFICATION & RELEASE MODAL */}
       {isHandoverModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-outline/20 space-y-5 max-h-[92vh] flex flex-col overflow-y-auto">
@@ -1764,16 +1808,14 @@ export const CheckoutBorrow: FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-surface-container">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-sm">
-                  <span className="material-symbols-outlined text-xl">
-                    {isCameraActive ? 'photo_camera' : 'lock_open'}
-                  </span>
+                  <span className="material-symbols-outlined text-xl">lock_open</span>
                 </div>
                 <div>
                   <h3 className="font-headline-4 text-headline-4 text-text-primary">
-                    Physical Asset Handover &amp; Verification
+                    Hold Handover &amp; 4-Digit PIN Verification
                   </h3>
                   <p className="font-caption text-caption text-text-secondary">
-                    Dual-Mode Verification: Live Optical Camera Scanner &amp; 4-Digit Pickup PIN
+                    Dual-layer validation: Patron slip 4-digit PIN authorization for physical book custody release.
                   </p>
                 </div>
               </div>
@@ -1787,278 +1829,197 @@ export const CheckoutBorrow: FC = () => {
               </button>
             </div>
 
-            {/* Mode Switch Tabs inside Modal */}
-            <div className="flex items-center gap-2 p-1 bg-surface-container rounded-xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCameraActive(false);
-                  stopCamera();
-                }}
-                className={`flex-1 py-2 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  !isCameraActive
-                    ? 'bg-surface-container-lowest text-primary shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                <span className="material-symbols-outlined text-base">pin</span>
-                <span>Option 2: 4-Digit PIN Entry</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCameraActive(true);
-                  startCamera(selectedCameraId);
-                }}
-                className={`flex-1 py-2 rounded-lg font-caption text-caption font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  isCameraActive
-                    ? 'bg-surface-container-lowest text-primary shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                <span className="material-symbols-outlined text-base">photo_camera</span>
-                <span>Option 1: Optical Camera Scanner</span>
-              </button>
-            </div>
-
-            {/* MODE CONTENT */}
-            {isCameraActive ? (
-              /* OPTION 1: OPTICAL CAMERA SCANNER */
-              <div className="flex flex-col space-y-4">
-                {/* Camera Hardware Selector */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-surface-container-low rounded-xl">
-                  <div className="flex items-center gap-2 text-text-secondary font-caption text-caption">
-                    <span className="material-symbols-outlined text-base text-primary">videocam</span>
-                    <span className="font-bold text-text-primary">Camera Device / Driver:</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={selectedCameraId}
-                      onChange={(e) => {
-                        setSelectedCameraId(e.target.value);
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-outline/20 text-text-primary font-caption text-caption outline-none cursor-pointer"
-                    >
-                      {cameraDevices.length === 0 ? (
-                        <option value="">Default Web / USB Camera</option>
-                      ) : (
-                        cameraDevices.map((d, idx) => (
-                          <option key={d.deviceId || idx} value={d.deviceId}>
-                            {d.label || `Camera ${idx + 1} (${d.deviceId.slice(0, 8)}...)`}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        getCameraDevices();
-                        startCamera(selectedCameraId);
-                      }}
-                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-                      title="Refresh camera devices"
-                    >
-                      <span className="material-symbols-outlined text-base">refresh</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Live Video Feed Preview */}
-                <div className="relative w-full h-64 sm:h-72 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-outline/20">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-
-                  {/* Optical Reticle / Scan Line Overlay */}
-                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-action-green/80 rounded-2xl relative shadow-2xl flex items-center justify-center">
-                      {/* Corner Accents */}
-                      <span className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-action-green"></span>
-                      <span className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-action-green"></span>
-                      <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-action-green"></span>
-                      <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-action-green"></span>
-
-                      {/* Animated Laser Scanning Line */}
-                      <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-action-green to-transparent animate-pulse shadow-[0_0_8px_#22c55e]"></div>
-
-                      <span className="absolute bottom-2 text-[10px] uppercase font-bold tracking-wider text-action-green bg-black/60 px-2 py-0.5 rounded-full">
-                        SCAN-BAY / QR Reticle
-                      </span>
-                    </div>
-                  </div>
-
-                  {isCameraStarting && (
-                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center gap-2 text-on-primary font-caption">
-                      <span className="animate-spin material-symbols-outlined text-xl">progress_activity</span>
-                      <span>Initializing video driver...</span>
-                    </div>
-                  )}
-                </div>
-
-                {cameraError ? (
-                  <div className="p-3 bg-status-danger/10 border border-status-danger/30 rounded-xl flex items-center gap-2 text-status-danger font-caption text-caption">
-                    <span className="material-symbols-outlined text-base">error</span>
-                    <span>{cameraError}</span>
-                  </div>
-                ) : (
-                  <p className="font-caption text-caption text-text-secondary text-center">
-                    Point camera at patron&#39;s QR Pass or ExpressCode on user slip (<code>SCAN-BAY-XXXXXX</code>).
-                  </p>
-                )}
-
-                {/* Handheld Barcode Reader / Manual Fast Input */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (manualCodeInput.trim()) {
-                      handleScannedCode(manualCodeInput);
-                      setManualCodeInput('');
-                    }
-                  }}
-                  className="flex items-center gap-2 pt-2 border-t border-surface-container"
-                >
-                  <input
-                    type="text"
-                    value={manualCodeInput}
-                    onChange={(e) => setManualCodeInput(e.target.value)}
-                    placeholder="Or type/paste ExpressCode (e.g. SCAN-BAY-XXXXXX)..."
-                    className="flex-1 px-3 py-2 rounded-xl bg-surface-container text-text-primary font-mono text-caption outline-none border border-outline/20 focus:border-primary"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!manualCodeInput.trim()}
-                    className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold cursor-pointer disabled:opacity-50 transition-colors"
-                  >
-                    Resolve Code
-                  </button>
-                </form>
-              </div>
-            ) : (
-              /* OPTION 2: 4-DIGIT PIN ENTRY & VERIFICATION */
-              <div className="flex flex-col space-y-4">
-                {/* Hold Details Summary Card */}
-                {handoverReservation ? (
-                  <div className="p-4 bg-surface-container-low rounded-xl border border-outline/10 flex flex-col space-y-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block mb-1">
-                          Hold Volume Target
-                        </span>
-                        <h4 className="font-body-large text-body-large font-bold text-text-primary">
-                          {handoverReservation.bookTitle}
-                        </h4>
-                        <p className="font-caption text-caption text-text-secondary">
-                          Author: {handoverReservation.bookAuthor} • Call: {handoverReservation.bookCallNumber || 'N/A'}
-                        </p>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg text-caption font-mono font-bold bg-primary/10 text-primary">
-                        SCAN-BAY-{handoverReservation.id.slice(0, 6).toUpperCase()}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-container font-caption text-caption">
-                      <div>
-                        <span className="text-text-secondary block">Patron:</span>
-                        <strong className="text-text-primary">
-                          {handoverReservation.patronName} ({handoverReservation.patronLibraryId})
-                        </strong>
-                      </div>
-                      <div>
-                        <span className="text-text-secondary block">Staged Bay:</span>
-                        <strong className="text-action-green">
-                          {handoverReservation.lockerBay ? `Bay ${handoverReservation.lockerBay}` : 'Bay 01 Counter'}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-surface-container-low rounded-xl border border-dashed border-outline/20 text-center">
+            {/* Hold Details Target Summary Card */}
+            {handoverReservation ? (
+              <div className="p-4 bg-surface-container-low rounded-xl border border-outline/10 flex flex-col space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block mb-1">
+                      Hold Volume Target
+                    </span>
+                    <h4 className="font-body-large text-body-large font-bold text-text-primary">
+                      {handoverReservation.bookTitle}
+                    </h4>
                     <p className="font-caption text-caption text-text-secondary">
-                      No hold selected yet. Use Option 1 to scan QR/ExpressCode or pick a held volume from the queue.
+                      Author: {handoverReservation.bookAuthor} • Call: {handoverReservation.bookCallNumber || 'N/A'}
                     </p>
                   </div>
-                )}
-
-                {/* 4-Digit Monospace PIN Inputs */}
-                <div className="flex flex-col items-center justify-center space-y-3 py-2">
-                  <label className="font-caption text-caption font-bold text-text-primary uppercase tracking-wider text-center">
-                    Enter Patron 4-Digit Pickup PIN
-                  </label>
-                  <p className="font-caption text-caption text-text-secondary text-center max-w-sm">
-                    Enter the 4-digit security code issued on the patron&#39;s pickup slip to authorize physical custody release.
-                  </p>
-
-                  <div className="flex items-center gap-3">
-                    {pinDigits.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => {
-                          pinInputRefs.current[idx] = el;
-                        }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handlePinDigitChange(idx, e.target.value)}
-                        onKeyDown={(e) => handlePinKeyDown(idx, e)}
-                        onPaste={handlePinPaste}
-                        className="w-14 h-16 sm:w-16 sm:h-20 text-center font-mono text-2xl sm:text-3xl font-bold bg-surface-container-high border-2 border-outline/20 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-text-primary"
-                        autoFocus={idx === 0}
-                      />
-                    ))}
-                  </div>
-
-                  {pinError && (
-                    <div className="p-2.5 rounded-lg bg-status-danger/10 border border-status-danger/30 text-status-danger text-caption font-bold flex items-center gap-1.5 animate-in fade-in">
-                      <span className="material-symbols-outlined text-base">error</span>
-                      <span>{pinError}</span>
-                    </div>
-                  )}
+                  <span className="px-2.5 py-1 rounded-lg text-caption font-mono font-bold bg-primary/10 text-primary">
+                    SCAN-BAY-{handoverReservation.id.slice(0, 6).toUpperCase()}
+                  </span>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between pt-3 border-t border-surface-container gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCameraActive(true);
-                      startCamera(selectedCameraId);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-caption text-caption font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-base">photo_camera</span>
-                    <span>Use Camera Instead</span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleCloseHandoverModal}
-                      className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-secondary font-caption text-caption transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pinDigits.join('').length < 4 || !handoverReservation}
-                      onClick={handleConfirmPinVerification}
-                      className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40 shadow-sm"
-                    >
-                      <span className="material-symbols-outlined text-base">verified</span>
-                      <span>Verify &amp; Confirm Handover</span>
-                    </button>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-container font-caption text-caption">
+                  <div>
+                    <span className="text-text-secondary block">Patron:</span>
+                    <strong className="text-text-primary">
+                      {handoverReservation.patronName} ({handoverReservation.patronLibraryId})
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary block">Assigned Staging Bay:</span>
+                    <strong className="text-action-green">
+                      {handoverReservation.lockerBay ? `Bay ${handoverReservation.lockerBay}` : 'Bay 01 Counter'}
+                    </strong>
                   </div>
                 </div>
               </div>
+            ) : (
+              <div className="p-4 bg-surface-container-low rounded-xl border border-dashed border-outline/20 text-center">
+                <p className="font-caption text-caption text-text-secondary">
+                  No hold selected yet. Use Optical Scanner or enter an ExpressCode (<code>SCAN-BAY-XXXXXX</code>) below.
+                </p>
+              </div>
             )}
+
+            {/* 4-Digit Monospace PIN Inputs with Auto-Advancing Focus */}
+            <div className="flex flex-col items-center justify-center space-y-3 py-2 bg-surface-container-low/40 rounded-xl p-4 border border-outline/10">
+              <label className="font-caption text-caption font-bold text-text-primary uppercase tracking-wider text-center">
+                Enter Patron 4-Digit Pickup PIN
+              </label>
+              <p className="font-caption text-caption text-text-secondary text-center max-w-sm">
+                Enter the 4-digit security code issued on the patron&#39;s pickup slip to authorize physical custody release.
+              </p>
+
+              <div className="flex items-center gap-3">
+                {pinDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => {
+                      pinInputRefs.current[idx] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handlePinDigitChange(idx, e.target.value)}
+                    onKeyDown={(e) => handlePinKeyDown(idx, e)}
+                    onPaste={handlePinPaste}
+                    className="w-14 h-16 sm:w-16 sm:h-20 text-center font-mono text-2xl sm:text-3xl font-bold bg-surface-container-lowest border-2 border-outline/20 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-text-primary shadow-xs"
+                    autoFocus={idx === 0}
+                  />
+                ))}
+              </div>
+
+              {/* Mistake Recovery Error with Retry PIN Button */}
+              {pinError && (
+                <div className="p-3 rounded-xl bg-status-danger/10 border border-status-danger/30 text-status-danger text-caption font-bold flex flex-col sm:flex-row items-center justify-between gap-2 animate-in fade-in w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base shrink-0">error</span>
+                    <span>{pinError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRetryPin}
+                    className="px-3 py-1 rounded-lg bg-status-danger text-white hover:bg-status-danger/90 font-caption text-caption font-bold transition-colors cursor-pointer shrink-0 shadow-sm"
+                  >
+                    Retry PIN
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Manual Code Input Fallback (Accepts SCAN-BAY-XXXXXX, Accession #, or PIN) */}
+            <div className="pt-2 border-t border-surface-container space-y-2">
+              <label className="font-caption text-caption font-bold text-text-secondary uppercase tracking-wider block">
+                Manual Code Entry (SCAN-BAY-XXXXXX, Accession #, or PIN)
+              </label>
+              <form
+                onSubmit={handleManualCodeSubmit}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={manualCodeInput}
+                  onChange={(e) => {
+                    setManualCodeInput(e.target.value);
+                    if (manualCodeError) setManualCodeError(null);
+                  }}
+                  placeholder="e.g. SCAN-BAY-A1B2C3, KLS-0001-C1, or 4-digit PIN..."
+                  className="flex-1 px-3 py-2 rounded-xl bg-surface-container text-text-primary font-mono text-caption outline-none border border-outline/20 focus:border-primary"
+                />
+                <button
+                  type="submit"
+                  disabled={!manualCodeInput.trim()}
+                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  Resolve Code
+                </button>
+                {manualCodeInput && (
+                  <button
+                    type="button"
+                    onClick={handleClearManualCode}
+                    className="p-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                    title="Clear Input"
+                  >
+                    <span className="material-symbols-outlined text-base">clear</span>
+                  </button>
+                )}
+              </form>
+
+              {manualCodeError && (
+                <div className="p-2.5 rounded-lg bg-status-danger/10 border border-status-danger/30 text-status-danger text-caption font-bold flex items-center justify-between gap-2 animate-in fade-in">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base shrink-0">warning</span>
+                    <span>{manualCodeError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearManualCode}
+                    className="underline text-[11px] hover:text-status-danger/80 cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Action Buttons */}
+            <div className="flex items-center justify-between pt-3 border-t border-surface-container gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsHandoverModalOpen(false);
+                  setIsOpticalScannerOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary font-caption text-caption font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <span className="material-symbols-outlined text-base">photo_camera</span>
+                <span>Open Optical Scanner</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCloseHandoverModal}
+                  className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-secondary font-caption text-caption transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={pinDigits.join('').length < 4 || !handoverReservation}
+                  onClick={handleConfirmPinVerification}
+                  className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40 shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-base">verified</span>
+                  <span>Verify &amp; Confirm Handover</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
+
+      {/* UNIFIED OPTICAL CAMERA SCANNER */}
+      <OpticalCameraScanner
+        isOpen={isOpticalScannerOpen}
+        onClose={() => setIsOpticalScannerOpen(false)}
+        onScan={handleScannedCode}
+        title="Circulation Bay QR & Barcode Scanner"
+        subtitle="Align patron QR slip, ExpressCode (SCAN-BAY-XXXXXX), or book barcode within the reticle."
+      />
 
       {/* Floating Notifications Toast Container */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">

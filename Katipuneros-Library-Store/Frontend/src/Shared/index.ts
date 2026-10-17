@@ -20,3 +20,4 @@ export * from './Charts';
 export { useDebounce } from '../Hooks/useDebounce';
 export * from './Utils/generateUserSlipPng';
 export * from './Utils/notificationBus';
+export * from './Components/OpticalCameraScanner';

@@ -11,13 +11,12 @@ public class ReturnRequest
 {
     [Required]
     public string Barcode { get; set; } = string.Empty;
-
+    public string? ExpressCode { get; set; }
+    public string? PickupPin { get; set; }
+    public Guid? ReservationId { get; set; }
     public Guid? BookCopyId { get; set; }
-
     public string? Condition { get; set; } = "Good";
-
     public string? ConditionNotes { get; set; }
-
     [Range(0, 5000)]
     public decimal? DamageFee { get; set; }
 }

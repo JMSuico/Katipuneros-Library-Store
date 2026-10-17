@@ -11,6 +11,7 @@ import {
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { generateUserSlipPng } from '../../../../../Shared/Utils/generateUserSlipPng';
+import QRCode from 'qrcode';
 
 type TabType = 'all' | 'pending' | 'ready' | 'completed' | 'cancelled';
 
@@ -55,6 +56,8 @@ const ReservationsPage: FC = () => {
 
   const [pickupModalOpen, setPickupModalOpen] = useState<boolean>(false);
   const [selectedPickup, setSelectedPickup] = useState<CustomerReservationRecord | null>(null);
+  const [readyQrDataUrl, setReadyQrDataUrl] = useState<string>('');
+  const [modalQrDataUrl, setModalQrDataUrl] = useState<string>('');
 
   const fetchReservations = useCallback(async () => {
     setLoading(true);
@@ -93,6 +96,40 @@ const ReservationsPage: FC = () => {
   const topPendingReservation = useMemo(() => {
     return reservations.find((r) => isPending(r.status)) || null;
   }, [reservations]);
+
+  // Generate QR code Data URL for Approved/Staged Ready Card
+  useEffect(() => {
+    if (topReadyReservation && isReady(topReadyReservation.status) && !isPending(topReadyReservation.status)) {
+      const expressCode = `SCAN-BAY-${topReadyReservation.id.slice(0, 6).toUpperCase()}`;
+      QRCode.toDataURL(expressCode, {
+        width: 144,
+        margin: 1,
+        color: { dark: '#0A192F', light: '#FFFFFF' },
+        errorCorrectionLevel: 'M',
+      })
+        .then(setReadyQrDataUrl)
+        .catch(() => setReadyQrDataUrl(''));
+    } else {
+      setReadyQrDataUrl('');
+    }
+  }, [topReadyReservation]);
+
+  // Generate QR code Data URL for Pickup Modal ONLY when Approved/Staged
+  useEffect(() => {
+    if (selectedPickup && isReady(selectedPickup.status) && !isPending(selectedPickup.status)) {
+      const expressCode = `SCAN-BAY-${selectedPickup.id.slice(0, 6).toUpperCase()}`;
+      QRCode.toDataURL(expressCode, {
+        width: 160,
+        margin: 1,
+        color: { dark: '#0A192F', light: '#FFFFFF' },
+        errorCorrectionLevel: 'M',
+      })
+        .then(setModalQrDataUrl)
+        .catch(() => setModalQrDataUrl(''));
+    } else {
+      setModalQrDataUrl('');
+    }
+  }, [selectedPickup]);
 
   // Filtered Reservations for display
   const filteredReservations = useMemo(() => {
@@ -473,18 +510,35 @@ const ReservationsPage: FC = () => {
                     </div>
                   </div>
 
-                  {/* Rapid Front Desk Scanner Strip & Actions */}
-                  <div className="mt-space-md pt-space-md flex flex-col md:flex-row items-center justify-between gap-space-md bg-surface-container-low/60 -mx-space-lg -mb-space-lg p-space-lg rounded-b-xl">
+                  {/* Rapid Front Desk Scanner Strip & Actions -- Fully Revealed on Approved / Ready */}
+                  <div className="mt-space-md pt-space-md flex flex-col md:flex-row items-center justify-between gap-space-md bg-surface-container-low/60 -mx-space-lg -mb-space-lg p-space-lg rounded-b-xl border-t border-outline/10">
                     <div className="flex items-center gap-space-md w-full md:w-auto">
-                      <div className="w-12 h-12 bg-surface-container-lowest rounded-xl shadow-sm flex items-center justify-center shrink-0 border border-outline/10 text-primary">
-                        <span className="material-symbols-outlined text-3xl">qr_code_2</span>
-                      </div>
+                      {readyQrDataUrl ? (
+                        <div className="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center shrink-0 border border-outline/20 p-1 overflow-hidden" title="Scannable QR Pass">
+                          <img src={readyQrDataUrl} alt="Scannable Hold QR Code" className="w-full h-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 bg-surface-container-lowest rounded-xl shadow-sm flex items-center justify-center shrink-0 border border-outline/10 text-primary">
+                          <span className="material-symbols-outlined text-3xl">qr_code_2</span>
+                        </div>
+                      )}
                       <div className="flex flex-col">
                         <span className="font-caption text-caption text-text-secondary">Express Verification Code</span>
                         <span className="font-small text-small text-text-primary font-bold font-mono tracking-wider">
                           SCAN-BAY-{topReadyReservation.id.slice(0, 6).toUpperCase()}
                         </span>
+                        <span className="font-caption text-caption text-text-secondary text-[11px]">
+                          {cleanLockerBay(topReadyReservation.lockerBay)}
+                        </span>
                       </div>
+                      {topReadyReservation.lockerPin && (
+                        <div className="flex flex-col ml-1 pl-3 border-l border-outline/20">
+                          <span className="font-caption text-caption text-text-secondary">4-Digit PIN</span>
+                          <span className="font-mono text-small font-bold text-emerald-950 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 shadow-xs">
+                            {topReadyReservation.lockerPin}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-space-xs w-full md:w-auto justify-end">
                       <button
@@ -501,7 +555,7 @@ const ReservationsPage: FC = () => {
                         type="button"
                       >
                         <span className="material-symbols-outlined text-base">download</span>
-                        <span>User Slip</span>
+                        <span>Download User Slip</span>
                       </button>
                       <button
                         className="px-space-lg py-space-xs bg-action-green text-text-primary hover:bg-action-green-hover rounded-full shadow-sm font-small text-small font-medium transition-transform active:scale-95 flex items-center gap-1 cursor-pointer"
@@ -1025,6 +1079,17 @@ const ReservationsPage: FC = () => {
                 </div>
               ) : (
                 <div className="flex flex-col gap-space-sm font-small text-small text-text-secondary">
+                  {modalQrDataUrl && (
+                    <div className="p-3 bg-white rounded-xl border border-outline/20 flex flex-col items-center justify-center gap-1 shadow-xs">
+                      <img src={modalQrDataUrl} alt="Pickup Slip QR Code" className="w-28 h-28 object-contain" />
+                      <span className="font-mono text-xs font-bold text-text-primary tracking-wider mt-1">
+                        SCAN-BAY-{selectedPickup?.id.slice(0, 6).toUpperCase()}
+                      </span>
+                      <span className="text-[10px] text-text-secondary text-center">
+                        Scan at circulation bay scanner or present to front desk cashier.
+                      </span>
+                    </div>
+                  )}
                   <div className="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-1">
                     <span className="font-medium text-text-primary">1. Proceed to Circulation Bay</span>
                     <span>
@@ -1050,7 +1115,7 @@ const ReservationsPage: FC = () => {
               )}
 
               <div className="flex items-center justify-end gap-space-sm pt-space-xs">
-                {selectedPickup && (
+                {selectedPickup && isReady(selectedPickup.status) && !isPending(selectedPickup.status) && (
                   <button
                     className="px-space-md py-space-sm rounded-full bg-surface-container text-text-primary hover:bg-surface-container-high font-small text-small font-medium shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                     onClick={async () => {

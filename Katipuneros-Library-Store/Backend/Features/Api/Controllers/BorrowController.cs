@@ -50,11 +50,14 @@ public class BorrowController : ControllerBase
         !ModelState.IsValid
             ? BadRequest(ApiResponse<object>.Fail("Invalid return request payload."))
             : await _borrowService.ReturnBookAsync(
-                request.Barcode,
+                !string.IsNullOrWhiteSpace(request.Barcode) ? request.Barcode : (request.ExpressCode ?? string.Empty),
                 !string.IsNullOrWhiteSpace(request.Condition) ? request.Condition : request.ConditionNotes,
                 request.DamageFee,
                 Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null,
-                request.BookCopyId
+                request.BookCopyId,
+                request.ExpressCode,
+                request.PickupPin,
+                request.ReservationId
             ) switch
             {
                 (true, var transaction, var fine, _) => Ok(ApiResponse<object>.Ok(new
