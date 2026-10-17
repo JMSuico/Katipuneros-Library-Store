@@ -1,4 +1,4 @@
-﻿---
+---
 title: Task Observer Log - Production Infrastructure, Multi-Port Topology & User Slip System
 date: 2026-10-17
 tags:
@@ -86,6 +86,16 @@ During this engineering cycle, five focused work streams were executed to elevat
   - In real-world library operations, patrons browse in customer tabs, cashiers work on circulation terminals, and administrators oversee reports in separate browser sessions.
   - Simple in-memory React state fails across multi-tab workflows.
   - Pairing `CustomEvent` with `StorageEvent` and localStorage caching ensures circulation events (`borrow_confirmed`, `return_confirmed`) trigger instantaneous notification bell counter updates and toaster alerts across all 3 portals without requiring a resource-heavy persistent WebSocket or SSE server.
+
+### ADR-07: Multi-Engine Optical Scanner & Tri-Modal Return Resolution
+- **Decision**: Architect a universal, client-side `<OpticalCameraScanner />` combining `jsQR` offscreen canvas frame polling with native `BarcodeDetector` fallback, Web Audio API acoustic chime synthesis, and tri-modal circulation return resolution across all cashier and circulation endpoints.
+- **Rationale**:
+  - Eliminates silent camera failures on non-Chromium browsers (Safari, Firefox) by coupling `jsQR` running over throttled `requestAnimationFrame` canvas extracts (~30 FPS / $33\text{ms}$) with native hardware acceleration where present.
+  - Accommodates physical diversity at the circulation return desk through three redundant resolution pathways:
+    1. **Option 1 (Optical Scanner)**: High-speed barcode/QR acquisition with reticle guide and two-tone rising chime (A5 880Hz to E6 1318.5Hz).
+    2. **Option 2 (Manual Monospace Slip Input)**: 7-stage backend waterfall resolution (`ReturnBookAsync`) supporting `SCAN-BAY-XXXXXX`, `KP-TXN-`, 4-digit PIN, physical copy accession number, and book barcode with non-destructive mistake recovery ("Retry / Clear").
+    3. **Option 3 (Slip Image Upload & Active Loan Selector)**: Client-side slip PNG upload decoding and instant active ledger quick-selection.
+  - Generates immutable, auditable `KP-TXN-XXXXXXXX` return clearance receipts and dispatches cross-portal `return_confirmed` notifications across Patron, Admin, and Cashier nodes.
 
 ---
 
@@ -210,6 +220,128 @@ Frontend Directory: Katipuneros-Library-Store\Frontend
 --------------------------------------------------------------------------
 TOTAL SCORE: 15 / 15 checks passed (100%)
 RESULT: ALL QR/PIN HANDOVER & NOTIFICATION CHECKS PASSED SUCCESSFULLY!
+```
+
+---
+
+### 3.5 Circulation Lifecycle & Tri-Modal Scanner Verification Suite (`verify_circulation_qr_expresscode_lifecycle.ps1`)
+
+Comprehensive verification covering the universal multi-engine optical camera scanner (`OpticalCameraScanner.tsx`), backend multi-identifier return resolution waterfall (`BorrowService.cs`), Cashier handover modal and 4-digit PIN verification (`CheckoutBorrow.tsx`), Cashier Returns Desk tri-modal resolver and return receipts (`ReturnsFines.tsx`), Customer hold approval gating (`ReservationsPage.tsx`), and full-stack compilation gates:
+
+```
+==========================================================================
+  KATIPUNEROS E2E CIRCULATION LIFECYCLE & SCANNER VERIFICATION SUITE
+==========================================================================
+Base Directory    : Katipuneros-Library-Store
+Backend Directory : Katipuneros-Library-Store\Backend
+Frontend Directory: Katipuneros-Library-Store\Frontend
+
+--- [CHECK 1] Shared Optical Camera Scanner Component ---
+  [PASS] OpticalCameraScanner.tsx exists in Shared/Components
+         Evidence: File found at Frontend\src\Shared\Components\OpticalCameraScanner.tsx
+  [PASS] OpticalCameraScanner imports jsQR engine
+         Evidence: Found 'import jsQR from jsqr'
+  [PASS] Multi-engine frame decoder combines jsQR and BarcodeDetector
+         Evidence: Found jsQR() frame invocation and BarcodeDetector detection fallback
+  [PASS] Audio chime synthesizer implemented via Web Audio API
+         Evidence: Found Web Audio oscillator and pleasant chime synthesis
+  [PASS] Image file upload option decodes QR codes from image slips
+         Evidence: Found file input with image/* acceptance and canvas decoder
+  [PASS] OpticalCameraScanner is exported in Shared barrel index.ts
+         Evidence: Export found in Shared/index.ts
+
+--- [CHECK 2] Backend Multi-Identifier Return Resolution ---
+  [PASS] BorrowService.cs exists in Features/Services/Implementations
+         Evidence: File found at Backend\Features\Services\Implementations\BorrowService.cs
+  [PASS] ReturnBookAsync resolves ExpressCode format ('SCAN-BAY-XXXXXX')
+         Evidence: Found SCAN-BAY- prefix extraction and reservation lookup
+  [PASS] ReturnBookAsync resolves GatePassCode / Transaction reference ('KP-TXN-')
+         Evidence: Found GatePassCode matching in ReturnBookAsync
+  [PASS] ReturnBookAsync resolves 4-digit Pickup PIN to active circulation loan
+         Evidence: Found 4-digit numeric PIN resolution matching reservation LockerPin
+  [PASS] ReturnBookAsync resolves BookCopy accession number
+         Evidence: Found _bookCopyRepository.FindByCodeAsync(cleanBarcode)
+  [PASS] ReturnBookAsync resolves Book barcode / ISBN
+         Evidence: Found _bookRepository.GetByBarcodeAsync(cleanBarcode)
+  [PASS] ReturnRequest DTO includes ExpressCode and PickupPin optional parameters
+         Evidence: ExpressCode and PickupPin found in ReturnRequest DTO
+
+--- [CHECK 3] Cashier Checkout Handover & 4-Digit PIN Modal ---
+  [PASS] CheckoutBorrow.tsx exists in CashiersPanel
+         Evidence: File found at Frontend\src\UserRoles\Features\Pages\CashiersPanel\Pages\CheckoutBorrow.tsx
+  [PASS] CheckoutBorrow integrates unified OpticalCameraScanner component
+         Evidence: Found <OpticalCameraScanner /> integration
+  [PASS] CheckoutBorrow features 4-digit PIN Handover Verification Modal
+         Evidence: Found Handover verification modal logic
+  [PASS] CheckoutBorrow validates entered PIN against reservation lockerPin
+         Evidence: Found validation comparing entered PIN with reservation lockerPin
+
+--- [CHECK 4] Cashier Returns Desk Tri-Modal Resolver & Receipt ---
+  [PASS] ReturnsFines.tsx exists in CashiersPanel
+         Evidence: File found at Frontend\src\UserRoles\Features\Pages\CashiersPanel\Pages\ReturnsFines.tsx
+  [PASS] Returns Desk implements Option 1: Optical Camera / Barcode Scanning
+         Evidence: Found Optical Scanner integration in ReturnsFines
+  [PASS] Returns Desk implements Option 2: Slip Input / ExpressCode resolution
+         Evidence: Found manual slip code lookup supporting ExpressCode, PIN, and Barcode
+  [PASS] Returns Desk implements Option 3: Slip Image Upload / Active Loans Selector
+         Evidence: Found Slip Image / Active Loans option
+  [PASS] Returns Desk provides Return Receipt Modal with KP-TXN-XXXXXXXX reference
+         Evidence: Found Return Receipt modal rendering transaction reference
+  [PASS] Returns Desk dispatches multi-portal return_confirmed notification event
+         Evidence: Found circulation return_confirmed event dispatch
+
+--- [CHECK 5] Customer Approval Gating on QR, PIN & Slip ---
+  [PASS] ReservationsPage.tsx exists in CustomersPanel
+         Evidence: File found at Frontend\src\UserRoles\Features\Pages\CustomersPanel\Pages\ReservationsPage.tsx
+  [PASS] ExpressCode (SCAN-BAY-), QR code, and PIN are strictly gated behind Staged/Approved status
+         Evidence: Verified readyReservations / StagedInLocker filter guards ExpressCode and PIN
+  [PASS] Download User Slip button generates official PNG slip exclusively for approved holds
+         Evidence: Found generateUserSlipPng integration on staged holds
+
+--- [CHECK 6] Backend Compilation Gate (dotnet build) ---
+  Compiling Backend: dotnet build Backend -c Debug...
+  [PASS] Backend compiles successfully with 0 errors (dotnet build Backend -c Debug)
+         Evidence: Exit code 0: Build succeeded
+
+--- [CHECK 7] Frontend Compilation Gate (npm run build) ---
+  Compiling Frontend: npm --prefix Frontend run build...
+  [PASS] Frontend compiles successfully with 0 errors (npm run build)
+         Evidence: Exit code 0: Vite bundle compiled successfully
+
+==========================================================================
+                    FINAL AUDIT SCORECARD SUMMARY
+==========================================================================
+[PASS] | Optical Camera Scanner     | OpticalCameraScanner.tsx exists in Shared/Components
+[PASS] | Optical Camera Scanner     | OpticalCameraScanner imports jsQR engine
+[PASS] | Optical Camera Scanner     | Multi-engine frame decoder combines jsQR and BarcodeDetector
+[PASS] | Optical Camera Scanner     | Audio chime synthesizer implemented via Web Audio API
+[PASS] | Optical Camera Scanner     | Image file upload option decodes QR codes from image slips
+[PASS] | Optical Camera Scanner     | OpticalCameraScanner is exported in Shared barrel index.ts
+[PASS] | Backend Return Resolution  | BorrowService.cs exists in Features/Services/Implementations
+[PASS] | Backend Return Resolution  | ReturnBookAsync resolves ExpressCode format ('SCAN-BAY-XXXXXX')
+[PASS] | Backend Return Resolution  | ReturnBookAsync resolves GatePassCode / Transaction reference ('KP-TXN-')
+[PASS] | Backend Return Resolution  | ReturnBookAsync resolves 4-digit Pickup PIN to active circulation loan
+[PASS] | Backend Return Resolution  | ReturnBookAsync resolves BookCopy accession number
+[PASS] | Backend Return Resolution  | ReturnBookAsync resolves Book barcode / ISBN
+[PASS] | Backend Return Resolution  | ReturnRequest DTO includes ExpressCode and PickupPin optional parameters
+[PASS] | Cashier Checkout Handover  | CheckoutBorrow.tsx exists in CashiersPanel
+[PASS] | Cashier Checkout Handover  | CheckoutBorrow integrates unified OpticalCameraScanner component
+[PASS] | Cashier Checkout Handover  | CheckoutBorrow features 4-digit PIN Handover Verification Modal
+[PASS] | Cashier Checkout Handover  | CheckoutBorrow validates entered PIN against reservation lockerPin
+[PASS] | Cashier Returns Desk       | ReturnsFines.tsx exists in CashiersPanel
+[PASS] | Cashier Returns Desk       | Returns Desk implements Option 1: Optical Camera / Barcode Scanning
+[PASS] | Cashier Returns Desk       | Returns Desk implements Option 2: Slip Input / ExpressCode resolution
+[PASS] | Cashier Returns Desk       | Returns Desk implements Option 3: Slip Image Upload / Active Loans Selector
+[PASS] | Cashier Returns Desk       | Returns Desk provides Return Receipt Modal with KP-TXN-XXXXXXXX reference
+[PASS] | Cashier Returns Desk       | Returns Desk dispatches multi-portal return_confirmed notification event
+[PASS] | Customer Approval Gating   | ReservationsPage.tsx exists in CustomersPanel
+[PASS] | Customer Approval Gating   | ExpressCode (SCAN-BAY-), QR code, and PIN are strictly gated behind Staged/Approved status
+[PASS] | Customer Approval Gating   | Download User Slip button generates official PNG slip exclusively for approved holds
+[PASS] | Build Gate                 | Backend compiles successfully with 0 errors (dotnet build Backend -c Debug)
+[PASS] | Build Gate                 | Frontend compiles successfully with 0 errors (npm run build)
+--------------------------------------------------------------------------
+TOTAL SCORE: 28 / 28 checks passed (100%)
+RESULT: ALL CIRCULATION LIFECYCLE & SCANNER CHECKS PASSED SUCCESSFULLY!
 ```
 
 ---

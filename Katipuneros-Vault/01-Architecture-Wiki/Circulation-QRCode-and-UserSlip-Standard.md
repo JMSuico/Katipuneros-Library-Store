@@ -266,36 +266,83 @@ export async function generateUserSlipPng(data: UserSlipData): Promise<string> {
 
 ---
 
-### 3.3 Dual-Mode Camera Scanner & 4-Digit PIN Handover Verification Modal (`CheckoutBorrow.tsx`)
+### 3.3 Reusable Multi-Engine Optical Camera & Image Scanner (`OpticalCameraScanner.tsx`)
 
-At the Cashier Circulation Desk, volume release enforces a dual-mode verification flow to ensure that physical books are handed over exclusively to the legitimate hold holder:
+To provide universal, hardware-agnostic scanning capabilities across all portals (Customer, Cashier, and Chief Admin), the system provides `<OpticalCameraScanner />` in `Frontend/src/Shared/Components/OpticalCameraScanner.tsx`:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                   CIRCULATION DESK HANDOVER VERIFICATION               │
+│             UNIVERSAL MULTI-ENGINE OPTICAL CAMERA SCANNER              │
 ├──────────────────────────────────┬─────────────────────────────────────┤
-│  OPTION 1: OPTICAL CAMERA SCAN   │  OPTION 2: 4-DIGIT PIN ENTRY MODAL  │
+│  MULTI-ENGINE DECODER PIPELINE   │  HARDWARE & INTERACTION CONTROLS    │
 ├──────────────────────────────────┼─────────────────────────────────────┤
-│ • Hardware: Webcam / USB Scanner │ • Trigger: Hold staging or search   │
-│ • API: navigator.mediaDevices    │ • Monospace 4-Digit PIN input       │
-│ • Device Switcher: Front/Rear/USB│ • Auto-advance across digit inputs  │
-│ • Auto-detects SCAN-BAY-XXXXXX   │ • Real-time match with LockerPin    │
-│ • Instant hold record resolution │ • Strict guard: rejects mismatch    │
+│ • Primary: jsQR (Canvas Poller)  │ • Device Enumeration (enumerateDev) │
+│ • Secondary: BarcodeDetector API │ • Dynamic Camera Switcher (front/bk)│
+│ • Frame Throttling: ~30 FPS      │ • Torch / Flashlight Toggle         │
+│ • Inversion: attemptBoth         │ • Web Audio Two-Tone Rising Chime   │
+│ • Reticle: Emerald Pulse Box     │ • Slip Image File Upload Decoders   │
+│ • Monospace Manual Fallback      │ • Clean Resource Teardown (Tracks)  │
 └──────────────────────────────────┴─────────────────────────────────────┘
 ```
 
-1. **Option 1 — Integrated Multi-Driver Camera Scanner**:
-   - Uses the MediaDevices API (`navigator.mediaDevices.getUserMedia`) with continuous video stream rendering in a dedicated `<video>` element with targeting reticle.
-   - Includes input device enumeration (`navigator.mediaDevices.enumerateDevices()`) to support any internal laptop camera, external USB document camera, or optical barcode reader.
-   - Real-time frame decoding powered by native browser `BarcodeDetector` (with automatic fallback) decodes both Patron QR Passes and ExpressCodes (`SCAN-BAY-XXXXXX`).
-   - Upon successful scan, the cashier interface automatically matches the patron's active hold and book copy.
+1. **Multi-Engine Frame Decoder (`jsQR` + `BarcodeDetector`)**:
+   - **Canvas Frame Poller**: Renders video frames from `<video>` onto an offscreen `<canvas>` throttled via `requestAnimationFrame` to ~30 FPS ($33\text{ms}$ interval).
+   - **`jsQR` Engine**: Executes `jsQR(imageData.data, width, height, { inversionAttempts: 'attemptBoth' })`, ensuring 100% cross-browser QR decoding on Safari, Firefox, and Chromium without external plugins.
+   - **`BarcodeDetector` Engine**: Concurrently queries Chromium/Android native `window.BarcodeDetector` for 1D linear barcodes (`code_128`, `ean_13`, `upc_a`) and 2D QR codes.
+2. **Device Management & Torch**:
+   - Enumerates available media devices via `navigator.mediaDevices.enumerateDevices()` filtered by `kind === 'videoinput'`.
+   - Allows instant camera switching between front selfie cameras, rear environment cameras, and external USB document imagers.
+   - Toggles hardware torch where supported via `track.applyConstraints({ advanced: [{ torch: true }] })`.
+3. **Pleasant Audio & Visual Feedback**:
+   - On valid code detection, synthesizes an instant Web Audio API two-tone rising chime (A5 880Hz to E6 1318.5Hz) with exponential gain decay.
+   - Viewfinder reticle flashes an emerald green highlight with pulsating corner guides.
+4. **Clean Resource Teardown**:
+   - Immediately stops all active media stream tracks (`stream.getTracks().forEach(t => t.stop())`) and cancels animation frame handles when closed or unmounted to prevent camera hardware locks.
 
-2. **Option 2 — 4-Digit PIN Handover Verification Modal (`HandoverVerificationModal`)**:
-   - Opens when the cashier clicks "Verify & Handover" on a staged reservation or searches a patron manually.
-   - Displays clear hold metadata: Patron Name, Library Card ID, Book Title, Assigned Counter Bay, and Reservation Reference.
-   - Features 4 distinct monospace input boxes (`pinDigits: string[]`) that auto-advance on numeric keystroke and support backspace navigation.
-   - Compares the entered PIN against the reservation's assigned `LockerPin`. If correct, passes `pickupPin` and `reservationId` to the checkout request payload.
-   - If incorrect, displays a prominent error warning toast and blocks the checkout action to protect collection integrity.
+---
+
+### 3.4 Cashier Desk Tri-Modal Return Resolver (`ReturnsFines.tsx`)
+
+At the Cashier Circulation Returns Desk (`/cashier/returns`), physical volumes and loan clearance are resolved through three mutually supportive return pathways:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   CASHIER TRI-MODAL RETURN WORKFLOW                    │
+├────────────────────────────────────────────────────────────────────────┤
+│  OPTION 1: OPTICAL SCAN (Live Camera & Barcode Imager)                 │
+│  • Points webcam / USB imager at Book Copy QR payload (KP:COPY:...)    │
+│  • Instant jsQR detection + audio chime triggers automatic resolution  │
+├────────────────────────────────────────────────────────────────────────┤
+│  OPTION 2: SLIP INPUT (Manual Monospace Code Resolution)               │
+│  • Accepts ExpressCode (SCAN-BAY-XXXXXX), GatePass (KP-TXN-...),      │
+│    4-Digit Pickup PIN, Accession Number, or ISBN Barcode               │
+│  • Includes instant Mistake Recovery ("Clear" & "Retry Code" buttons)  │
+├────────────────────────────────────────────────────────────────────────┤
+│  OPTION 3: SLIP IMAGE FILE UPLOAD / ACTIVE LOAN SELECTOR               │
+│  • Uploads patron User Slip PNG/JPG image for client-side jsQR decode  │
+│  • Browse and select directly from the live active circulation ledger  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Option 1 — Optical Camera / Hardware Scanner**:
+   - Launches `<OpticalCameraScanner />` modal.
+   - Detects book copy QR payload (`KP:COPY:...`), user slip ExpressCode (`SCAN-BAY-XXXXXX`), or linear barcode.
+   - Automatically invokes `/api/copies/scan?code=...` and prepares the return settlement card.
+2. **Option 2 — Manual Monospace Slip Input with Mistake Recovery**:
+   - Monospace input field accepts any valid circulation identifier:
+     - ExpressCode (`SCAN-BAY-XXXXXX`)
+     - GatePassCode / Transaction reference (`KP-TXN-YYYYMMDD-XXXXXX`)
+     - 4-Digit Pickup PIN (`\d{4}`)
+     - Physical Book Copy Accession Number (`KP-ACC-...`)
+     - Book ISBN / Barcode
+   - **Mistake Recovery**: If an invalid code is entered, the UI renders a non-destructive error alert with a dedicated **"Retry / Clear"** action, preserving the cashier's active session without wiping out surrounding form state.
+3. **Option 3 — User Slip Image File Upload & Active Loan Selector**:
+   - Drag-and-drop or file browser accepts User Slip screenshot/photo (`image/*`).
+   - Decodes QR payload client-side via offscreen canvas `jsQR` parser.
+   - Alternative quick-pick selector lists all active loans filtered by overdue urgency, enabling 1-click selection when paper slips are damaged.
+4. **Return Receipt Modal (`KP-TXN-XXXXXXXX`) & Multi-Portal Event Dispatch**:
+   - Upon confirming return and inspecting physical condition (`Good`, `Damaged`, `Lost`), generates an official printable **Return Receipt Modal** bearing the immutable `KP-TXN-XXXXXXXX` reference, return timestamp, assessed fines, and cashier employee ID.
+   - Dispatches `return_confirmed` through `notificationBus.ts`, alerting Customer (`:5173`), Admin (`:5174`), and Cashier (`:5175`) simultaneously.
 
 ---
 
@@ -363,19 +410,30 @@ sequenceDiagram
     Backend-->>CashierUI: Active Loan Generated with KP-TXN reference
 
     %% Phase 5: Return & Physical Inspection
-    Note over Patron,CashierUI: Phase 5: QR Camera Return & Clearance
-    Patron->>Cashier: Returns book volume to counter
+    Note over Patron,CashierUI: Phase 5: Tri-Modal Return & Multi-Identifier Resolution
+    Patron->>Cashier: Presents physical volume, User Slip, or ExpressCode
     Cashier->>CashierUI: Opens Returns Desk (/cashier/returns)
-    Cashier->>CashierUI: Points webcam to Book Copy QR (KP:COPY:...)
-    CashierUI->>Backend: GET /api/copies/scan?code=KP:COPY:...
+    alt Return Option 1: Optical Camera / Hardware Scanner
+        Cashier->>CashierUI: Points Optical Camera Scanner at Book QR (KP:COPY:...) or Slip QR
+        CashierUI->>Backend: GET /api/copies/scan?code=KP:COPY:... (or SCAN-BAY-...)
+    else Return Option 2: Manual Monospace Slip Input
+        Cashier->>CashierUI: Enters ExpressCode (SCAN-BAY-...), KP-TXN-, 4-digit PIN, or Accession #
+        CashierUI->>Backend: POST /api/borrow/return { barcode: enteredCode }
+    else Return Option 3: Slip Image File Upload / Active Loan Selector
+        Cashier->>CashierUI: Uploads User Slip PNG (jsQR decodes) or selects from Active Loans list
+        CashierUI->>Backend: POST /api/borrow/return { barcode: decodedCode, bookCopyId: ... }
+    end
+
+    Backend->>Backend: Multi-Identifier Waterfall: Accession -> ISBN -> KP-TXN -> GUID -> SCAN-BAY -> PIN -> ResID
     Backend-->>CashierUI: Returns Active Loan, Days Overdue & Daily Fine Rate
     Cashier->>CashierUI: Audits condition ("Good" / "Damaged"), clicks "Confirm Return"
-    CashierUI->>Backend: POST /api/borrow/return
+    CashierUI->>Backend: POST /api/borrow/return { condition, damageFee, cashierId }
     Backend->>Backend: Set BookCopy.Status=Available, AvailableCopies++
     Backend->>Bus: Dispatch return_confirmed notifications
     Bus-->>CustomerUI: Return cleared notification
     Bus-->>CashierUI: Restock confirmed notification
     Bus-->>AdminUI: Inventory restock audit notification
+    CashierUI->>CashierUI: Renders official Return Receipt Modal with KP-TXN-XXXXXXXX
     Backend-->>CashierUI: Return settled and inventory synchronized!
 ```
 
