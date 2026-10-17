@@ -302,13 +302,8 @@ export const getDispatchTransactions = async (): Promise<DispatchTransactionItem
 export const getDispatchTemplates = async (): Promise<DispatchTemplateItem[]> =>
   (await apiRequest<DispatchTemplateItem[]>('/notifications/dispatch-queue/templates')).data ?? [];
 
-export const dispatchBroadcastNotice = async (notice: {
-  title: string;
-  message: string;
-  channels: string[];
-  targetRoles: string[];
-}) =>
-  await apiRequest<object>('/notifications/broadcast', {
-    method: 'POST',
-    body: JSON.stringify(notice),
-  });
+// NOTE: `dispatchBroadcastNotice` was removed. It targeted POST /notifications/broadcast,
+// which has never existed in NotificationsController (or anywhere under Backend/).
+// It had no callers, but because apiClient never throws, wiring it up would have
+// surfaced as a silent no-op rather than an error. Campus announcements are published
+// through `createCampusAnnouncement` (POST /notifications/announcements).

@@ -9,7 +9,6 @@ import { useToasts } from '../../../../../Hooks/useToasts';
 import {
   getAdminAlerts,
   getTopBentoMetrics,
-  resolveAllSystemAlerts,
   createCampusAnnouncement,
   AdminSystemAlert,
   TopBentoMetrics,
@@ -121,15 +120,14 @@ export const Notifications: FC = () => {
     return () => unsubscribe();
   }, [addToast]);
 
-  // Mark all as read
-  const handleMarkAllRead = async () => {
-    try {
-      await resolveAllSystemAlerts();
-      setAlerts((prev) => prev.map((a) => ({ ...a, isResolved: true })));
-      addToast('All system and circulation alerts marked as read.', 'success');
-    } catch {
-      addToast('Failed to mark alerts as read on server.', 'error');
-    }
+  // Dismiss all alerts from the terminal view.
+  // This is deliberately LOCAL only. Resolving alerts on the server mutates
+  // shared institutional state and remains an Admin action; the previous
+  // implementation called the Admin-only endpoint, ignored its false return,
+  // and reported success even when the request had been rejected with 403.
+  const handleMarkAllRead = () => {
+    setAlerts((prev) => prev.map((a) => ({ ...a, isResolved: true })));
+    addToast('Alerts dismissed from this terminal view.', 'success');
   };
 
   // Dismiss single alert

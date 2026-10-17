@@ -91,7 +91,7 @@ const DEFAULT_ROLE_NOTIFICATIONS: NotificationItem[] = [
     isRead: false,
     type: 'warning',
     roleTarget: 'Cashier',
-    actionUrl: '/cashier/reservations',
+    actionUrl: '/cashier/pending-reservations',
     actionLabel: 'Stage at Bay',
   },
   {
@@ -148,7 +148,7 @@ const DEFAULT_ROLE_NOTIFICATIONS: NotificationItem[] = [
     isRead: true,
     type: 'info',
     roleTarget: 'Customer',
-    actionUrl: '/catalog',
+    actionUrl: '/customer/catalog',
     actionLabel: 'Explore Catalog',
   },
 ];
