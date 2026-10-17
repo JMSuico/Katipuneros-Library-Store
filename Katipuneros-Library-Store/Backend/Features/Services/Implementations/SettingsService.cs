@@ -17,8 +17,10 @@ namespace Backend.Features.Services.Implementations;
 public class SettingsService : ISettingsService
 {
     private readonly ISettingsRepository _settingsRepo;
+    private readonly IAuditRepository _auditRepository;
 
-    public SettingsService(ISettingsRepository settingsRepo) => _settingsRepo = settingsRepo;
+    public SettingsService(ISettingsRepository settingsRepo, IAuditRepository auditRepository) =>
+        (_settingsRepo, _auditRepository) = (settingsRepo, auditRepository);
 
     public async Task<SystemSettingsResponse> GetSystemSettingsAsync()
     {
@@ -194,15 +196,42 @@ public class SettingsService : ISettingsService
         var logs24h = await _settingsRepo.GetAuditLogs24hCountAsync();
         var superAdmins = await _settingsRepo.GetActiveSuperAdminCountAsync();
 
+        // Measured against the preceding 24h window rather than asserted.
+        var now = DateTime.UtcNow;
+        var priorLogs = await _auditRepository.GetFilteredCountAsync(
+            null, null, null, null, now.AddHours(-48), now.AddHours(-24));
+
+        // Chain integrity is recomputed from the real entries on every read.
+        // A hardcoded "100%" claimed full integrity without verifying anything.
+        var chainEntries = await _auditRepository.GetAllAsync(null, 1000);
+        var verified = chainEntries.Count > 0 && VerifyChainIsIntact(chainEntries);
+        var chainPercent = chainEntries.Count == 0 ? 0.0 : (verified ? 100.0 : 0.0);
+
         return new SecurityTelemetryDto
         {
             TotalSystemEvents24h = logs24h,
-            EventsGrowthRate = 14.2,
-            SecurityAnomalies = 0,
-            HashChainStatus = "100%",
-            LastValidatedBlock = $"Block #{Math.Max(1, totalLogs)} validated 2m ago",
-            ActiveSuperAdminSessions = Math.Max(1, superAdmins)
+            EventsGrowthRate = priorLogs == 0
+                ? 0.0
+                : Math.Round((logs24h - priorLogs) / (double)priorLogs * 100, 2),
+            SecurityAnomalies = await _auditRepository.GetSecurityAnomaliesCountAsync(),
+            HashChainStatus = $"{chainPercent:0.#}%",
+            // No fabricated block number or relative timestamp when nothing is verified.
+            LastValidatedBlock = totalLogs > 0 && verified
+                ? $"Block #{totalLogs} validated at last integrity check"
+                : "No validated block available",
+            ActiveSuperAdminSessions = superAdmins
         };
+    }
+
+    private static bool VerifyChainIsIntact(List<AuditLogEntry> entries)
+    {
+        var ordered = entries.OrderBy(e => e.Timestamp).ToList();
+        for (var i = 1; i < ordered.Count; i++)
+        {
+            if (!string.Equals(ordered[i - 1].CurrentHash, ordered[i].PreviousHash, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+        return true;
     }
 
     public async Task<bool> UpdateSecurityGovernanceAsync(UpdateSecurityGovernanceRequest request, string updatedBy) =>

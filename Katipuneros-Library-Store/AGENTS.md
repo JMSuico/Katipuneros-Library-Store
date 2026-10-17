@@ -752,6 +752,87 @@ public async Task<IActionResult> GetBook(Guid id) { ... }
 
 ---
 
+## SECRETS MANAGEMENT
+
+**No secret value may ever appear in a tracked file.** Not in `appsettings*.json`, not in
+`.env`, not in `k8s/*.yaml`, not as a `?? "literal"` fallback in C# source.
+
+### Required secrets
+
+| Key | Purpose | Required? |
+|---|---|---|
+| `ConnectionStrings:DefaultConnection` | Database connection | Yes |
+| `Jwt:SecretKey` | HS256 signing key (min 32 bytes) | Yes |
+| `Altcha:HmacSecret` | Anti-bot PoW challenge signing | Yes |
+| `SmtpSettings:AppPassword` | Google App Password for email | No - email self-disables |
+
+### Startup gate
+
+`SecretConfiguration.ValidateRequired()` runs in `Program.cs` **before any wiring is built**.
+If a required secret is missing or still holds a placeholder token, the process throws and
+reports every missing key at once. There is deliberately **no fallback value** - a missing
+secret must stop the boot, never silently run on a known key.
+
+### Resolving secrets in code
+
+```csharp
+// REQUIRED -- throws with actionable guidance if unset
+string key = SecretConfiguration.Require(config, "Jwt:SecretKey");
+
+// OPTIONAL -- returns null; the caller degrades gracefully
+string? pass = SecretConfiguration.RequireIfConfigured(config, "SmtpSettings:AppPassword");
+
+// NON-SECRET setting with a safe default
+string issuer = SecretConfiguration.WithDefault(config, "Jwt:Issuer", "KatipunerosLibraryApi");
+```
+
+Never write `config["X"] ?? "hardcoded-literal"`. That pattern is the defect this gate exists to prevent.
+
+### Local development - `dotnet user-secrets`
+
+Values are stored in your user profile, **outside the repository**.
+
+```bash
+cd Backend
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=KatipunerosLibraryDb;User Id=<user>;Password=<pw>;TrustServerCertificate=True;"
+dotnet user-secrets set "Jwt:SecretKey"      "$(openssl rand -base64 48)"
+dotnet user-secrets set "Altcha:HmacSecret"  "$(openssl rand -base64 32)"
+dotnet user-secrets set "SmtpSettings:AppPassword" "<16-char-google-app-password>"
+dotnet user-secrets list     # verify (values live outside the repo)
+```
+
+### Production - environment variables
+
+`:` becomes `__`. Declared as `sync: false` in `render.yaml`; set real values in the
+platform dashboard.
+
+```
+ConnectionStrings__PrimaryConnection
+Jwt__SecretKey
+Altcha__HmacSecret
+Redis__ConnectionString          # optional
+SmtpSettings__AppPassword        # optional
+```
+
+### Kubernetes
+
+`k8s/01-secrets.template.yaml` documents the required keys and holds **no real values**.
+Deploy with Sealed Secrets, External Secrets, or a platform-managed secret store.
+
+### Rotating a leaked credential
+
+Removing a secret from the working tree does **not** remove it from git history. If a
+credential was ever committed, rotation is mandatory:
+
+```bash
+git log -S "<secret>" --oneline --all           # confirm exposure
+git filter-repo --path <file> --invert-paths   # optional: purge history
+```
+
+Rotate the credential **first**. Purging history is cleanup; rotation is the fix.
+
+---
+
 ## CACHE RULES
 
 ### What CAN be cached

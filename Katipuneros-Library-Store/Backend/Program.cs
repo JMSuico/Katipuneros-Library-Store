@@ -20,11 +20,15 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // ==========================================
+// 0. Secret Gate -- fail fast before any wiring is built.
+// ==========================================
+Backend.Features.Helpers.Infrastructure.SecretConfiguration.ValidateRequired(builder.Configuration);
+
+// ==========================================
 // 1. Database & Cache Infrastructure
 // ==========================================
 var primaryConn = builder.Configuration.GetConnectionString("PrimaryConnection")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Server=localhost;Database=KatipunerosLibraryDb;User Id=InventoryLibrary;Password=InventoryLibrary;TrustServerCertificate=True;MultipleActiveResultSets=true;";
+    ?? Backend.Features.Helpers.Infrastructure.SecretConfiguration.Require(builder.Configuration, "ConnectionStrings:DefaultConnection");
 
 var replicaConn = builder.Configuration.GetConnectionString("ReplicaConnection")
     ?? primaryConn;
@@ -129,9 +133,9 @@ builder.Services.AddSingleton<IEmailService, EmailService>();
 // ==========================================
 // 4. JWT Authentication & Authorization
 // ==========================================
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "KatipunerosLibraryStoreJwtSecretKey_2026_SecureKey_MustBeLongEnough!";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "KatipunerosLibraryApi";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "KatipunerosLibraryClient";
+var jwtSecretKey = Backend.Features.Helpers.Infrastructure.SecretConfiguration.Require(builder.Configuration, "Jwt:SecretKey");
+var jwtIssuer = Backend.Features.Helpers.Infrastructure.SecretConfiguration.WithDefault(builder.Configuration, "Jwt:Issuer", "KatipunerosLibraryApi");
+var jwtAudience = Backend.Features.Helpers.Infrastructure.SecretConfiguration.WithDefault(builder.Configuration, "Jwt:Audience", "KatipunerosLibraryClient");
 
 builder.Services.AddAuthentication(options =>
 {

@@ -1,4 +1,4 @@
----
+﻿---
 title: Task Observer Log - Production Infrastructure, Multi-Port Topology & User Slip System
 date: 2026-10-17
 tags:
@@ -13,11 +13,11 @@ aliases:
   - UserSlip Engineering Log
 ---
 
-# 📋 Task Observer Log: Production Infrastructure, Multi-Port Topology & User Slip System
+# ðŸ“‹ Task Observer Log: Production Infrastructure, Multi-Port Topology & User Slip System
 
 > [!NOTE] Log Metadata
 > - **Execution Date**: October 17, 2026
-> - **Subagent Role**: Subagent 5 — Obsidian Documentation & Process Archivist
+> - **Subagent Role**: Subagent 5 â€” Obsidian Documentation & Process Archivist
 > - **Primary Objective**: Document and archive the 8-layer production architecture, barcode-to-QR standardization, and client-side User Slip PNG system with complete verification telemetry and operational runbooks.
 > - **Related Documents**: [[01-Architecture-Wiki/8-Layer-Docker-Kubernetes-Architecture|8-Layer Production Architecture]] | [[01-Architecture-Wiki/Circulation-QRCode-and-UserSlip-Standard|Circulation QR & User Slip Standard]] | [[HOME_DASHBOARD|Vault Dashboard]]
 
@@ -28,15 +28,15 @@ aliases:
 During this engineering cycle, five focused work streams were executed to elevate the **Katipuneros Library Store System** to enterprise production standards:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       5-STREAM EXECUTION ROADMAP                            │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  [Stream 1] Root Launcher Scripts & 4-Port Topology Synchronization         │
-│  [Stream 2] Barcode to QRCode & ExpressCode Terminology Standardization     │
-│  [Stream 3] Client-Side Downloadable User Slip PNG Architecture             │
-│  [Stream 4] High-Availability Infra Verification (Redis 7 & PostgreSQL 16)  │
-│  [Stream 5] Obsidian Vault Documentation & Process Archiving                │
-└─────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                       5-STREAM EXECUTION ROADMAP                            â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚  [Stream 1] Root Launcher Scripts & 4-Port Topology Synchronization         â”‚
+â”‚  [Stream 2] Barcode to QRCode & ExpressCode Terminology Standardization     â”‚
+â”‚  [Stream 3] Client-Side Downloadable User Slip PNG Architecture             â”‚
+â”‚  [Stream 4] High-Availability Infra Verification (Redis 7 & PostgreSQL 16)  â”‚
+â”‚  [Stream 5] Obsidian Vault Documentation & Process Archiving                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
@@ -47,7 +47,7 @@ During this engineering cycle, five focused work streams were executed to elevat
 - **Decision**: Decompose the application into 8 discrete containerized services (4 Nginx SPA portals, 1 .NET 10 API, 1 Redis cache, 2 PostgreSQL nodes).
 - **Rationale**:
   - Eliminates cross-portal blast radius: A surge in public landing traffic or patron catalog browsing cannot exhaust cashier desk resources.
-  - Enables independent Horizontal Pod Autoscaling (HPA): Customer and Landing portals scale dynamically (2–10 pods), API scales dynamically (3–15 pods), while Cashier and Admin consoles maintain fixed, deterministic resource allocations.
+  - Enables independent Horizontal Pod Autoscaling (HPA): Customer and Landing portals scale dynamically (2â€“10 pods), API scales dynamically (3â€“15 pods), while Cashier and Admin consoles maintain fixed, deterministic resource allocations.
   - Satisfies CIS Kubernetes benchmarks by isolating unprivileged Nginx frontends (UID 101) from backend data stores.
 
 ### ADR-02: CQRS Dual DbContext Split (`AppDbContext` vs `ReadOnlyAppDbContext`)
@@ -120,7 +120,7 @@ SUCCESS: ALL 8 PRODUCTION LAYERS FULLY VERIFIED AND OPERATIONAL!
 ### 3.2 Physical Volume & QR Code Circulation Audit (`verify_unique_book_copy_qr_flow.ps1`)
 - **Copy Volume Generation**: Successfully created and synced `BookCopy` records with unique `AccessionNumber` (`KP-ACC-...`) and structured payload (`KP:COPY:...`).
 - **Scanner Resolution**: Both raw QR payloads and clean accession strings resolve to the exact physical volume and active borrower record.
-- **Return & Inspection**: Cashier camera QR scan accurately triggers condition auditing, assesses late fees (₱5.00/day), and restocks inventory to `Available`.
+- **Return & Inspection**: Cashier camera QR scan accurately triggers condition auditing, assesses late fees (â‚±5.00/day), and restocks inventory to `Available`.
 
 ### 3.3 Reservation Triage State Machine Audit (`verify_reservation_triage_flow.ps1`)
 - **Hold Approval**: Automatically assigns staging bay (`Bay 01 Counter`) and generates 4-digit pickup PIN (`8492`).
@@ -312,7 +312,7 @@ kubectl exec -it katipuneros-db-replica-0 -n katipuneros-prod -- bash
 rm -rf /var/lib/postgresql/data/*
 
 # Re-clone clean physical snapshot from Primary
-PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup \
+PGPASSWORD=<pg-repl-password> pg_basebackup \
   -h katipuneros-db-primary \
   -p 5432 \
   -D /var/lib/postgresql/data \
@@ -334,14 +334,14 @@ To clear cached catalog pages or reset sliding-window rate limiters:
 
 ```bash
 # Connect to Redis CLI via container
-kubectl exec -it deployment/katipuneros-redis -n katipuneros-prod -- redis-cli -a KatipunerosRedisSecret_2026!
+kubectl exec -it deployment/katipuneros-redis -n katipuneros-prod -- redis-cli -a <redis-password>
 
 # Check memory usage and eviction stats
 INFO memory
 
 # Invalidate specific catalog keys without dropping user sessions
 DEL cache:categories:all
-KEYS cache:books:* | xargs redis-cli -a KatipunerosRedisSecret_2026! DEL
+KEYS cache:books:* | xargs redis-cli -a <redis-password> DEL
 
 # Inspect active rate limits
 KEYS ratelimit:*

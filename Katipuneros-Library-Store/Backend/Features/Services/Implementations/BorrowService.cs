@@ -358,14 +358,19 @@ public class BorrowService : IBorrowService
     {
         var loans = await _borrowRepository.GetAllWithDetailsAsync(status, query);
         var now = DateTime.UtcNow;
-        const decimal dailyRate = 15.00m;
+
+        // Fine accrual follows the configured library policy. A local constant of
+        // 15.00/day contradicted LibraryPolicy:DailyOverdueFineRate (5.00) and
+        // applied no statutory cap, so the admin list disagreed with the borrower view.
+        decimal dailyRate = decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out var configuredRate) ? configuredRate : 5.00m;
+        decimal fineCap = decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out var configuredCap) ? configuredCap : 500.00m;
 
         return loans.Select(b =>
         {
             int daysRemaining = (int)Math.Ceiling((b.DueDate - now).TotalDays);
             bool isOverdue = b.Status == TransactionStatus.Active && b.DueDate < now;
             decimal fine = isOverdue
-                ? Math.Max(0, (int)Math.Floor((now - b.DueDate).TotalDays)) * dailyRate
+                ? Math.Min(Math.Max(0, (int)Math.Floor((now - b.DueDate).TotalDays)) * dailyRate, fineCap)
                 : 0m;
 
             string roleLabel = b.Patron?.EmploymentStatus ?? (b.Patron?.Role == UserRole.Customer ? "Undergrad" : b.Patron?.Role.ToString() ?? "Patron");

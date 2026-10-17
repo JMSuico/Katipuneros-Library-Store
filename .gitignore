@@ -12,3 +12,31 @@ dist/
 .idea/
 *.user
 *.suo
+
+# ─── Secrets: NEVER commit ─────────────────────────────────────────────
+# Local environment overrides (DB passwords, JWT keys, SMTP credentials).
+# NOTE: the negations below MUST stay last. Git applies the last matching
+# pattern, so re-including the templates before the ignore rules would be
+# silently overridden.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Templates documenting required keys are safe to track.
+!.env.example
+!**/.env.example
+
+# Local .NET secret overrides (populated via `dotnet user-secrets`)
+appsettings.Local.json
+**/appsettings.Local.json
+*.local.json
+
+# Kubernetes / deployment secret manifests
+k8s/*secret*.yaml
+k8s/*secrets*.yaml
+secrets*.yaml
+**/secrets*.yaml
+*.pfx
+*.p12
+*.key

@@ -102,8 +102,10 @@ export const getCashierDashboardKpis = async (): Promise<CashierDashboardKpis> =
         returnsTodayCount: 0,
         finesDailyAmount: 0,
         finesDailyReceiptsCount: 0,
-        totalRegisterCash: 1000.0,
-        baseFloat: 1000.0,
+        // A failed request tells us nothing about the till. Reporting a PHP 1,000
+        // float implied a real counted balance that was never measured.
+        totalRegisterCash: 0.0,
+        baseFloat: 0.0,
       };
 };
 
@@ -135,16 +137,19 @@ export const getCashierTransactions = async (
 
 export const getCashierShiftStatus = async (): Promise<CashierShiftSummary> => {
   const res = await apiRequest<CashierShiftSummary>('/cashier/shift-status');
+  // On failure the shift state is unknown. The previous fallback invented a cashier
+  // name, a station, a shift number, a PHP 1,000 float and reported the barcode
+  // scanner as ready -- an operator could act on an entirely fictional shift.
   return res.success && res.data
     ? res.data
     : {
-        activeCashierName: 'Circulation Desk',
-        stationName: 'Front Desk Bay 01',
-        shiftLabel: 'Shift #01 (Regular)',
-        floatBase: 1000.0,
+        activeCashierName: '',
+        stationName: '',
+        shiftLabel: 'No active shift',
+        floatBase: 0.0,
         finesCollectedToday: 0.0,
-        totalRegisterCash: 1000.0,
-        isBarcodeScannerReady: true,
+        totalRegisterCash: 0.0,
+        isBarcodeScannerReady: false,
         lastSyncedAt: new Date().toISOString(),
       };
 };

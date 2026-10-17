@@ -4,7 +4,6 @@ namespace: katipuneros-prod
 
 resources:
   - 00-namespace.yaml
-  - 01-secrets.yaml
   - 02-configmaps.yaml
   - 03-persistent-volumes.yaml
   - 04-layer7-primary-db.yaml
@@ -16,3 +15,9 @@ resources:
   - 10-layer3-cashier.yaml
   - 11-layer4-admin.yaml
   - 12-ingress.yaml
+
+# NOTE: 01-secrets.template.yaml is deliberately NOT listed.
+# Secrets must be delivered out-of-band (Sealed Secrets / External Secrets /
+# `kubectl create secret`). Adding the template here would apply placeholder
+# credentials. Create a local `01-secrets.yaml` from the template if you need
+# a concrete manifest -- it is git-ignored.

@@ -14,40 +14,26 @@ interface PersonnelItem {
   imageUrl?: string;
 }
 
-const DEFAULT_CURATORS = [
-  {
-    fullName: 'Prof. Elena Santos, MLIS',
-    position: 'Chief University Archivist',
-    department: 'Directs archival preservation, rare manuscript accessioning, and academic syllabus acquisitions.',
-    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    fullName: 'Markus Villanueva, RL',
-    position: 'Circulation Desk Supervisor',
-    department: 'Supervises counter rapid checkout, return condition grading, Bay staging, and patron loan extensions.',
-    imageUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    fullName: 'Danielle Reyes, BSIT',
-    position: 'Digital Catalog Systems Lead',
-    department: 'Oversees OPAC search optimization, SHA-256 blockchain verification, and virtual card issuance.',
-    imageUrl: 'https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&q=80&w=300',
-  },
-];
+// Staff profiles are rendered exclusively from the live /api/personnel roster.
+// A previous hardcoded fallback displayed three invented staff members -- real-looking
+// names, credentials and Unsplash portraits -- as though they were university employees.
+// An empty roster now renders an explicit empty state instead of invented people.
 
 export const About: FC = () => {
   const [personnel, setPersonnel] = useState<PersonnelItem[]>([]);
+  const [rosterLoaded, setRosterLoaded] = useState(false);
 
   useEffect(() => {
     apiRequest<PersonnelItem[]>('/personnel')
       .then((res) => {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setPersonnel(res.data);
         }
       })
       .catch(() => {
-        // Fallback to defaults
-      });
+        // Leave the roster empty; the empty state communicates the failure honestly.
+      })
+      .finally(() => setRosterLoaded(true));
   }, []);
   return (
     <div className="w-full pt-24 pb-20 px-gutter bg-gradient-to-b from-surface-container-low/60 via-background to-background">
@@ -237,28 +223,42 @@ export const About: FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-lg">
-            {(personnel.length > 0 ? personnel : DEFAULT_CURATORS).map((item, idx) => (
+            {personnel.map((item, idx) => (
               <div
                 key={idx}
                 className="p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm border border-outline-variant/20 flex flex-col items-center text-center"
               >
-                <div className="w-24 h-24 rounded-full overflow-hidden mb-space-md border-2 border-primary/20 shadow-md">
-                  <img
-                    src={
-                      item.imageUrl ||
-                      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300'
-                    }
-                    alt={item.fullName}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                {item.imageUrl ? (
+                  <div className="w-24 h-24 rounded-full overflow-hidden mb-space-md border-2 border-primary/20 shadow-md">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 rounded-full mb-space-md border-2 border-primary/20 bg-surface-container flex items-center justify-center">
+                    <span className="material-symbols-outlined text-3xl text-text-secondary" aria-hidden="true">
+                      person
+                    </span>
+                  </div>
+                )}
                 <h4 className="font-headline-4 text-headline-4 font-bold text-text-primary">{item.fullName}</h4>
                 <span className="font-caption text-caption text-primary font-semibold">{item.position}</span>
-                <p className="font-small text-small text-text-secondary mt-2">
-                  {item.department || 'Library Curatorial Board and Academic Informatics Staff.'}
-                </p>
+                {item.department && (
+                  <p className="font-small text-small text-text-secondary mt-2">{item.department}</p>
+                )}
               </div>
             ))}
+
+            {rosterLoaded && personnel.length === 0 && (
+              <div className="col-span-full p-space-xl rounded-3xl bg-white/60 backdrop-blur-md border border-outline-variant/20 text-center">
+                <p className="font-body text-body text-text-secondary">
+                  Staff profiles are not currently published. Please contact the circulation desk for
+                  information about library personnel.
+                </p>
+              </div>
+            )}
           </div>
         </section>
 

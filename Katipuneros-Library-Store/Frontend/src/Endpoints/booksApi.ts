@@ -86,12 +86,14 @@ export const getPublicBooks = async (categoryId?: string, query?: string): Promi
         author: b.author,
         isbn: b.isbn,
         category: b.category?.name ?? 'General',
-        coverImage: b.coverImage || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400',
+        coverImage: b.coverImage || '',
         status: (b.availableCopies > 0 ? 'available' : 'borrowed') as 'available' | 'borrowed' | 'reserved',
-        rating: 4.8,
+        // The catalog entity stores no rating. Reporting a fixed 4.8 stamped every
+        // book as a near-perfect score regardless of actual feedback.
+        rating: 0,
         availableCopies: b.availableCopies,
         totalCopies: b.totalCopies,
-        summary: b.description ?? 'A featured catalog title in the Katipuneros Library collections.',
+        summary: b.description ?? '',
         location: b.bayLocation,
       }))
     : [];

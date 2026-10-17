@@ -1,4 +1,4 @@
-# 8-Layer Docker & Kubernetes Production Infrastructure Implementation Plan
+﻿# 8-Layer Docker & Kubernetes Production Infrastructure Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -41,7 +41,7 @@ Create `docker/postgres/primary-init.sh`:
 set -e
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    CREATE ROLE ${POSTGRES_REPLICATION_USER:-replicator} WITH REPLICATION LOGIN ENCRYPTED PASSWORD '${POSTGRES_REPLICATION_PASSWORD:-KatipunerosReplPass_2026!}';
+    CREATE ROLE ${POSTGRES_REPLICATION_USER:-replicator} WITH REPLICATION LOGIN ENCRYPTED PASSWORD '${POSTGRES_REPLICATION_PASSWORD:-<pg-repl-password>}';
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 EOSQL
@@ -60,7 +60,7 @@ set -e
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
     echo "Initializing replica standby from primary..."
     rm -rf "$PGDATA"/*
-    PGPASSWORD="${POSTGRES_REPLICATION_PASSWORD:-KatipunerosReplPass_2026!}" pg_basebackup \
+    PGPASSWORD="${POSTGRES_REPLICATION_PASSWORD:-<pg-repl-password>}" pg_basebackup \
         -h katipuneros-db-primary \
         -p 5432 \
         -D "$PGDATA" \
@@ -327,11 +327,11 @@ Create `Backend/appsettings.Production.json`:
   },
   "AllowedHosts": "*",
   "ConnectionStrings": {
-    "PrimaryConnection": "Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Include Error Detail=true;",
-    "ReplicaConnection": "Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Application Name=Katipuneros_ReadReplica;"
+    "PrimaryConnection": "Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=<pg-password>;Include Error Detail=true;",
+    "ReplicaConnection": "Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=<pg-password>;Application Name=Katipuneros_ReadReplica;"
   },
   "Redis": {
-    "ConnectionString": "katipuneros-redis:6379,password=KatipunerosRedisSecret_2026!"
+    "ConnectionString": "katipuneros-redis:6379,password=<redis-password>"
   },
   "Cors": {
     "AllowedOrigins": [
@@ -572,7 +572,7 @@ git commit -m "feat(frontend): create 4 portal nginx configurations and multi-st
 - Create: `docker/manage-docker.ps1`
 
 **Interfaces:**
-- Consumes: Dockerfiles and configuration files created in Tasks 1–4.
+- Consumes: Dockerfiles and configuration files created in Tasks 1â€“4.
 - Produces: Executable 8-service Docker Compose topology.
 
 - [ ] **Step 1: Author `docker/docker-compose.yml` defining all 8 layers**

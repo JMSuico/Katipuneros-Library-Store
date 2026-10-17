@@ -1,4 +1,4 @@
----
+﻿---
 title: 8-Layer Docker & Kubernetes Production Architecture
 created: 2026-10-17
 tags:
@@ -17,7 +17,7 @@ aliases:
   - Containerization Spec
 ---
 
-# 🏗️ 8-Layer Docker & Kubernetes Production Architecture
+# ðŸ—ï¸ 8-Layer Docker & Kubernetes Production Architecture
 
 > [!NOTE] Architecture Context
 > The **Katipuneros Library Store System** operates a hardened, 8-layer micro-tier containerization topology designed for strict role isolation, zero-trust perimeter routing, read/write database scaling, and distributed in-memory caching.
@@ -30,14 +30,14 @@ aliases:
 
 | Layer # | Tier Category | Service / Container Name | Technology Stack | Ingress / Endpoint | Port Mapping | Scaling Policy | Health Probes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Layer 1** | Frontend Presentation | `katipuneros-landing` | Nginx 1.27 Alpine + React 19 SPA | `https://library.local` | `5173:80` | HPA (2–10 Pods) | HTTP GET `/` (Nginx) |
-| **Layer 2** | Frontend Presentation | `katipuneros-customer` | Nginx 1.27 Alpine + React 19 SPA | `https://customer.library.local` | `5176:80` | HPA (2–10 Pods) | HTTP GET `/` (Nginx) |
+| **Layer 1** | Frontend Presentation | `katipuneros-landing` | Nginx 1.27 Alpine + React 19 SPA | `https://library.local` | `5173:80` | HPA (2â€“10 Pods) | HTTP GET `/` (Nginx) |
+| **Layer 2** | Frontend Presentation | `katipuneros-customer` | Nginx 1.27 Alpine + React 19 SPA | `https://customer.library.local` | `5176:80` | HPA (2â€“10 Pods) | HTTP GET `/` (Nginx) |
 | **Layer 3** | Frontend Presentation | `katipuneros-cashier` | Nginx 1.27 Alpine + React 19 SPA | `https://cashier.library.local` | `5175:80` | Fixed (2 Pods) | HTTP GET `/` (Nginx) |
 | **Layer 4** | Frontend Presentation | `katipuneros-admin` | Nginx 1.27 Alpine + React 19 SPA | `https://admin.library.local` | `5174:80` | Fixed (2 Pods) | HTTP GET `/` (Nginx) |
-| **Layer 5** | Application API | `katipuneros-backend` | .NET 10 ASP.NET Core Web API | `https://api.library.local` | `5000:5000` | HPA (3–15 Pods) | `/healthz` & `/ready` |
+| **Layer 5** | Application API | `katipuneros-backend` | .NET 10 ASP.NET Core Web API | `https://api.library.local` | `5000:5000` | HPA (3â€“15 Pods) | `/healthz` & `/ready` |
 | **Layer 6** | Distributed Cache | `katipuneros-redis` | Redis 7.2 Alpine + AOF | `katipuneros-redis:6379` | `6379:6379` | Master + PVC | `redis-cli ping` |
 | **Layer 7** | Primary Database | `katipuneros-db-primary` | PostgreSQL 16 Alpine (Read-Write) | `katipuneros-db-primary:5432` | `5432:5432` | StatefulSet (1 Pod) | `pg_isready -h localhost` |
-| **Layer 8** | Replica Database | `katipuneros-db-replica` | PostgreSQL 16 Alpine (Hot Standby) | `katipuneros-db-replica:5432` | `5433:5432` | StatefulSet (1–5 Pods) | `pg_isready` & `standby.signal` |
+| **Layer 8** | Replica Database | `katipuneros-db-replica` | PostgreSQL 16 Alpine (Hot Standby) | `katipuneros-db-replica:5432` | `5433:5432` | StatefulSet (1â€“5 Pods) | `pg_isready` & `standby.signal` |
 
 ---
 
@@ -149,27 +149,27 @@ All four frontend applications are built from a unified TypeScript source (`Fron
 The data storage tier utilizes continuous physical streaming replication:
 
 ```
-  ┌────────────────────────────────────────────────────────┐
-  │         Layer 7: katipuneros-db-primary                │
-  │                  (PostgreSQL 16)                       │
-  │  - Read/Write Master                                   │
-  │  - wal_level = replica                                 │
-  │  - max_wal_senders = 10                                │
-  │  - wal_keep_size = 512MB                               │
-  │  - Persistent Volume Claim: 50Gi                      │
-  └──────────────────────────┬─────────────────────────────┘
-                             │
-                             │ Physical WAL Streaming
-                             │ (scram-sha-256 over TCP :5432)
-                             ▼
-  ┌────────────────────────────────────────────────────────┐
-  │         Layer 8: katipuneros-db-replica                │
-  │                  (PostgreSQL 16)                       │
-  │  - Read-Only Hot Standby (hot_standby = on)            │
-  │  - Bootstrapped via pg_basebackup -R                   │
-  │  - standby.signal present in data dir                  │
-  │  - Persistent Volume Claim: 50Gi                      │
-  └────────────────────────────────────────────────────────┘
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚         Layer 7: katipuneros-db-primary                â”‚
+  â”‚                  (PostgreSQL 16)                       â”‚
+  â”‚  - Read/Write Master                                   â”‚
+  â”‚  - wal_level = replica                                 â”‚
+  â”‚  - max_wal_senders = 10                                â”‚
+  â”‚  - wal_keep_size = 512MB                               â”‚
+  â”‚  - Persistent Volume Claim: 50Gi                      â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                             â”‚
+                             â”‚ Physical WAL Streaming
+                             â”‚ (scram-sha-256 over TCP :5432)
+                             â–¼
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚         Layer 8: katipuneros-db-replica                â”‚
+  â”‚                  (PostgreSQL 16)                       â”‚
+  â”‚  - Read-Only Hot Standby (hot_standby = on)            â”‚
+  â”‚  - Bootstrapped via pg_basebackup -R                   â”‚
+  â”‚  - standby.signal present in data dir                  â”‚
+  â”‚  - Persistent Volume Claim: 50Gi                      â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 #### Primary Configuration (`postgresql-primary.conf`)
@@ -192,7 +192,7 @@ During container startup, Layer 8 runs `replica-init.sh`:
 if [ ! -f /var/lib/postgresql/data/standby.signal ]; then
   echo "Cloning from primary via pg_basebackup..."
   rm -rf /var/lib/postgresql/data/*
-  PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v
+  PGPASSWORD=<pg-repl-password> pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v
   touch /var/lib/postgresql/data/standby.signal
   chmod 700 /var/lib/postgresql/data
 fi
@@ -233,20 +233,20 @@ All Kubernetes manifests are strictly structured in `k8s/` using standard declar
 
 ```
 k8s/
-├── 00-namespace.yaml             # Namespace: katipuneros-prod
-├── 01-secrets.yaml               # DB, Redis, JWT & SMTP SealedSecrets
-├── 02-configmaps.yaml            # Nginx vhosts, Postgres configs, AppSettings
-├── 03-persistent-volumes.yaml    # PVC definitions (Primary DB, Replica DB, Redis)
-├── 04-layer7-primary-db.yaml     # StatefulSet + Headless & ClusterIP Service
-├── 05-layer8-replica-db.yaml     # StatefulSet + ClusterIP Service (Read Replica)
-├── 06-layer6-redis.yaml          # Deployment + ClusterIP Service (Redis Cache)
-├── 07-layer5-backend.yaml        # Deployment + Service + HPA (3-15 Pods)
-├── 08-layer1-landing.yaml        # Deployment + Service + HPA (2-10 Pods)
-├── 09-layer2-customer.yaml       # Deployment + Service + HPA (2-10 Pods)
-├── 10-layer3-cashier.yaml        # Deployment + Service (Fixed 2 Pods)
-├── 11-layer4-admin.yaml          # Deployment + Service (Fixed 2 Pods)
-├── 12-ingress.yaml               # Ingress Controller TLS & Subdomain Routing
-└── kustomization.yaml            # Kustomize root manifest bundle
+â”œâ”€â”€ 00-namespace.yaml             # Namespace: katipuneros-prod
+â”œâ”€â”€ 01-secrets.yaml               # DB, Redis, JWT & SMTP SealedSecrets
+â”œâ”€â”€ 02-configmaps.yaml            # Nginx vhosts, Postgres configs, AppSettings
+â”œâ”€â”€ 03-persistent-volumes.yaml    # PVC definitions (Primary DB, Replica DB, Redis)
+â”œâ”€â”€ 04-layer7-primary-db.yaml     # StatefulSet + Headless & ClusterIP Service
+â”œâ”€â”€ 05-layer8-replica-db.yaml     # StatefulSet + ClusterIP Service (Read Replica)
+â”œâ”€â”€ 06-layer6-redis.yaml          # Deployment + ClusterIP Service (Redis Cache)
+â”œâ”€â”€ 07-layer5-backend.yaml        # Deployment + Service + HPA (3-15 Pods)
+â”œâ”€â”€ 08-layer1-landing.yaml        # Deployment + Service + HPA (2-10 Pods)
+â”œâ”€â”€ 09-layer2-customer.yaml       # Deployment + Service + HPA (2-10 Pods)
+â”œâ”€â”€ 10-layer3-cashier.yaml        # Deployment + Service (Fixed 2 Pods)
+â”œâ”€â”€ 11-layer4-admin.yaml          # Deployment + Service (Fixed 2 Pods)
+â”œâ”€â”€ 12-ingress.yaml               # Ingress Controller TLS & Subdomain Routing
+â””â”€â”€ kustomization.yaml            # Kustomize root manifest bundle
 ```
 
 ---

@@ -85,19 +85,38 @@ public class AuditService : IAuditService
         int anomalies = await _auditRepository.GetSecurityAnomaliesCountAsync();
         var (isIntact, verifiedCount, _) = await VerifyHashChainAsync();
 
+        // Event growth compares the trailing 24h window against the 24h before it.
+        // Both windows are counted from persisted rows; no constant is assumed.
+        var now = DateTime.UtcNow;
+        int prior24h = await _auditRepository.GetFilteredCountAsync(
+            null, null, null, null, now.AddHours(-48), now.AddHours(-24));
+
+        double growthRate = prior24h == 0
+            ? 0.0
+            : Math.Round((total24h - prior24h) / (double)prior24h * 100, 2);
+
+        // Hash chain status reflects what was actually verified. An empty chain has
+        // nothing verified, so it reports 0.0 -- it must never claim 100% integrity
+        // on the basis that verification never ran.
+        int totalBlocks = (await _auditRepository.GetAllAsync(null, 1000)).Count;
+        double chainPercent = totalBlocks == 0
+            ? 0.0
+            : Math.Round(verifiedCount / (double)totalBlocks * 100, 2);
+
         var users = await _userRepository.GetAllAsync();
         var activeAdmins = users.Where(u => u.Role == UserRole.Admin && u.IsActive).ToList();
-        int adminCount = activeAdmins.Count;
 
         return new AuditMetricsResponseDto
         {
             TotalEvents24h = total24h,
-            EventsGrowthRate = total24h > 0 ? 14.2 : 0.0,
+            EventsGrowthRate = growthRate,
             SecurityAnomaliesCount = anomalies,
-            HashChainStatusPercent = verifiedCount > 0 ? (isIntact ? 100.0 : 0.0) : 100.0,
+            HashChainStatusPercent = chainPercent,
             LastValidatedBlock = verifiedCount,
-            ActiveSuperAdminSessions = adminCount,
-            SuperAdminLocations = adminCount > 0 ? "HQ Console & Terminal Alpha" : "No active sessions"
+            ActiveSuperAdminSessions = activeAdmins.Count,
+            SuperAdminLocations = activeAdmins.Count > 0
+                ? $"{activeAdmins.Count} active administrator account(s)"
+                : "No active sessions"
         };
     }
 

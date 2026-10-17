@@ -41,17 +41,23 @@ public class AnalyticsService : IAnalyticsService
         var zeroShelfBooks = books.Count(b => b.AvailableCopies == 0 && b.TotalCopies > 0);
 
         bool isAnomaly = pendingHolds >= 10 && zeroShelfBooks >= 3;
-        double pct = isAnomaly ? 22.0 : 0.0;
-        string discipline = zeroShelfBooks > 0 ? "Computer Science literature" : "All Disciplines";
+
+        // Report the measured conditions, not an invented rate or subject heading.
+        // The previous implementation asserted a fixed "22.0%" increase and pinned
+        // every event to "Computer Science literature" regardless of the real data.
         string msg = isAnomaly
-            ? $"Pending hold volume increased by {pct:F1}% this week for {discipline}. {zeroShelfBooks} key titles currently report 0 shelf availability."
-            : "Circulation velocities stable. No anomalies detected across active holdings.";
+            ? $"{pendingHolds} pending holds alongside {zeroShelfBooks} titles at zero shelf availability."
+            : pendingHolds == 0 && zeroShelfBooks == 0
+                ? "No pending holds and full shelf availability across the catalog."
+                : $"{pendingHolds} pending holds, {zeroShelfBooks} titles at zero shelf availability.";
 
         return new CirculationAnomalyResponse
         {
             AnomalyDetected = isAnomaly,
-            PercentageIncrease = pct,
-            Discipline = discipline,
+            // No historical window is persisted for hold volume, so an honest system
+            // reports no measured change rather than fabricating one.
+            PercentageIncrease = 0.0,
+            Discipline = "All Disciplines",
             KeyTitlesWithZeroShelf = zeroShelfBooks,
             Message = msg
         };
@@ -211,14 +217,41 @@ public class AnalyticsService : IAnalyticsService
 
         int maxC = Math.Max(1, Math.Max(c8, Math.Max(c10, Math.Max(c12, Math.Max(c2, Math.Max(c4, Math.Max(c6, c8p)))))));
 
+        // Month-over-month comparison is measured against the previous calendar
+        // month's audit rows, not asserted as a constant.
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var prevMonthStart = monthStart.AddMonths(-1);
+        int thisMonthLogins = recentAudits.Count(a => a.Timestamp >= monthStart);
+        int lastMonthLogins = recentAudits.Count(a => a.Timestamp >= prevMonthStart && a.Timestamp < monthStart);
+        double loginGrowth = lastMonthLogins == 0
+            ? 0.0
+            : Math.Round((thisMonthLogins - lastMonthLogins) / (double)lastMonthLogins * 100, 2);
+
+        // Identify the genuine peak window from the bucket that actually leads.
+        var peakWindow = (label: "", count: 0);
+        foreach (var bucket in new[] { ("8:00 – 10:00 AM", c8), ("10:00 AM – 12:00 PM", c10),
+                                       ("12:00 – 2:00 PM", c12), ("2:00 – 4:00 PM", c2),
+                                       ("4:00 – 6:00 PM", c4), ("6:00 – 8:00 PM", c6),
+                                       ("8:00 PM onwards", c8p) })
+        {
+            if (bucket.Item2 > peakWindow.count) peakWindow = (bucket.Item1, bucket.Item2);
+        }
+
+        // Wi-Fi concurrencies are only counted when the audit trail actually
+        // records a wifi/network event. The previous 0.27-of-logins multiplier
+        // was an invented constant presented as a measurement.
+        int wifiConcurrences = recentAudits.Count(a =>
+            a.Action.Contains("WIFI", StringComparison.OrdinalIgnoreCase)
+            || a.TargetEntity.Contains("WIFI", StringComparison.OrdinalIgnoreCase));
+
         return new CommunityFlowResponse
         {
             DigitalLogins = logins,
-            DigitalLoginsVsLastMo = logins > 0 ? 14.8 : 0.0,
+            DigitalLoginsVsLastMo = loginGrowth,
             RecordedVisits = todayAudits.Count,
             TurnstileCounterLabel = "Turnstile counter",
-            PeakWindow = maxC > 0 ? "Peak: 10:00 AM – 2:00 PM" : "Idle",
-            WifiConcurrences = logins > 0 ? (int)(logins * 0.27) : 0,
+            PeakWindow = peakWindow.count > 0 ? $"Peak: {peakWindow.label} ({peakWindow.count} visits)" : "Idle",
+            WifiConcurrences = wifiConcurrences,
             HourlyFootfall = new List<HourlyFootfallPointResponse>
             {
                 new() { HourLabel = "8A", HeightPercent = (int)Math.Round((double)c8 / maxC * 100), Count = c8, IsPeak = c8 == maxC && c8 > 0 },

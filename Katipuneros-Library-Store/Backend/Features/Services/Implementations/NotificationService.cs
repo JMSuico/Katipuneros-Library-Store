@@ -1,4 +1,4 @@
-// [Layer: Features/Services/Implementations]
+﻿// [Layer: Features/Services/Implementations]
 // NotificationService.cs -- Business logic for administrative communications, campus bulletins, automated dispatch queue, and hardware alerts.
 // DO NOT query _context directly -- use repositories only.
 // DO NOT access HttpContext -- HTTP concerns stay in controllers.
@@ -80,13 +80,13 @@ public class NotificationService : INotificationService
                     Content = "In support of the second semester midterm examinations, the General Reference and Reserved Stacks will operate until 23:00 daily through Friday, with Ground Floor Study Hall unlocked 24 hours for verified Katipunan ID cardholders.",
                     Audience = "All Patrons",
                     Channels = new() { "Portal Banner", "Campus Kiosks", "Mobile Push" },
-                    Status = "Live • Published",
+                    Status = "Live â€¢ Published",
                     Priority = "Standard Campus Bulletin",
-                    ActiveRange = "Oct 21 – Oct 28, 2024 at 23:59",
+                    ActiveRange = "Oct 21 â€“ Oct 28, 2024 at 23:59",
                     CreatedAt = DateTime.UtcNow.AddDays(-2),
                     ViewsCount = 1420,
                     ReadsCount = 920,
-                    OpenRate = 98.4,
+                    OpenRate = 64.8, // derived: 920 reads / 1420 views
                     IsDraft = false
                 },
                 new()
@@ -98,7 +98,7 @@ public class NotificationService : INotificationService
                     Channels = new() { "Portal Banner", "Campus Kiosks" },
                     Status = "Scheduled",
                     Priority = "Standard Campus Bulletin",
-                    ActiveRange = "Nov 01 – Nov 15, 2024",
+                    ActiveRange = "Nov 01 â€“ Nov 15, 2024",
                     CreatedAt = DateTime.UtcNow.AddDays(-1),
                     ViewsCount = 0,
                     ReadsCount = 0,
@@ -222,7 +222,7 @@ public class NotificationService : INotificationService
                     Description = "Fired on Day 3 and Day 14 of past-due retention cycle with daily fine computations.",
                     Placeholders = new() { "{{patron_name}}", "{{book_title}}", "{{days_overdue}}", "{{fine_rate}}" },
                     DispatchedToday = 18,
-                    SmsPreview = "Katipuneros Library Alert: Loan overdue by 3 days. Standard fine of ₱5.00/day applies. Please return book to avoid circulation hold.",
+                    SmsPreview = "Katipuneros Library Alert: Loan overdue by 3 days. Standard fine of â‚±5.00/day applies. Please return book to avoid circulation hold.",
                     GsmCharacters = 141,
                     GsmLimit = 160
                 },
@@ -503,7 +503,7 @@ public class NotificationService : INotificationService
             Content = req.Content,
             Audience = string.IsNullOrWhiteSpace(req.Audience) ? "All Patrons" : req.Audience,
             Channels = req.Channels.Count > 0 ? req.Channels : new() { "Portal Banner", "Mobile App Push" },
-            Status = req.IsDraft ? "Draft" : "Live • Published",
+            Status = req.IsDraft ? "Draft" : "Live â€¢ Published",
             Priority = req.Priority,
             ActiveRange = req.DisplayDuration,
             CreatedAt = DateTime.UtcNow,
@@ -558,7 +558,7 @@ public class NotificationService : INotificationService
         if (existing == null) return Task.FromResult<AnnouncementResponse?>(null);
 
         existing.Status = existing.Status.Contains("Unpublished")
-            ? "Live • Published"
+            ? "Live â€¢ Published"
             : "Unpublished";
 
         return Task.FromResult<AnnouncementResponse?>(existing);
@@ -575,8 +575,15 @@ public class NotificationService : INotificationService
             Title = existing.Title,
             TotalPortalViews = existing.ViewsCount,
             MobilePushReads = existing.ReadsCount,
-            KioskImpressions = (int)(existing.ViewsCount * 0.45),
-            OverallOpenRate = existing.OpenRate,
+            // Kiosk impressions are not tracked as a distinct channel, so there is
+            // nothing to report. The previous 0.45-of-portal-views multiplier
+            // manufactured an impression count that was never measured.
+            KioskImpressions = 0,
+            // Derive the open rate from the recorded view/read counts rather than
+            // trusting a stored figure that can drift from its own inputs.
+            OverallOpenRate = existing.ViewsCount > 0
+                ? Math.Round(existing.ReadsCount / (double)existing.ViewsCount * 100, 1)
+                : 0.0,
             PrimaryAudience = existing.Audience,
             ActiveChannels = existing.Channels,
             PerformanceSummary = $"Delivered across {existing.Channels.Count} channels with an aggregate {existing.OpenRate}% open rate across active university touchpoints."
@@ -618,3 +625,4 @@ public class NotificationService : INotificationService
     public Task<List<DispatchTemplateResponse>> GetDispatchTemplatesAsync() =>
         Task.FromResult(_dispatchTemplates.ToList());
 }
+

@@ -5,6 +5,7 @@
 
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Backend.Features.Helpers.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Backend.Features.Api.Middleware;
@@ -37,7 +38,7 @@ public class JwtMiddleware
         try
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            string secretKey = _configuration["Jwt:SecretKey"] ?? "KatipunerosLibraryStoreJwtSecretKey_2026_SecureKey_MustBeLongEnough!";
+            string secretKey = SecretConfiguration.Require(_configuration, "Jwt:SecretKey");
             var key = Encoding.UTF8.GetBytes(secretKey);
 
             tokenHandler.ValidateToken(token, new TokenValidationParameters

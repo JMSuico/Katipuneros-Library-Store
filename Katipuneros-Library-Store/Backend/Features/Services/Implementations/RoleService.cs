@@ -1,4 +1,4 @@
-// [Layer: Backend/Features/Services/Implementations]
+﻿// [Layer: Backend/Features/Services/Implementations]
 // RoleService.cs -- Implementation of Access Governance, Security Policies, 2FA, and Audit Streams.
 // Strictly adheres to AGENTS.md, SKILL.md, and universal expression bodies (=>).
 
@@ -7,6 +7,7 @@ using System.Text;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Enums;
+using Backend.Features.Data.Models;
 using Backend.Features.Repositories.Interfaces;
 using Backend.Features.Services.Interfaces;
 
@@ -21,7 +22,6 @@ public class RoleService : IRoleService
 
     // Thread-safe in-memory custom role and policy registry
     private static readonly Dictionary<string, RoleConfigDto> _roleConfigs = InitializeDefaultConfigs();
-    private static readonly List<UserLoginAuditDto> _loginAuditHistory = InitializeLoginHistory();
 
     public RoleService(
         IUserRepository userRepo,
@@ -30,25 +30,34 @@ public class RoleService : IRoleService
         IAuditRepository auditRepo) =>
         (_userRepo, _bookRepo, _reservationRepo, _auditRepo) = (userRepo, bookRepo, reservationRepo, auditRepo);
 
-    public async Task<SecurityMetricsDto> GetSecurityMetricsAsync() =>
-        await Task.Run(async () =>
-        {
-            var users = await _userRepo.GetAllAsync();
-            var activeUsers = users.Where(u => u.IsActive).ToList();
-            var superAdmins = activeUsers.Count(u => u.Role == UserRole.Admin);
-            var staffCount = activeUsers.Count(u => u.Role == UserRole.Admin || u.Role == UserRole.Cashier);
+    public async Task<SecurityMetricsDto> GetSecurityMetricsAsync()
+    {
+        var users = await _userRepo.GetAllAsync();
+        var activeUsers = users.Where(u => u.IsActive).ToList();
 
-            return new SecurityMetricsDto
-            {
-                ConfiguredRolesCount = _roleConfigs.Count,
-                DefaultRolesCount = 3,
-                CustomRolesCount = Math.Max(0, _roleConfigs.Count - 3),
-                ActiveIdentitiesCount = activeUsers.Count,
-                IdentityGrowthRate = activeUsers.Count > 0 ? 14.0 : 0.0,
-                SuperAdminsCount = superAdmins,
-                TwoFactorEnforcementRate = staffCount > 0 ? 100.0 : 0.0
-            };
-        });
+        // Identity growth is derived from User.CreatedAt: accounts active in the last
+        // 30 days versus the 30 days preceding that. Never a hardcoded constant.
+        // Division-by-zero guarded per the empty-database principle -- with no prior
+        // period to compare against the honest answer is 0.0, not an invented figure.
+        var now = DateTime.UtcNow;
+        var currentWindow = activeUsers.Count(u => u.CreatedAt >= now.AddDays(-30));
+        var priorWindow = activeUsers.Count(u => u.CreatedAt < now.AddDays(-30) && u.CreatedAt >= now.AddDays(-60));
+
+        return new SecurityMetricsDto
+        {
+            ConfiguredRolesCount = _roleConfigs.Count,
+            DefaultRolesCount = 3,
+            CustomRolesCount = Math.Max(0, _roleConfigs.Count - 3),
+            ActiveIdentitiesCount = activeUsers.Count,
+            IdentityGrowthRate = priorWindow == 0
+                ? 0.0
+                : Math.Round((currentWindow - priorWindow) / (double)priorWindow * 100, 2),
+            SuperAdminsCount = activeUsers.Count(u => u.Role == UserRole.Admin),
+            // No two-factor implementation exists on the User model. 0.0 is the
+            // truthful value; the previous 100.0 was fabrication.
+            TwoFactorEnforcementRate = 0.0
+        };
+    }
 
     public async Task<List<ModulePrivilegeItemDto>> GetPrivilegeMatrixAsync() =>
         await Task.FromResult(new List<ModulePrivilegeItemDto>
@@ -113,7 +122,7 @@ public class RoleService : IRoleService
                 ModuleName = "Financial Ledger & Fines",
                 Subsystem = "Payment terminals, petty cash & billing waivers",
                 Icon = "payments",
-                ScopeDesc = "Cashiers process cash/GCash & ₱50 courtesy waivers; Patrons pay online via portal.",
+                ScopeDesc = "Cashiers process cash/GCash & â‚±50 courtesy waivers; Patrons pay online via portal.",
                 AdminGrant = "Full",
                 CashierGrant = "Full",
                 PatronGrant = "Scoped",
@@ -143,11 +152,65 @@ public class RoleService : IRoleService
             }
         });
 
-    public async Task<Dictionary<string, RoleConfigDto>> GetRoleConfigsAsync() =>
-        await Task.FromResult(new Dictionary<string, RoleConfigDto>(_roleConfigs));
+    /// <summary>
+    /// Returns role configs with AssignedCount resolved from real user rows.
+    /// The static registry only carries role metadata; headcount is derived at read
+    /// time so the console never displays an invented assignment figure.
+    /// </summary>
+    public async Task<Dictionary<string, RoleConfigDto>> GetRoleConfigsAsync()
+    {
+        var users = await _userRepo.GetAllAsync();
+        return _roleConfigs.ToDictionary(
+            kvp => kvp.Key,
+            kvp => WithAssignedCount(kvp.Value, users));
+    }
 
-    public async Task<RoleConfigDto?> GetRoleConfigByKeyAsync(string key) =>
-        await Task.FromResult(_roleConfigs.TryGetValue(key.ToLowerInvariant(), out var config) ? config : null);
+    public async Task<RoleConfigDto?> GetRoleConfigByKeyAsync(string key)
+    {
+        if (!_roleConfigs.TryGetValue(key.ToLowerInvariant(), out var config))
+            return null;
+
+        return WithAssignedCount(config, await _userRepo.GetAllAsync());
+    }
+
+    /// <summary>
+    /// Shallow-clones the config and overwrites AssignedCount with the live headcount
+    /// for that role, so the stored registry is never mutated by a read.
+    /// </summary>
+    private static RoleConfigDto WithAssignedCount(RoleConfigDto config, List<User> users)
+    {
+        var count = config.Key.ToLowerInvariant() switch
+        {
+            "admin" => users.Count(u => u.Role == UserRole.Admin),
+            "cashier" => users.Count(u => u.Role == UserRole.Cashier),
+            "patron" => users.Count(u => u.Role == UserRole.Customer),
+            // No Curator value exists in the UserRole enum, so no account can hold
+            // this role. It resolves to 0 rather than the previous "8 Curators".
+            _ => 0
+        };
+
+        return new RoleConfigDto
+        {
+            Id = config.Id,
+            Key = config.Key,
+            Title = config.Title,
+            Desc = config.Desc,
+            LandingTitle = config.LandingTitle,
+            LandingSub = config.LandingSub,
+            TierBadge = config.TierBadge,
+            Privileges = config.Privileges,
+            PolicyTitle = config.PolicyTitle,
+            PolicyBadge = config.PolicyBadge,
+            PolicyDesc = config.PolicyDesc,
+            AssignedCount = $"{count:N0} Assigned",
+            AvatarBadge = count > 0 ? $"+{count - 1}" : "+0",
+            AvatarSub = config.AvatarSub,
+            EmergencyHoldOverride = config.EmergencyHoldOverride,
+            CashDrawerKickout = config.CashDrawerKickout,
+            FineCourtesyWaiver = config.FineCourtesyWaiver,
+            HoldStagingClearance = config.HoldStagingClearance
+        };
+    }
 
     public async Task<bool> UpdateRolePolicyAsync(string key, UpdateRolePolicyRequest request) =>
         await Task.Run(() =>
@@ -247,34 +310,65 @@ public class RoleService : IRoleService
             };
         });
 
-    public async Task<List<UserLoginAuditDto>> GetLoginAuditStreamAsync() =>
-        await Task.Run(() =>
-        {
-            var now = DateTime.UtcNow;
-            return _loginAuditHistory.Select(item =>
+    /// <summary>
+    /// Projects the live authentication audit stream from persisted AuditLogEntry rows.
+    /// Previously this returned four hardcoded rows with invented usernames, workstations
+    /// and IP addresses -- fabricated data presented to operators as a security feed.
+    /// </summary>
+    public async Task<List<UserLoginAuditDto>> GetLoginAuditStreamAsync()
+    {
+        var entries = await _auditRepo.GetAllAsync(limit: 200);
+        var now = DateTime.UtcNow;
+        var userIds = entries.Where(e => e.UserId.HasValue).Select(e => e.UserId!.Value).Distinct().ToList();
+        var users = userIds.Count == 0
+            ? new List<User>()
+            : await _userRepo.GetAllAsync();
+
+        var userIndex = users.Where(u => userIds.Contains(u.Id)).ToDictionary(u => u.Id);
+
+        return entries
+            .Where(e => IsAuthenticationAction(e.Action))
+            .OrderByDescending(e => e.Timestamp)
+            .Select(e =>
             {
-                var diff = now - item.Timestamp;
-                var formattedAgo = diff.TotalMinutes < 1 ? "just now"
-                    : diff.TotalHours < 1 ? $"{(int)diff.TotalMinutes} minutes ago"
-                    : diff.TotalDays < 1 ? $"{(int)diff.TotalHours} hours ago"
-                    : $"{diff.Days:D2}d:{diff.Hours:D2}h:{diff.Minutes:D2}m:{diff.Seconds:D2}s ago";
+                var diff = now - e.Timestamp;
+                var user = e.UserId.HasValue && userIndex.TryGetValue(e.UserId.Value, out var u) ? u : null;
 
                 return new UserLoginAuditDto
                 {
-                    Id = item.Id,
-                    UserId = item.UserId,
-                    Username = item.Username,
-                    Role = item.Role,
-                    Action = item.Action,
-                    Timestamp = item.Timestamp,
-                    FormattedTimeAgo = formattedAgo,
-                    TwoFactorMethod = item.TwoFactorMethod,
-                    IpAddress = item.IpAddress,
-                    Workstation = item.Workstation,
-                    IsSuccess = item.IsSuccess
+                    Id = e.Id.ToString(),
+                    UserId = e.UserId?.ToString() ?? string.Empty,
+                    Username = user?.FullName ?? user?.Username ?? "(unknown identity)",
+                    Role = user?.Role.ToString() ?? "Unknown",
+                    Action = NormalizeAction(e.Action),
+                    Timestamp = e.Timestamp,
+                    FormattedTimeAgo = FormatTimeAgo(diff),
+                    // Two-factor is not implemented anywhere in the system, so it is
+                    // reported as unverified rather than invented per row.
+                    TwoFactorMethod = "Not enforced",
+                    IpAddress = e.IpAddress,
+                    Workstation = "Unattributed",
+                    IsSuccess = !e.Action.Contains("FAIL", StringComparison.OrdinalIgnoreCase)
                 };
-            }).ToList();
-        });
+            })
+            .ToList();
+    }
+
+    private static bool IsAuthenticationAction(string action) =>
+        action.Contains("LOGIN", StringComparison.OrdinalIgnoreCase)
+        || action.Contains("LOGOUT", StringComparison.OrdinalIgnoreCase)
+        || action.Contains("AUTH", StringComparison.OrdinalIgnoreCase)
+        || action.Contains("SIGNIN", StringComparison.OrdinalIgnoreCase)
+        || action.Contains("SIGN_OUT", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeAction(string action) =>
+        action.Contains("LOGOUT", StringComparison.OrdinalIgnoreCase) ? "LOGOUT" : "LOGIN";
+
+    private static string FormatTimeAgo(TimeSpan diff) =>
+        diff.TotalMinutes < 1 ? "just now"
+        : diff.TotalHours < 1 ? $"{(int)diff.TotalMinutes} minutes ago"
+        : diff.TotalDays < 1 ? $"{(int)diff.TotalHours} hours ago"
+        : $"{diff.Days:D2}d:{diff.Hours:D2}h:{diff.Minutes:D2}m:{diff.Seconds:D2}s ago";
 
     public async Task<CirculationAnomalyDto> GetCirculationAnomalyAsync() =>
         await Task.Run(async () =>
@@ -346,8 +440,8 @@ public class RoleService : IRoleService
                 PolicyTitle = "2FA Hardware Key & Session",
                 PolicyBadge = "Mandatory FIDO2",
                 PolicyDesc = "Hardware YubiKey / WebAuthn token required. Re-authentication triggered after 60 min inactivity.",
-                AssignedCount = "16 Super Admins",
-                AvatarBadge = "+13",
+                AssignedCount = "0 Assigned", // Overwritten at read time with live headcount
+                AvatarBadge = "+0",
                 AvatarSub = "Campus IT & Chief Librarians",
                 EmergencyHoldOverride = true,
                 CashDrawerKickout = true,
@@ -367,14 +461,14 @@ public class RoleService : IRoleService
                 {
                     new() { Name = "Emergency Hold Override", Desc = "Permits physical checkouts during queue conflicts", Enabled = true },
                     new() { Name = "Cash Drawer Hardware Kickout", Desc = "Manual release with automatic audit trace log", Enabled = true },
-                    new() { Name = "Fine Courtesy Waiver (up to ₱50)", Desc = "Immediate settlement without supervisor secondary key", Enabled = true },
+                    new() { Name = "Fine Courtesy Waiver (up to â‚±50)", Desc = "Immediate settlement without supervisor secondary key", Enabled = true },
                     new() { Name = "Hold Staging Clearance", Desc = "Process arrival of books to express pickup lockers", Enabled = true }
                 },
                 PolicyTitle = "Inactivity & Station Token",
                 PolicyBadge = "15 Min Timeout",
                 PolicyDesc = "Station lock triggers automatically on idle. POS terminal PIN and cashier badge required to restore session.",
-                AssignedCount = "24 Terminals",
-                AvatarBadge = "+21",
+                AssignedCount = "0 Assigned", // Overwritten at read time with live headcount
+                AvatarBadge = "+0",
                 AvatarSub = "Active on Terminal Fleet",
                 EmergencyHoldOverride = true,
                 CashDrawerKickout = true,
@@ -400,8 +494,8 @@ public class RoleService : IRoleService
                 PolicyTitle = "Patron Portal Security",
                 PolicyBadge = "Single Sign-On (SSO)",
                 PolicyDesc = "University Google Workspace SSO integration. Session remains persistent on verified mobile devices.",
-                AssignedCount = "3,372 Active Patrons",
-                AvatarBadge = "+3.3k",
+                AssignedCount = "0 Assigned", // Overwritten at read time with live headcount
+                AvatarBadge = "+0",
                 AvatarSub = "Enrolled University Students & Faculty",
                 EmergencyHoldOverride = false,
                 CashDrawerKickout = false,
@@ -427,8 +521,8 @@ public class RoleService : IRoleService
                 PolicyTitle = "Departmental Access Policy",
                 PolicyBadge = "TOTP Enforced",
                 PolicyDesc = "Subject curator role is locked to university campus VPN and authenticated mobile authenticator app.",
-                AssignedCount = "8 Curators",
-                AvatarBadge = "+5",
+                AssignedCount = "0 Assigned", // No Curator value exists in UserRole; stays 0
+                AvatarBadge = "+0",
                 AvatarSub = "Department Subject Specialists",
                 EmergencyHoldOverride = false,
                 CashDrawerKickout = false,
@@ -437,60 +531,5 @@ public class RoleService : IRoleService
             }
         };
 
-    private static List<UserLoginAuditDto> InitializeLoginHistory() =>
-        new()
-        {
-            new()
-            {
-                Id = "LOG-AUTH-001",
-                UserId = "USR-ADM-01",
-                Username = "SuperAdmin (admin-sec-01)",
-                Role = "Admin",
-                Action = "LOGIN",
-                Timestamp = DateTime.UtcNow.AddMinutes(-14),
-                TwoFactorMethod = "FIDO2 Hardware Key",
-                IpAddress = "192.168.1.104",
-                Workstation = "Branch Alpha",
-                IsSuccess = true
-            },
-            new()
-            {
-                Id = "LOG-AUTH-002",
-                UserId = "USR-CSH-01",
-                Username = "Cashier Desk 01 (M. Santos)",
-                Role = "Cashier",
-                Action = "LOGIN",
-                Timestamp = DateTime.UtcNow.AddHours(-2).AddMinutes(-5),
-                TwoFactorMethod = "TOTP Authenticator",
-                IpAddress = "192.168.1.112",
-                Workstation = "Branch Alpha POS-01",
-                IsSuccess = true
-            },
-            new()
-            {
-                Id = "LOG-AUTH-003",
-                UserId = "USR-CUR-02",
-                Username = "Curator (Prof. E. Del Rosario)",
-                Role = "Curator",
-                Action = "LOGIN",
-                Timestamp = DateTime.UtcNow.AddHours(-4).AddMinutes(-12),
-                TwoFactorMethod = "TOTP Authenticator",
-                IpAddress = "10.0.4.52",
-                Workstation = "Main Stacks Library",
-                IsSuccess = true
-            },
-            new()
-            {
-                Id = "LOG-AUTH-004",
-                UserId = "USR-ADM-02",
-                Username = "Chief Librarian (A. Bonifacio)",
-                Role = "Admin",
-                Action = "LOGOUT",
-                Timestamp = DateTime.UtcNow.AddHours(-6).AddMinutes(-30),
-                TwoFactorMethod = "FIDO2 Hardware Key",
-                IpAddress = "192.168.1.101",
-                Workstation = "Executive Office",
-                IsSuccess = true
-            }
-        };
 }
+

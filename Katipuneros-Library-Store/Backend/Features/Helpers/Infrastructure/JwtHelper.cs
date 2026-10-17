@@ -15,9 +15,9 @@ public static class JwtHelper
 {
     public static string GenerateToken(User user, IConfiguration config)
     {
-        string secretKey = config["Jwt:SecretKey"] ?? "KatipunerosLibraryStoreJwtSecretKey_2026_SecureKey_MustBeLongEnough!";
-        string issuer = config["Jwt:Issuer"] ?? "KatipunerosLibraryApi";
-        string audience = config["Jwt:Audience"] ?? "KatipunerosLibraryClient";
+        string secretKey = SecretConfiguration.Require(config, "Jwt:SecretKey");
+        string issuer = SecretConfiguration.WithDefault(config, "Jwt:Issuer", "KatipunerosLibraryApi");
+        string audience = SecretConfiguration.WithDefault(config, "Jwt:Audience", "KatipunerosLibraryClient");
         int expiryHours = int.TryParse(config["Jwt:ExpiryHours"], out int h) ? h : 24;
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));

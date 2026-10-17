@@ -100,18 +100,22 @@ export const getAuditMetrics = async (): Promise<AuditMetrics> =>
     totalEvents24h: 0,
     eventsGrowthRate: 0.0,
     securityAnomaliesCount: 0,
-    hashChainStatusPercent: 100.0,
+    // On an unreachable/failed request nothing has been verified. Defaulting to
+    // 100.0 told operators the audit hash chain was fully intact when the check
+    // had not run at all -- the most dangerous possible failure direction.
+    hashChainStatusPercent: 0.0,
     lastValidatedBlock: 0,
     activeSuperAdminSessions: 0,
-    superAdminLocations: 'No active sessions',
+    superAdminLocations: 'Telemetry unavailable',
   };
 
 export const getMerkleRoot = async (): Promise<MerkleRootStatus> =>
   (await apiRequest<MerkleRootStatus>('/admin/audit-logs/merkle-root')).data ?? {
-    merkleRoot: '0x0000..0000',
+    merkleRoot: '',
     verifiedRecordsCount: 0,
-    isChainIntact: true,
-    statusMessage: 'Genesis Ready',
+    // Integrity cannot be asserted when the verification request failed.
+    isChainIntact: false,
+    statusMessage: 'Verification unavailable',
     lastValidatedTimeAgo: 'Never',
   };
 
@@ -121,10 +125,12 @@ export const forceReindexChain = async (): Promise<MerkleRootStatus> =>
       method: 'POST',
     })
   ).data ?? {
-    merkleRoot: '0x0000..0000',
+    merkleRoot: '',
     verifiedRecordsCount: 0,
-    isChainIntact: true,
-    statusMessage: 'Genesis Ready',
+    // A failed reindex verifies nothing -- reporting an intact chain here would
+    // falsely reassure an operator that the audit log had been rebuilt.
+    isChainIntact: false,
+    statusMessage: 'Reindex unavailable',
     lastValidatedTimeAgo: 'Never',
   };
 

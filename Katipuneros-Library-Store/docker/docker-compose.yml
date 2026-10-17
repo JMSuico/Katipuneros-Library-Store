@@ -1,4 +1,10 @@
-version: '3.8'
+# Katipuneros Library Store -- 8-layer local stack.
+#
+# All secrets come from the environment. Create `docker/.env` first:
+#     cp docker/.env.example docker/.env
+#
+# NO secret value belongs in this file. `${VAR:?message}` means "fail loudly
+# if unset" -- the stack refuses to start rather than booting on a known key.
 
 services:
   # Layer 7: Primary Database (Read-Write)
@@ -7,11 +13,11 @@ services:
     container_name: katipuneros-db-primary
     restart: unless-stopped
     environment:
-      POSTGRES_DB: KatipunerosLibraryDb
-      POSTGRES_USER: katipuneros_admin
-      POSTGRES_PASSWORD: KatipunerosDbPassword_2026!
-      POSTGRES_REPLICATION_USER: replicator
-      POSTGRES_REPLICATION_PASSWORD: KatipunerosReplPass_2026!
+      POSTGRES_DB: ${POSTGRES_DB:-KatipunerosLibraryDb}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER:-replicator}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD:?POSTGRES_REPLICATION_PASSWORD is required}
     volumes:
       - primary-data:/var/lib/postgresql/data
       - ./postgres/primary-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
@@ -26,25 +32,25 @@ services:
     container_name: katipuneros-db-replica
     restart: unless-stopped
     environment:
-      POSTGRES_DB: KatipunerosLibraryDb
-      POSTGRES_USER: katipuneros_admin
-      POSTGRES_PASSWORD: KatipunerosDbPassword_2026!
-      POSTGRES_REPLICATION_USER: replicator
-      POSTGRES_REPLICATION_PASSWORD: KatipunerosReplPass_2026!
+      POSTGRES_DB: ${POSTGRES_DB:-KatipunerosLibraryDb}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER:-replicator}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD:?POSTGRES_REPLICATION_PASSWORD is required}
     volumes:
       - replica-data:/var/lib/postgresql/data
       - ./postgres/replica-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
       - ./postgres/postgresql-replica.conf:/etc/postgresql/postgresql.conf:ro
     entrypoint: >
       bash -c "
-        until pg_isready -h katipuneros-db-primary -p 5432 -U katipuneros_admin; do
+        until pg_isready -h katipuneros-db-primary -p 5432 -U ${POSTGRES_USER:?POSTGRES_USER is required}; do
           echo 'Waiting for Primary DB to be ready...';
           sleep 2;
         done;
         if [ ! -f /var/lib/postgresql/data/standby.signal ]; then
           echo 'Cloning from primary via pg_basebackup...';
           rm -rf /var/lib/postgresql/data/*;
-          PGPASSWORD=KatipunerosReplPass_2026! pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U replicator -Fp -Xs -R -v;
+          PGPASSWORD=${POSTGRES_REPLICATION_PASSWORD:?POSTGRES_REPLICATION_PASSWORD is required} pg_basebackup -h katipuneros-db-primary -p 5432 -D /var/lib/postgresql/data -U ${POSTGRES_REPLICATION_USER:-replicator} -Fp -Xs -R -v;
           touch /var/lib/postgresql/data/standby.signal;
           chmod 700 /var/lib/postgresql/data;
         fi;
@@ -60,7 +66,7 @@ services:
     image: redis:7.2-alpine
     container_name: katipuneros-redis
     restart: unless-stopped
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "KatipunerosRedisSecret_2026!"]
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     volumes:
       - redis-data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -76,9 +82,15 @@ services:
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__PrimaryConnection=Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Include Error Detail=true;
-      - ConnectionStrings__ReplicaConnection=Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;Application Name=Katipuneros_ReadReplica;
-      - Redis__ConnectionString=katipuneros-redis:6379,password=KatipunerosRedisSecret_2026!
+      - ConnectionStrings__PrimaryConnection=Host=katipuneros-db-primary;Port=5432;Database=${POSTGRES_DB:-KatipunerosLibraryDb};Username=${POSTGRES_USER:?POSTGRES_USER is required};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required};Include Error Detail=true;
+      - ConnectionStrings__ReplicaConnection=Host=katipuneros-db-replica;Port=5432;Database=${POSTGRES_DB:-KatipunerosLibraryDb};Username=${POSTGRES_USER:?POSTGRES_USER is required};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required};Application Name=Katipuneros_ReadReplica;
+      - Redis__ConnectionString=katipuneros-redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # REQUIRED by SecretConfiguration.ValidateRequired -- the API refuses to boot without these.
+      - Jwt__SecretKey=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      - Altcha__HmacSecret=${ALTCHA_HMAC_SECRET:?ALTCHA_HMAC_SECRET is required}
+      # Optional: leave unset to let transactional email self-disable.
+      - SmtpSettings__AppPassword=${SMTP_APP_PASSWORD:-}
+      - SmtpSettings__SenderEmail=${SMTP_SENDER_EMAIL:-library@localhost}
     depends_on:
       - katipuneros-db-primary
       - katipuneros-db-replica

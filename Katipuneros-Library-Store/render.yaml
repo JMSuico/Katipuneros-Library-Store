@@ -13,12 +13,23 @@ services:
         value: Production
       - key: ASPNETCORE_URLS
         value: http://+:5000
+      # ── REQUIRED SECRETS ──────────────────────────────────────────────
+      # Set these in the Render dashboard (Environment). The service will
+      # refuse to boot if any of them is missing.
       - key: ConnectionStrings__PrimaryConnection
-        sync: false # Set to Supabase PostgreSQL connection string
+        sync: false # Supabase PostgreSQL connection string
+      - key: Jwt__SecretKey
+        sync: false # >= 32 bytes. Generate: openssl rand -base64 48
+      - key: Altcha__HmacSecret
+        sync: false # Generate: openssl rand -base64 32
+      # ── OPTIONAL SECRETS ──────────────────────────────────────────────
       - key: ConnectionStrings__ReplicaConnection
-        sync: false # Set to Supabase Read Replica (or same as Primary)
+        sync: false # Supabase Read Replica (or same as Primary)
       - key: Redis__ConnectionString
-        sync: false # Optional: Set to Upstash Redis or Render Redis
+        sync: false # Optional: Upstash Redis or Render Redis
+      - key: SmtpSettings__AppPassword
+        sync: false # Optional: Google App Password. Email self-disables if unset.
+      # ── PUBLIC CONFIG ─────────────────────────────────────────────────
       - key: Cors__AllowedOrigins__0
         value: https://katipuneros-customer.vercel.app
       - key: Cors__AllowedOrigins__1

@@ -1,4 +1,4 @@
-# Production Architecture Specification: 8-Layer Docker & Kubernetes Infrastructure
+﻿# Production Architecture Specification: 8-Layer Docker & Kubernetes Infrastructure
 
 **Document ID**: SPEC-2026-10-17-K8S-8LAYER  
 **Project**: Katipuneros Library Store System  
@@ -14,14 +14,14 @@ This specification defines the production-grade, enterprise containerization and
 
 | Layer # | Tier | Service Name | Technology Stack | Ingress / Endpoint | Scaling Mode |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Layer 1** | Frontend Presentation | `katipuneros-landing` | Nginx 1.27 Alpine + React 19 SPA | `https://library.local` / `library.com` | HPA (2–10 Pods) |
-| **Layer 2** | Frontend Presentation | `katipuneros-customer` | Nginx 1.27 Alpine + React 19 SPA | `https://customer.library.local` | HPA (2–10 Pods) |
+| **Layer 1** | Frontend Presentation | `katipuneros-landing` | Nginx 1.27 Alpine + React 19 SPA | `https://library.local` / `library.com` | HPA (2â€“10 Pods) |
+| **Layer 2** | Frontend Presentation | `katipuneros-customer` | Nginx 1.27 Alpine + React 19 SPA | `https://customer.library.local` | HPA (2â€“10 Pods) |
 | **Layer 3** | Frontend Presentation | `katipuneros-cashier` | Nginx 1.27 Alpine + React 19 SPA | `https://cashier.library.local` | Fixed (2 Pods) |
 | **Layer 4** | Frontend Presentation | `katipuneros-admin` | Nginx 1.27 Alpine + React 19 SPA | `https://admin.library.local` | Fixed (2 Pods) |
-| **Layer 5** | Application API | `katipuneros-backend` | .NET 10 ASP.NET Core Web API | `https://api.library.local` | HPA (3–15 Pods) |
+| **Layer 5** | Application API | `katipuneros-backend` | .NET 10 ASP.NET Core Web API | `https://api.library.local` | HPA (3â€“15 Pods) |
 | **Layer 6** | Distributed Cache | `katipuneros-redis` | Redis 7.2 Alpine | `katipuneros-redis:6379` (Internal) | Master + Sentinel / PVC |
 | **Layer 7** | Primary Database | `katipuneros-db-primary` | PostgreSQL 16 Alpine (Read-Write) | `katipuneros-db-primary:5432` (Internal) | StatefulSet (1 Primary Pod) |
-| **Layer 8** | Replica Database | `katipuneros-db-replica` | PostgreSQL 16 Alpine (Hot Standby) | `katipuneros-db-replica:5432` (Internal) | StatefulSet (1–5 Replica Pods) |
+| **Layer 8** | Replica Database | `katipuneros-db-replica` | PostgreSQL 16 Alpine (Hot Standby) | `katipuneros-db-replica:5432` (Internal) | StatefulSet (1â€“5 Replica Pods) |
 
 ```mermaid
 flowchart TD
@@ -130,7 +130,7 @@ Each frontend container runs a hardened `nginx.conf`:
      - Directly handles database migrations via EF Core CLI / startup migration container.
    - `ReadOnlyAppDbContext` (Read-Only):
      - Injected into high-throughput query services (`BookService.GetBooksAsync`, `CategoryService.GetAllCategoriesAsync`, `ReportService`, catalog search).
-     - Configured with `ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking` for 30–50% reduced GC overhead and zero lock contention with transactions.
+     - Configured with `ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking` for 30â€“50% reduced GC overhead and zero lock contention with transactions.
 
 ---
 
@@ -164,26 +164,26 @@ Each frontend container runs a hardened `nginx.conf`:
 ### 5.1 Architecture: Primary & Streaming Read-Replica
 
 ```
-  ┌────────────────────────────────────────────────────────┐
-  │         Layer 7: katipuneros-db-primary                │
-  │                  (PostgreSQL 16)                       │
-  │  - Read/Write Queries                                  │
-  │  - wal_level = replica                                 │
-  │  - max_wal_senders = 10                                │
-  │  - Persistent Volume: katipuneros-primary-pvc (50Gi)   │
-  └──────────────────────────┬─────────────────────────────┘
-                             │
-                             │ PostgreSQL Physical Streaming
-                             │ Replication via WAL over TCP :5432
-                             ▼
-  ┌────────────────────────────────────────────────────────┐
-  │         Layer 8: katipuneros-db-replica                │
-  │                  (PostgreSQL 16)                       │
-  │  - Read-Only Queries (hot_standby = on)                │
-  │  - Initialized with pg_basebackup                      │
-  │  - standby.signal present                              │
-  │  - Persistent Volume: katipuneros-replica-pvc (50Gi)   │
-  └────────────────────────────────────────────────────────┘
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚         Layer 7: katipuneros-db-primary                â”‚
+  â”‚                  (PostgreSQL 16)                       â”‚
+  â”‚  - Read/Write Queries                                  â”‚
+  â”‚  - wal_level = replica                                 â”‚
+  â”‚  - max_wal_senders = 10                                â”‚
+  â”‚  - Persistent Volume: katipuneros-primary-pvc (50Gi)   â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                             â”‚
+                             â”‚ PostgreSQL Physical Streaming
+                             â”‚ Replication via WAL over TCP :5432
+                             â–¼
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚         Layer 8: katipuneros-db-replica                â”‚
+  â”‚                  (PostgreSQL 16)                       â”‚
+  â”‚  - Read-Only Queries (hot_standby = on)                â”‚
+  â”‚  - Initialized with pg_basebackup                      â”‚
+  â”‚  - standby.signal present                              â”‚
+  â”‚  - Persistent Volume: katipuneros-replica-pvc (50Gi)   â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### 5.2 Layer 7: Primary Database (`katipuneros-db-primary`)
@@ -191,7 +191,7 @@ Each frontend container runs a hardened `nginx.conf`:
 - **Initialization & Configuration**:
   - Dedicated replication user created on bootstrap:
     ```sql
-    CREATE ROLE replicator WITH REPLICATION LOGIN ENCRYPTED PASSWORD 'KatipunerosReplPass_2026!';
+    CREATE ROLE replicator WITH REPLICATION LOGIN ENCRYPTED PASSWORD '<pg-repl-password>';
     ```
   - `postgresql.conf` tuning:
     - `wal_level = replica`
@@ -234,9 +234,9 @@ services:
     environment:
       POSTGRES_DB: KatipunerosLibraryDb
       POSTGRES_USER: katipuneros_admin
-      POSTGRES_PASSWORD: KatipunerosDbPassword_2026!
+      POSTGRES_PASSWORD: <pg-password>
       POSTGRES_REPLICATION_USER: replicator
-      POSTGRES_REPLICATION_PASSWORD: KatipunerosReplPass_2026!
+      POSTGRES_REPLICATION_PASSWORD: <pg-repl-password>
     volumes:
       - primary-data:/var/lib/postgresql/data
       - ./postgres/primary-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
@@ -263,7 +263,7 @@ services:
   katipuneros-redis:
     image: redis:7.2-alpine
     container_name: katipuneros-redis
-    command: ["redis-server", "--requirepass", "KatipunerosRedisSecret_2026!"]
+    command: ["redis-server", "--requirepass", "<redis-password>"]
     volumes:
       - redis-data:/data
     ports:
@@ -279,9 +279,9 @@ services:
     container_name: katipuneros-backend
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__PrimaryConnection=Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;
-      - ConnectionStrings__ReplicaConnection=Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=KatipunerosDbPassword_2026!;
-      - Redis__ConnectionString=katipuneros-redis:6379,password=KatipunerosRedisSecret_2026!
+      - ConnectionStrings__PrimaryConnection=Host=katipuneros-db-primary;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=<pg-password>;
+      - ConnectionStrings__ReplicaConnection=Host=katipuneros-db-replica;Port=5432;Database=KatipunerosLibraryDb;Username=katipuneros_admin;Password=<pg-password>;
+      - Redis__ConnectionString=katipuneros-redis:6379,password=<redis-password>
     ports:
       - "5000:5000"
     depends_on:
@@ -361,19 +361,19 @@ All production Kubernetes manifests reside in `k8s/`:
 
 ```
 k8s/
-├── 00-namespace.yaml             # Namespace: katipuneros-prod
-├── 01-secrets.yaml               # SealedSecrets / K8s Secrets (DB, Redis, JWT, SMTP)
-├── 02-configmaps.yaml            # Portal Nginx Configs, DB Replication Configs, Backend Settings
-├── 03-persistent-volumes.yaml    # PVC definitions for Primary DB, Replica DB, Redis
-├── 04-layer7-primary-db.yaml     # StatefulSet + Headless & ClusterIP Service (Primary DB)
-├── 05-layer8-replica-db.yaml     # StatefulSet + ClusterIP Service (Read Replica DB)
-├── 06-layer6-redis.yaml          # Deployment + ClusterIP Service (Redis Cache)
-├── 07-layer5-backend.yaml        # Deployment + Service + HorizontalPodAutoscaler (Backend API)
-├── 08-layer1-landing.yaml        # Deployment + Service + HPA (Landing Portal)
-├── 09-layer2-customer.yaml       # Deployment + Service + HPA (Customer Portal)
-├── 10-layer3-cashier.yaml        # Deployment + Service (Cashier Desk)
-├── 11-layer4-admin.yaml          # Deployment + Service (Chief Admin Console)
-└── 12-ingress.yaml               # Ingress with TLS and Subdomain Routing
+â”œâ”€â”€ 00-namespace.yaml             # Namespace: katipuneros-prod
+â”œâ”€â”€ 01-secrets.yaml               # SealedSecrets / K8s Secrets (DB, Redis, JWT, SMTP)
+â”œâ”€â”€ 02-configmaps.yaml            # Portal Nginx Configs, DB Replication Configs, Backend Settings
+â”œâ”€â”€ 03-persistent-volumes.yaml    # PVC definitions for Primary DB, Replica DB, Redis
+â”œâ”€â”€ 04-layer7-primary-db.yaml     # StatefulSet + Headless & ClusterIP Service (Primary DB)
+â”œâ”€â”€ 05-layer8-replica-db.yaml     # StatefulSet + ClusterIP Service (Read Replica DB)
+â”œâ”€â”€ 06-layer6-redis.yaml          # Deployment + ClusterIP Service (Redis Cache)
+â”œâ”€â”€ 07-layer5-backend.yaml        # Deployment + Service + HorizontalPodAutoscaler (Backend API)
+â”œâ”€â”€ 08-layer1-landing.yaml        # Deployment + Service + HPA (Landing Portal)
+â”œâ”€â”€ 09-layer2-customer.yaml       # Deployment + Service + HPA (Customer Portal)
+â”œâ”€â”€ 10-layer3-cashier.yaml        # Deployment + Service (Cashier Desk)
+â”œâ”€â”€ 11-layer4-admin.yaml          # Deployment + Service (Chief Admin Console)
+â””â”€â”€ 12-ingress.yaml               # Ingress with TLS and Subdomain Routing
 ```
 
 ### 7.1 Ingress Routing Specification (`12-ingress.yaml`)

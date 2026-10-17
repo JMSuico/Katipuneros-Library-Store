@@ -4,7 +4,7 @@ set -e
 if [ ! -f "$PGDATA/standby.signal" ]; then
     echo "Initializing replica standby from primary..."
     rm -rf "$PGDATA"/*
-    PGPASSWORD="${POSTGRES_REPLICATION_PASSWORD:-KatipunerosReplPass_2026!}" pg_basebackup \
+    PGPASSWORD="${POSTGRES_REPLICATION_PASSWORD:?POSTGRES_REPLICATION_PASSWORD is required}" pg_basebackup \
         -h katipuneros-db-primary \
         -p 5432 \
         -D "$PGDATA" \

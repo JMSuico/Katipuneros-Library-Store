@@ -9,6 +9,7 @@ using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 using Backend.Features.Data.Models;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -26,22 +27,45 @@ public class EmailService : IEmailService
     private readonly string _smtpPass;
     private readonly string _fromEmail;
     private readonly string _fromName;
+    private readonly bool _enableSsl;
+    private readonly bool _isConfigured;
 
     public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
     {
         _configuration = configuration;
         _logger = logger;
 
-        _smtpHost = _configuration["Email:Host"] ?? "smtp.gmail.com";
-        _smtpPort = int.TryParse(_configuration["Email:Port"], out var p) ? p : 587;
-        _smtpUser = _configuration["Email:Username"] ?? "suicojm99@gmail.com";
-        _smtpPass = _configuration["Email:Password"] ?? "nmglfbjpoasqawbp";
-        _fromEmail = _configuration["Email:FromEmail"] ?? _smtpUser;
-        _fromName = _configuration["Email:FromName"] ?? "Katipuneros Library Store";
+        _smtpHost = SecretConfiguration.WithDefault(configuration, "SmtpSettings:Host", "smtp.gmail.com");
+        _smtpPort = int.TryParse(configuration["SmtpSettings:Port"], out var p) ? p : 587;
+        _enableSsl = !bool.TryParse(configuration["SmtpSettings:EnableSsl"], out var ssl) || ssl;
+
+        // Sender identity is not secret -- safe to carry a local development default.
+        _fromEmail = SecretConfiguration.WithDefault(configuration, "SmtpSettings:SenderEmail", "library@localhost");
+        _fromName = SecretConfiguration.WithDefault(configuration, "SmtpSettings:SenderName", "Katipuneros Library Store");
+        _smtpUser = SecretConfiguration.WithDefault(configuration, "SmtpSettings:SenderEmail", "library@localhost");
+
+        // The app password IS secret. When absent, transactional email disables itself
+        // and the rest of the circulation system continues to operate.
+        var configuredPassword = SecretConfiguration.RequireIfConfigured(configuration, "SmtpSettings:AppPassword");
+        _smtpPass = configuredPassword ?? string.Empty;
+        _isConfigured = !string.IsNullOrWhiteSpace(configuredPassword);
+
+        if (!_isConfigured)
+        {
+            _logger.LogWarning(
+                "[EmailService] SmtpSettings:AppPassword is not configured. Transactional email is DISABLED. " +
+                "Set env var 'SmtpSettings__AppPassword' or run: dotnet user-secrets set \"SmtpSettings:AppPassword\" \"<value>\"");
+        }
     }
 
     public async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlBody, string? textBody = null)
     {
+        if (!_isConfigured)
+        {
+            _logger.LogWarning("[EmailService] Skipped dispatch to '{ToEmail}' -- SMTP is not configured.", toEmail);
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(toEmail) || !toEmail.Contains('@'))
         {
             _logger.LogWarning("[EmailService] Skipped dispatch to invalid email: '{ToEmail}'", toEmail);
@@ -68,7 +92,7 @@ public class EmailService : IEmailService
             using var client = new SmtpClient(_smtpHost, _smtpPort)
             {
                 Credentials = new NetworkCredential(_smtpUser, _smtpPass),
-                EnableSsl = true,
+                EnableSsl = _enableSsl,
                 Timeout = 12000
             };
 

@@ -24,6 +24,7 @@ public class ReportService : IReportService
     private readonly IBorrowRepository _borrowRepository;
     private readonly IReservationRepository _reservationRepository;
     private readonly IAuditRepository _auditRepository;
+    private readonly IConfiguration _configuration;
 
     private static readonly List<CompletedDossierResponse> _dossiersLedger = new();
     private static readonly List<ScheduleTriggerResponse> _scheduleTriggers = new();
@@ -33,12 +34,14 @@ public class ReportService : IReportService
         IBookRepository bookRepository,
         IBorrowRepository borrowRepository,
         IReservationRepository reservationRepository,
-        IAuditRepository auditRepository)
+        IAuditRepository auditRepository,
+        IConfiguration configuration)
     {
         _bookRepository = bookRepository;
         _borrowRepository = borrowRepository;
         _reservationRepository = reservationRepository;
         _auditRepository = auditRepository;
+        _configuration = configuration;
     }
 
     private static void EnsureDefaultSuites()
@@ -122,8 +125,18 @@ public class ReportService : IReportService
 
         var totalLoans = activeLoans + overdueLoans + returnedLoans;
         var clearedPercent = totalLoans > 0 ? (returnedLoans * 100.0 / totalLoans).ToString("0.0") + "% Cleared" : "0.0% Cleared";
-        var totalValuation = books.Sum(b => (decimal)b.TotalCopies * 650m);
-        var valFormatted = totalValuation > 0 ? $"₱{totalValuation:N2} Value" : "₱0.00 Value";
+
+        // Collection valuation requires an explicit, configured acquisition rate.
+        // The Book entity carries no cost field, so there is nothing to derive from.
+        // Defaulting to a hardcoded peso figure fabricated a financial total out of
+        // thin air; an unconfigured rate now reports zero and says so.
+        decimal ratePerCopy = decimal.TryParse(_configuration["LibraryPolicy:ValuationPerCopy"], out var parsedRate)
+            ? parsedRate
+            : 0m;
+        var totalValuation = books.Sum(b => (decimal)b.TotalCopies * ratePerCopy);
+        var valFormatted = ratePerCopy <= 0m
+            ? "₱0.00 Value (rate unconfigured)"
+            : $"₱{totalValuation:N2} Value";
 
         return _reportSuites.Select(s => new ReportSuiteResponse
         {

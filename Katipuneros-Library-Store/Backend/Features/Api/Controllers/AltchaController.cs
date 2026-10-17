@@ -5,6 +5,7 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using Backend.Features.Helpers.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Features.Api.Controllers;
@@ -13,8 +14,10 @@ namespace Backend.Features.Api.Controllers;
 [Route("api/[controller]")]
 public class AltchaController : ControllerBase
 {
-    // HMAC secret key for signing challenges (in production, store in appsettings/secrets)
-    private static readonly string HmacSecret = "KatipunerosLibrary-ALTCHA-Secret-2026!";
+    private readonly string _hmacSecret;
+
+    public AltchaController(IConfiguration configuration) =>
+        _hmacSecret = SecretConfiguration.Require(configuration, "Altcha:HmacSecret");
 
     /// <summary>
     /// GET /api/altcha/challenge
@@ -27,7 +30,7 @@ public class AltchaController : ControllerBase
         var salt = GenerateRandomSalt();
         var secretNumber = RandomNumberGenerator.GetInt32(2000, 25000);
         var challenge = ComputeSha256Hash($"{salt}{secretNumber}");
-        var signature = ComputeHmacSha256(challenge, HmacSecret);
+        var signature = ComputeHmacSha256(challenge, _hmacSecret);
 
         return Ok(new
         {
@@ -64,7 +67,7 @@ public class AltchaController : ControllerBase
                 return Ok(new { success = false, message = "Challenge mismatch. Verification failed." });
 
             // Verify HMAC signature
-            var expectedSignature = ComputeHmacSha256(parts.challenge, HmacSecret);
+            var expectedSignature = ComputeHmacSha256(parts.challenge, _hmacSecret);
             if (expectedSignature != parts.signature)
                 return Ok(new { success = false, message = "Signature mismatch. Verification failed." });
 

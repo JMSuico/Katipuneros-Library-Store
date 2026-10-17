@@ -368,7 +368,13 @@ public class UserService : IUserService
             }
         }
 
-        string password = !string.IsNullOrWhiteSpace(request.Password) ? request.Password : "Katipuneros@2026";
+        // A shared default password is a standing account-takeover risk: every account created
+        // without an explicit password would ship with an identical, publicly known credential.
+        // Require the caller to supply one, or generate an unguessable one and return it once.
+        if (string.IsNullOrWhiteSpace(request.Password))
+            return (null, "Password is required when creating an account. Supply an explicit password.");
+
+        string password = request.Password;
 
         string fullName = string.IsNullOrWhiteSpace(request.MiddleName)
             ? $"{request.FirstName} {request.LastName}".Trim()
