@@ -11,23 +11,31 @@ export interface ApiResponse<T> {
 }
 
 export const getApiBaseUrl = (): string => {
-  // If explicitly configured in Vite environment, respect that configuration
+  const isBrowser = typeof window !== 'undefined' && Boolean(window.location?.hostname);
+  const host = isBrowser ? window.location.hostname : '';
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
+
   const envUrl = (import.meta.env?.VITE_API_BASE_URL as string | undefined) ??
                  (import.meta.env?.VITE_API_URL as string | undefined);
+
   if (envUrl && envUrl.trim().length > 0) {
-    return envUrl.trim().replace(/\/+$/, '');
+    const trimmed = envUrl.trim().replace(/\/+$/, '');
+    const envIsLocal = trimmed.includes('localhost') || trimmed.includes('127.0.0.1') || trimmed.includes('0.0.0.0');
+    // If in a remote/cloud browser session, never let a localhost envUrl override the live backend
+    if (!isBrowser || isLocalHost || !envIsLocal) {
+      return trimmed;
+    }
   }
 
-  // In browser runtime
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const host = window.location.hostname;
-    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
-    if (isLocal) {
-      const protocol = window.location.protocol || 'http:';
-      return `${protocol}//${host}:5000/api`;
-    }
-    // Any cloud deployment (Render, Vercel, preview domains, custom domains)
+  // Cloud browser runtime (e.g. *.onrender.com, *.vercel.app, custom domains)
+  if (isBrowser && !isLocalHost) {
     return 'https://katipuneros-backend.onrender.com/api';
+  }
+
+  // Local development runtime
+  if (isBrowser && isLocalHost) {
+    const protocol = window.location.protocol || 'http:';
+    return `${protocol}//${host}:5000/api`;
   }
 
   return 'https://katipuneros-backend.onrender.com/api';
