@@ -25,6 +25,9 @@ public static class SecretConfiguration
     {
         var value = configuration[key];
 
+        if (string.IsNullOrWhiteSpace(value) && key.Equals("ConnectionStrings:DefaultConnection", StringComparison.OrdinalIgnoreCase))
+            value = configuration.GetConnectionString("PrimaryConnection");
+
         if (string.IsNullOrWhiteSpace(value))
             throw new InvalidOperationException(
                 $"Required secret '{key}' is not configured. Set it via environment variable " +
@@ -59,14 +62,21 @@ public static class SecretConfiguration
     /// </summary>
     public static void ValidateRequired(IConfiguration configuration)
     {
+        var problems = new List<string>();
+
+        var dbConn = configuration.GetConnectionString("PrimaryConnection")
+                  ?? configuration.GetConnectionString("DefaultConnection");
+
+        if (string.IsNullOrWhiteSpace(dbConn))
+            problems.Add("  - 'ConnectionStrings:PrimaryConnection' (or 'DefaultConnection') is missing. Set env var 'ConnectionStrings__PrimaryConnection'");
+        else if (PlaceholderMarkers.Any(marker => dbConn.Contains(marker, StringComparison.OrdinalIgnoreCase)))
+            problems.Add("  - Database connection string still holds a placeholder value.");
+
         var requiredKeys = new[]
         {
-            "ConnectionStrings:DefaultConnection",
             "Jwt:SecretKey",
             "Altcha:HmacSecret"
         };
-
-        var problems = new List<string>();
 
         foreach (var key in requiredKeys)
         {
