@@ -178,11 +178,22 @@ builder.Services.AddCors(options =>
             try
             {
                 var uri = new Uri(origin);
-                var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+                static string Normalize(string o) => o.Trim().TrimEnd('/');
+                var configuredOrigins = (builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
+                    .Where(o => !string.IsNullOrWhiteSpace(o))
+                    .Select(Normalize)
+                    .ToArray();
+                // Our own hosted portals (production + Vercel preview deployments).
+                bool isKatipunerosDeployment = uri.Scheme == "https" &&
+                    uri.Host.StartsWith("katipuneros-", StringComparison.OrdinalIgnoreCase) &&
+                    (uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase) ||
+                     uri.Host.EndsWith(".onrender.com", StringComparison.OrdinalIgnoreCase));
                 return (uri.Host is "localhost" or "127.0.0.1" or "::1") ||
                        uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
                        (uri.Port is 5173 or 5174 or 5175 or 5176 or 5000) ||
-                       configuredOrigins.Any(o => o.Equals(origin, StringComparison.OrdinalIgnoreCase));
+                       isKatipunerosDeployment ||
+                       configuredOrigins.Contains("*") ||
+                       configuredOrigins.Any(o => o.Equals(Normalize(origin), StringComparison.OrdinalIgnoreCase));
             }
             catch
             {
