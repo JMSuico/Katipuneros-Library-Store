@@ -13,8 +13,9 @@ RUN dotnet publish Backend.csproj -c Release -o /app/publish /p:UseAppHost=false
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 
-# Non-root user for security
-RUN addgroup -S katipuneros && adduser -S katipuneros -G katipuneros
+# Install Kerberos library for Npgsql and configure non-root user
+RUN apk add --no-cache krb5-libs \
+    && addgroup -S katipuneros && adduser -S katipuneros -G katipuneros
 USER katipuneros
 
 COPY --from=build --chown=katipuneros:katipuneros /app/publish .
