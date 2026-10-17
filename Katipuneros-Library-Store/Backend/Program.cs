@@ -206,6 +206,8 @@ app.UseAuthentication();                         // 5. JWT token validation
 app.UseAuthorization();                          // 6. Role / policy checks
 app.UseMiddleware<JwtMiddleware>();              // 7. Identity context hydration
 app.MapControllers();                            // 8. Route to controllers
+app.MapGet("/", () => Results.Ok(new { status = "Healthy", service = "Katipuneros Library Store API", version = "1.0.0" }));
+app.MapGet("/healthz", () => Results.Ok("OK"));
 
 // Scalar V1 Interactive API Documentation & OpenAPI schema
 app.MapOpenApi();                                // /openapi/v1.json
