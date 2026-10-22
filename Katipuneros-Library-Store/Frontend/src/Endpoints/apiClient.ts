@@ -21,8 +21,17 @@ export const getApiBaseUrl = (): string => {
   if (envUrl && envUrl.trim().length > 0) {
     const trimmed = envUrl.trim().replace(/\/+$/, '');
     const envIsLocal = trimmed.includes('localhost') || trimmed.includes('127.0.0.1') || trimmed.includes('0.0.0.0');
+    // If running in local browser, prioritize local backend if envUrl points to local, or fallback to port 5000
+    if (isBrowser && isLocalHost) {
+      if (envIsLocal) {
+        return trimmed;
+      }
+      const protocol = window.location.protocol || 'http:';
+      return `${protocol}//${host}:5000/api`;
+    }
+
     // If in a remote/cloud browser session, never let a localhost envUrl override the live backend
-    if (!isBrowser || isLocalHost || !envIsLocal) {
+    if (!isBrowser || !envIsLocal) {
       return trimmed;
     }
   }

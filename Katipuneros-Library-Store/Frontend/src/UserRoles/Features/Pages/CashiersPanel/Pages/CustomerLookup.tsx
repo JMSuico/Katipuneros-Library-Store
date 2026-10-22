@@ -423,17 +423,28 @@ export const CustomerLookup: FC = () => {
                           </span>
                         </td>
                         <td className="py-4 px-4 text-right">
-                          <button
-                            onClick={() => {
-                              setInspectedUser(u);
-                              setActiveModalTab('details');
-                            }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-small text-small font-semibold transition-colors cursor-pointer"
-                            type="button"
-                          >
-                            <span className="material-symbols-outlined text-base">visibility</span>
-                            <span>Inspect Profile</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => navigate(`/cashier/checkout?patronId=${u.id}`)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-action-green hover:bg-action-green-hover text-text-primary font-small text-small font-semibold transition-colors cursor-pointer shadow-xs"
+                              type="button"
+                              title="Initiate Checkout for Patron"
+                            >
+                              <span className="material-symbols-outlined text-base">shopping_cart_checkout</span>
+                              <span>Initiate Checkout</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setInspectedUser(u);
+                                setActiveModalTab('details');
+                              }}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-small text-small font-semibold transition-colors cursor-pointer"
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-base">visibility</span>
+                              <span>Inspect</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -504,9 +515,9 @@ export const CustomerLookup: FC = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-caption text-[11px] font-bold ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-caption text-[11px] font-bold w-fit ${
                               isGood
                                 ? 'bg-status-available/20 text-status-available'
                                 : 'bg-error-container text-on-error-container'
@@ -519,16 +530,26 @@ export const CustomerLookup: FC = () => {
                             ></span>
                             {isGood ? 'Good Standing' : 'Suspended'}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setInspectedUser(u);
-                              setActiveModalTab('details');
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-small text-small font-semibold transition-colors cursor-pointer"
-                          >
-                            Inspect
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/cashier/checkout?patronId=${u.id}`)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-action-green hover:bg-action-green-hover text-text-primary font-caption text-caption font-bold transition-colors cursor-pointer shadow-xs"
+                            >
+                              <span className="material-symbols-outlined text-sm">shopping_cart_checkout</span>
+                              <span>Initiate Checkout</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInspectedUser(u);
+                                setActiveModalTab('details');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-caption text-caption font-semibold transition-colors cursor-pointer"
+                            >
+                              Inspect
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -714,7 +735,15 @@ export const CustomerLookup: FC = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-end pt-3 border-t border-surface-container">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-container">
+              <button
+                onClick={() => navigate(`/cashier/checkout?patronId=${inspectedUser.id}`)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-caption text-caption font-bold cursor-pointer transition-colors shadow-xs"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-base">shopping_cart_checkout</span>
+                <span>Initiate Checkout</span>
+              </button>
               <button
                 onClick={() => setInspectedUser(null)}
                 className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-primary font-caption text-caption font-bold cursor-pointer"

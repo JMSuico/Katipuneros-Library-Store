@@ -4,6 +4,12 @@
 // DO NOT access AppDbContext directly -- use IBookCopyRepository, IBookRepository, IBorrowRepository only.
 // DO NOT access HttpContext -- HTTP concerns stay in controllers.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Enums;
@@ -15,18 +21,41 @@ namespace Backend.Features.Services.Implementations;
 
 public class BookCopyService : IBookCopyService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IBookCopyRepository _bookCopyRepository;
     private readonly IBookRepository _bookRepository;
     private readonly IBorrowRepository _borrowRepository;
+    private readonly ISettingsRepository _settingsRepository;
     private readonly IConfiguration _configuration;
 
     public BookCopyService(
         IBookCopyRepository bookCopyRepository,
         IBookRepository bookRepository,
         IBorrowRepository borrowRepository,
+        ISettingsRepository settingsRepository,
         IConfiguration configuration) =>
-        (_bookCopyRepository, _bookRepository, _borrowRepository, _configuration) =
-        (bookCopyRepository, bookRepository, borrowRepository, configuration);
+        (_bookCopyRepository, _bookRepository, _borrowRepository, _settingsRepository, _configuration) =
+        (bookCopyRepository, bookRepository, borrowRepository, settingsRepository, configuration);
+
+    private async Task<FineTariffsResponse> GetFineTariffsAsync()
+    {
+        var fineTariffs = new FineTariffsResponse();
+        try
+        {
+            var setting = await _settingsRepository.GetByKeyAsync("fine_tariffs");
+            if (setting != null && !string.IsNullOrWhiteSpace(setting.Value))
+            {
+                var parsed = JsonSerializer.Deserialize<FineTariffsResponse>(setting.Value, JsonOptions);
+                if (parsed != null) fineTariffs = parsed;
+            }
+        }
+        catch
+        {
+            // Fallback to default institutional tariffs
+        }
+        return fineTariffs;
+    }
 
     public async Task<List<BookCopyDto>> GetCopiesByBookIdAsync(Guid bookId)
     {
@@ -40,13 +69,18 @@ public class BookCopyService : IBookCopyService
         }
 
         var copies = await _bookCopyRepository.GetByBookIdAsync(bookId);
+        var fineTariffs = await GetFineTariffsAsync();
+        decimal dailyRate = fineTariffs.DailyOverdueTariff > 0
+            ? fineTariffs.DailyOverdueTariff
+            : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal dr) ? dr : 15.00m);
+
         var results = new List<BookCopyDto>();
 
         foreach (var copy in copies)
         {
             var activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, bookId);
             // If loan is on this copy, or if status is Borrowed
-            results.Add(MapToDto(copy, activeLoan));
+            results.Add(MapToDto(copy, activeLoan, dailyRate));
         }
 
         return results;
@@ -57,8 +91,13 @@ public class BookCopyService : IBookCopyService
         var copy = await _bookCopyRepository.GetByIdAsync(copyId);
         if (copy == null) return null;
 
+        var fineTariffs = await GetFineTariffsAsync();
+        decimal dailyRate = fineTariffs.DailyOverdueTariff > 0
+            ? fineTariffs.DailyOverdueTariff
+            : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal dr) ? dr : 15.00m);
+
         var activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, copy.BookId);
-        return MapToDto(copy, activeLoan);
+        return MapToDto(copy, activeLoan, dailyRate);
     }
 
     public async Task<(bool Success, BookCopyDto? Copy, string? Error)> CreateCopyAsync(Guid bookId, CreateBookCopyRequest request)
@@ -139,8 +178,13 @@ public class BookCopyService : IBookCopyService
         await _bookCopyRepository.SaveChangesAsync();
         await _bookRepository.SaveChangesAsync();
 
+        var fineTariffs = await GetFineTariffsAsync();
+        decimal dailyRate = fineTariffs.DailyOverdueTariff > 0
+            ? fineTariffs.DailyOverdueTariff
+            : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal dr) ? dr : 15.00m);
+
         var activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, copy.BookId);
-        return (true, MapToDto(copy, activeLoan), null);
+        return (true, MapToDto(copy, activeLoan, dailyRate), null);
     }
 
     public async Task<(bool Success, string? Error)> DeleteCopyAsync(Guid copyId)
@@ -238,10 +282,19 @@ public class BookCopyService : IBookCopyService
 
         var activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, copy.BookId);
 
-        decimal dailyRate = decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal dr) ? dr : 5.00m;
-        decimal maxCap = decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out decimal mc) ? mc : 500.00m;
+        var fineTariffs = await GetFineTariffsAsync();
 
-        var dto = MapToDto(copy, activeLoan);
+        decimal dailyRate = fineTariffs.DailyOverdueTariff > 0
+            ? fineTariffs.DailyOverdueTariff
+            : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal dr) ? dr : 15.00m);
+        decimal maxCap = fineTariffs.MaxPenaltyCap > 0
+            ? fineTariffs.MaxPenaltyCap
+            : (decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out decimal mc) ? mc : 500.00m);
+        decimal defaultDamageFee = fineTariffs.BindingRepairTariff > 0
+            ? fineTariffs.BindingRepairTariff
+            : 280.00m;
+
+        var dto = MapToDto(copy, activeLoan, dailyRate);
 
         var result = new BookCopyScanResultDto
         {
@@ -249,7 +302,7 @@ public class BookCopyService : IBookCopyService
             ActiveLoan = dto.CurrentBorrower,
             DailyFineRate = dailyRate,
             MaximumFineCap = maxCap,
-            DefaultDamageFee = 150.00m
+            DefaultDamageFee = defaultDamageFee
         };
 
         return (true, result, null);
@@ -271,7 +324,7 @@ public class BookCopyService : IBookCopyService
         return (accession, qr);
     }
 
-    private static BookCopyDto MapToDto(BookCopy copy, BorrowTransaction? activeLoan = null)
+    private static BookCopyDto MapToDto(BookCopy copy, BorrowTransaction? activeLoan = null, decimal dailyRate = 15.00m)
     {
         ActiveBorrowerDto? borrower = null;
         if (activeLoan != null)
@@ -291,7 +344,7 @@ public class BookCopyService : IBookCopyService
                 DueDate = activeLoan.DueDate,
                 IsOverdue = isOverdue,
                 OverdueDays = overdueDays,
-                EstimatedOverdueFine = overdueDays * 5.00m
+                EstimatedOverdueFine = overdueDays * dailyRate
             };
         }
 

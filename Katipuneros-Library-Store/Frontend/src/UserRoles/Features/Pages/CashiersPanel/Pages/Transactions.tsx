@@ -155,8 +155,34 @@ export const Transactions: FC = () => {
   );
 
   const grossCollections = kpis?.finesDailyAmount ?? 0;
-  const cashAmount = grossCollections * 0.65;
-  const qrAmount = grossCollections * 0.35;
+
+  // Real payment method aggregations from actual recorded transactions (no synthetic multipliers)
+  const settledTransactions = useMemo(
+    () => transactions.filter((t) => (t.amount || 0) > 0),
+    [transactions]
+  );
+
+  const cashAmount = useMemo(() => {
+    const cashTx = settledTransactions.filter((t) =>
+      t.status?.toLowerCase().includes('cash') ||
+      t.transactionType?.toLowerCase().includes('cash')
+    );
+    return cashTx.length > 0
+      ? cashTx.reduce((sum, t) => sum + (t.amount || 0), 0)
+      : grossCollections;
+  }, [settledTransactions, grossCollections]);
+
+  const qrAmount = useMemo(() => {
+    const qrTx = settledTransactions.filter((t) =>
+      t.status?.toLowerCase().includes('qr') ||
+      t.status?.toLowerCase().includes('digital') ||
+      t.status?.toLowerCase().includes('online') ||
+      t.status?.toLowerCase().includes('gcash') ||
+      t.status?.toLowerCase().includes('maya') ||
+      t.transactionType?.toLowerCase().includes('qr')
+    );
+    return qrTx.reduce((sum, t) => sum + (t.amount || 0), 0);
+  }, [settledTransactions]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 

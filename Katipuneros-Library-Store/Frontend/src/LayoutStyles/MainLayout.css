@@ -37,3 +37,29 @@
   --spacing-2xl: 48px;
   --spacing-3xl: 64px;
 }
+
+.dark {
+  --color-background: #0f172a;
+  --color-surface: #0f172a;
+  --color-surface-container-lowest: #1e293b;
+  --color-surface-container-low: #141e33;
+  --color-surface-container: #1e293b;
+  --color-surface-container-high: #24334a;
+  --color-surface-container-highest: #2d3e58;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-soft-blue: #1e293b;
+}
+
+.oled {
+  --color-background: #000000;
+  --color-surface: #000000;
+  --color-surface-container-lowest: #0a0a0a;
+  --color-surface-container-low: #000000;
+  --color-surface-container: #121212;
+  --color-surface-container-high: #1a1a1a;
+  --color-surface-container-highest: #262626;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a3a3a3;
+  --color-soft-blue: #121212;
+}

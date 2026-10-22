@@ -6,7 +6,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Backend.Features.Api.DTOs.Requests;
+using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data;
 using Backend.Features.Data.Models;
 using Backend.Features.Helpers.Infrastructure;
@@ -111,6 +114,102 @@ public static class DatabaseSeeder
             };
 
             await context.CidrSubnets.AddRangeAsync(defaultSubnets);
+            await context.SaveChangesAsync();
+        }
+
+        // 4. Institutional Governance & System Settings Baseline
+        // Seeds the 4 core system governance records: circulation policy, reservation setups, fine tariffs, and security governance.
+        if (!await context.SystemSettings.AnyAsync())
+        {
+            var seedSettings = new List<SystemSetting>
+            {
+                new()
+                {
+                    Key = "circulation_policy",
+                    Category = "Circulation",
+                    Description = "Circulation duration and patron tier borrowing policy",
+                    UpdatedBy = "System Bootstrap",
+                    UpdatedAt = DateTime.UtcNow,
+                    Value = JsonSerializer.Serialize(new CirculationPolicyResponse
+                    {
+                        Tier1 = new TierPolicyDto
+                        {
+                            DaysDuration = 14,
+                            MaxConcurrency = 4,
+                            RenewalLimit = "1 Time (7d)",
+                            HoldQueueLimit = 2,
+                            OverdueTariff = "Standard Daily"
+                        },
+                        Tier2 = new TierPolicyDto
+                        {
+                            DaysDuration = 28,
+                            MaxConcurrency = 8,
+                            RenewalLimit = "2 Times (14d)",
+                            HoldQueueLimit = 5,
+                            OverdueTariff = "Standard Daily"
+                        },
+                        Tier3 = new TierPolicyDto
+                        {
+                            DaysDuration = 60,
+                            MaxConcurrency = 15,
+                            RenewalLimit = "Auto Semester",
+                            HoldQueueLimit = 10,
+                            OverdueTariff = "Waived 1st Cycle"
+                        },
+                        GracePeriodHours = 24,
+                        InterLibraryLoanProtocol = "Katipunan Consortium"
+                    })
+                },
+                new()
+                {
+                    Key = "reservation_setups",
+                    Category = "Reservations",
+                    Description = "Reservation hold thresholds and notification rules",
+                    UpdatedBy = "System Bootstrap",
+                    UpdatedAt = DateTime.UtcNow,
+                    Value = JsonSerializer.Serialize(new ReservationSetupsResponse
+                    {
+                        InstantReshelveNotice = true,
+                        ThesisScholarPriority = true,
+                        PickupNotificationCadence = "24h Prior"
+                    })
+                },
+                new()
+                {
+                    Key = "fine_tariffs",
+                    Category = "Fines",
+                    Description = "Overdue penalties, repair costs, and waiver governance",
+                    UpdatedBy = "System Bootstrap",
+                    UpdatedAt = DateTime.UtcNow,
+                    Value = JsonSerializer.Serialize(new FineTariffsResponse
+                    {
+                        DailyOverdueTariff = 15.00m,
+                        MaxPenaltyCap = 500.00m,
+                        BindingRepairTariff = 280.00m,
+                        LostBookAdministrativeFee = 150.00m,
+                        MedicalWaiverEnabled = true,
+                        TyphoonWaiverEnabled = true
+                    })
+                },
+                new()
+                {
+                    Key = "security_governance",
+                    Category = "Security",
+                    Description = "Security session timeouts and node governance",
+                    UpdatedBy = "System Bootstrap",
+                    UpdatedAt = DateTime.UtcNow,
+                    Value = JsonSerializer.Serialize(new SecurityGovernanceResponse
+                    {
+                        PosAutoLogoffMinutes = 15,
+                        SuperAdminTimeoutMinutes = 60,
+                        AuditNodeStatus = "Nominal",
+                        HashChainLength = 0,
+                        HmacKeyStatus = "Rotated (3d ago)"
+                    })
+                }
+            };
+
+            await context.SystemSettings.AddRangeAsync(seedSettings);
             await context.SaveChangesAsync();
         }
     }

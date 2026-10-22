@@ -141,6 +141,11 @@ namespace Backend.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(250)
@@ -155,7 +160,8 @@ namespace Backend.Migrations
 
                     b.HasIndex("DeweyCode");
 
-                    b.HasIndex("Isbn");
+                    b.HasIndex("Isbn")
+                        .IsUnique();
 
                     b.HasIndex("IsbnBarcode");
 
@@ -440,8 +446,15 @@ namespace Backend.Migrations
                     b.Property<Guid>("BorrowTransactionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("CashierId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("PatronId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -470,6 +483,8 @@ namespace Backend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BorrowTransactionId");
+
+                    b.HasIndex("CashierId");
 
                     b.HasIndex("PatronId");
 
@@ -689,11 +704,14 @@ namespace Backend.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("LibraryCardNumber");
+                    b.HasIndex("LibraryCardNumber")
+                        .IsUnique();
 
                     b.HasIndex("Role");
 
-                    b.HasIndex("Username");
+                    b.HasIndex("Username")
+                        .IsUnique()
+                        .HasFilter("[Username] IS NOT NULL");
 
                     b.ToTable("Users");
                 });
@@ -723,7 +741,7 @@ namespace Backend.Migrations
                     b.HasOne("Backend.Features.Data.Models.Book", "Book")
                         .WithMany("Copies")
                         .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Book");
@@ -778,6 +796,11 @@ namespace Backend.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Backend.Features.Data.Models.User", "Cashier")
+                        .WithMany()
+                        .HasForeignKey("CashierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Backend.Features.Data.Models.User", "Patron")
                         .WithMany("FineTransactions")
                         .HasForeignKey("PatronId")
@@ -785,6 +808,8 @@ namespace Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("BorrowTransaction");
+
+                    b.Navigation("Cashier");
 
                     b.Navigation("Patron");
                 });

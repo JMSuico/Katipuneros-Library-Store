@@ -25,6 +25,8 @@ import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import { updateCirculationPolicy } from '../../../../../Endpoints/Admin/settingsApi';
+import { useToasts } from '../../../../../Hooks/useToasts';
 
 const Borrowings: FC = () => {
   // Data States
@@ -80,7 +82,7 @@ const Borrowings: FC = () => {
 
   // UI Feedback
   const [modalSubmitting, setModalSubmitting] = useState<boolean>(false);
-  const [operationMessage, setOperationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const { toasts, addToast, removeToast } = useToasts();
 
   // Draggable Table Hook
   const { containerRef } = useTableDraggable();
@@ -111,13 +113,7 @@ const Borrowings: FC = () => {
   // Hook global refresh on network reconnection or window focus
   usePagesGlobalRefresh(loadData);
 
-  // Auto-dismiss feedback message
-  useEffect(() => {
-    if (operationMessage) {
-      const timer = setTimeout(() => setOperationMessage(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [operationMessage]);
+  
 
   // Filter & Search Logic
   const filteredBorrowings = useMemo(() => {
@@ -201,18 +197,15 @@ const Borrowings: FC = () => {
         specialApprovalNote: renewalNote || undefined,
       });
       if (res.success) {
-        setOperationMessage({
-          text: `Loan ${selectedLoan.loanCode} successfully extended by +${renewalDays} days.`,
-          type: 'success',
-        });
+        addToast(`Loan ${selectedLoan.loanCode} successfully extended by +${renewalDays} days.`, 'success');
         setIsRenewalModalOpen(false);
         setRenewalNote('');
         await loadData();
       } else {
-        setOperationMessage({ text: res.message || 'Renewal failed.', type: 'error' });
+        addToast(res.message || 'Renewal failed.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Error processing extension.', type: 'error' });
+      addToast(err.message || 'Error processing extension.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -222,7 +215,7 @@ const Borrowings: FC = () => {
   const handleOverrideSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!overridePatronId.trim() || !overrideBarcode.trim()) {
-      setOperationMessage({ text: 'Please scan or input User ID and Catalog Barcode.', type: 'error' });
+      addToast('Please scan or input User ID and Catalog Barcode.', 'error');
       return;
     }
     try {
@@ -234,17 +227,14 @@ const Borrowings: FC = () => {
         justification: overrideJustification.trim() || 'Dean approved special grant',
       });
       if (res.success) {
-        setOperationMessage({
-          text: `Circulation override granted for ${overrideBarcode}. Receipt ready.`,
-          type: 'success',
-        });
+        addToast(`Circulation override granted for ${overrideBarcode}. Receipt ready.`, 'success');
         setIsSlipModalOpen(true);
         await loadData();
       } else {
-        setOperationMessage({ text: res.message || 'Loan override rejected.', type: 'error' });
+        addToast(res.message || 'Loan override rejected.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Override error.', type: 'error' });
+      addToast(err.message || 'Override error.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -267,15 +257,12 @@ const Borrowings: FC = () => {
           // Continue batch processing
         }
       }
-      setOperationMessage({
-        text: `Batch renewal executed on ${count} circulation records.`,
-        type: 'success',
-      });
+      addToast(`Batch renewal executed on ${count} circulation records.`, 'success');
       setIsBatchModalOpen(false);
       setSelectedIds(new Set());
       await loadData();
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Batch action failed.', type: 'error' });
+      addToast(err.message || 'Batch action failed.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -294,7 +281,43 @@ const Borrowings: FC = () => {
     const url = getExportBorrowingsUrl(params);
     window.open(url, '_blank');
     setIsExportModalOpen(false);
-    setOperationMessage({ text: `Exporting loan register (${exportFormat.toUpperCase()})...`, type: 'success' });
+    addToast(`Exporting loan register (${exportFormat.toUpperCase()})...`, 'success');
+  };
+
+  // Action: Save Institutional Circulation Policy
+  const handleSavePolicy = async () => {
+    try {
+      setModalSubmitting(true);
+      await updateCirculationPolicy({
+        tier1: {
+          maxConcurrency: undergradLimit,
+          daysDuration: undergradDays,
+          renewalLimit: '1',
+          holdQueueLimit: 3,
+          overdueTariff: `₱${dailyFine}/day`,
+        },
+        tier2: {
+          maxConcurrency: gradLimit,
+          daysDuration: gradDays,
+          renewalLimit: '2',
+          holdQueueLimit: 5,
+          overdueTariff: `₱${dailyFine}/day`,
+        },
+        tier3: {
+          maxConcurrency: facultyLimit,
+          daysDuration: facultyDays,
+          renewalLimit: 'Semester',
+          holdQueueLimit: 10,
+          overdueTariff: `₱${dailyFine}/day`,
+        },
+      });
+      setIsPolicyModalOpen(false);
+      addToast('Institutional lending policies updated successfully.', 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to update circulation policy.', 'error');
+    } finally {
+      setModalSubmitting(false);
+    }
   };
 
   // Dropdown Items
@@ -315,19 +338,32 @@ const Borrowings: FC = () => {
   return (
     <div className="w-full">
       <div className="flex flex-col w-full gap-space-lg">
-        {/* Toast / Feedback Alert */}
-        {operationMessage && (
-          <div
-            className={`p-space-sm rounded-xl font-small text-small flex items-center gap-space-xs transition-all shadow-md ${
-              operationMessage.type === 'success'
-                ? 'bg-action-green/20 text-text-primary border border-action-green/40'
-                : 'bg-error-container text-error border border-error/40'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">
-              {operationMessage.type === 'success' ? 'check_circle' : 'warning'}
-            </span>
-            <span className="font-semibold">{operationMessage.text}</span>
+        {/* Global Toast Notifications */}
+        {toasts.length > 0 && (
+          <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+            {toasts.map((toast) => (
+              <div
+                key={toast.id}
+                className={`pointer-events-auto px-4 py-3 rounded-lg shadow-lg flex items-center justify-between gap-3 text-white text-small font-medium transition-all ${
+                  toast.type === 'success'
+                    ? 'bg-action-green text-on-surface'
+                    : toast.type === 'error'
+                    ? 'bg-status-danger'
+                    : toast.type === 'warning'
+                    ? 'bg-status-pending text-on-surface'
+                    : 'bg-primary'
+                }`}
+              >
+                <span>{toast.message}</span>
+                <button
+                  type="button"
+                  onClick={() => removeToast(toast.id)}
+                  className="opacity-70 hover:opacity-100 material-symbols-outlined text-[16px]"
+                >
+                  close
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -435,7 +471,7 @@ const Borrowings: FC = () => {
               <button
                 type="button"
                 className="font-caption text-caption text-primary font-semibold hover:underline cursor-pointer bg-transparent border-0 p-0"
-                onClick={() => setOperationMessage({ text: 'Courtesy reminders dispatched via SMS and email.', type: 'success' })}
+                onClick={() => addToast('Courtesy reminders dispatched via SMS and email.', 'success')}
               >
                 Notify All
               </button>
@@ -491,7 +527,7 @@ const Borrowings: FC = () => {
               <button
                 type="button"
                 className="font-caption text-caption text-primary font-semibold hover:underline cursor-pointer bg-transparent border-0 p-0"
-                onClick={() => setOperationMessage({ text: 'Overdue loans escalated to Dean Office for clearance block.', type: 'success' })}
+                onClick={() => addToast('Overdue loans escalated to Dean Office for clearance block.', 'success')}
               >
                 Escalate
               </button>
@@ -1239,7 +1275,7 @@ const Borrowings: FC = () => {
                 <select
                   className="w-full bg-surface-container-low p-2.5 rounded-xl font-small text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   value={renewalDays}
-                  onChange={(e) => setRenewalDays(parseInt(e.target.value))}
+                  onChange={(e) => setRenewalDays(parseInt(e.target.value, 10) || 0)}
                 >
                   <option value={7}>+7 Days Academic Grace</option>
                   <option value={14}>+14 Days Standard Extension</option>
@@ -1468,7 +1504,7 @@ const Borrowings: FC = () => {
                     type="number"
                     className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary"
                     value={undergradLimit}
-                    onChange={(e) => setUndergradLimit(parseInt(e.target.value))}
+                    onChange={(e) => setUndergradLimit(parseInt(e.target.value, 10) || 0)}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1477,7 +1513,7 @@ const Borrowings: FC = () => {
                     type="number"
                     className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary"
                     value={undergradDays}
-                    onChange={(e) => setUndergradDays(parseInt(e.target.value))}
+                    onChange={(e) => setUndergradDays(parseInt(e.target.value, 10) || 0)}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1486,7 +1522,7 @@ const Borrowings: FC = () => {
                     type="number"
                     className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary"
                     value={gradLimit}
-                    onChange={(e) => setGradLimit(parseInt(e.target.value))}
+                    onChange={(e) => setGradLimit(parseInt(e.target.value, 10) || 0)}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1495,7 +1531,7 @@ const Borrowings: FC = () => {
                     type="number"
                     className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary"
                     value={gradDays}
-                    onChange={(e) => setGradDays(parseInt(e.target.value))}
+                    onChange={(e) => setGradDays(parseInt(e.target.value, 10) || 0)}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1504,7 +1540,7 @@ const Borrowings: FC = () => {
                     type="number"
                     className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary"
                     value={facultyLimit}
-                    onChange={(e) => setFacultyLimit(parseInt(e.target.value))}
+                    onChange={(e) => setFacultyLimit(parseInt(e.target.value, 10) || 0)}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1513,7 +1549,7 @@ const Borrowings: FC = () => {
                     type="number"
                     className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary"
                     value={dailyFine}
-                    onChange={(e) => setDailyFine(parseInt(e.target.value))}
+                    onChange={(e) => setDailyFine(parseInt(e.target.value, 10) || 0)}
                   />
                 </div>
               </div>
@@ -1527,14 +1563,12 @@ const Borrowings: FC = () => {
                   Cancel
                 </button>
                 <button
-                  className="px-space-md py-2 rounded-lg font-small text-small font-bold bg-action-green text-text-primary hover:bg-action-green-hover transition-colors shadow-sm"
+                  className="px-space-md py-2 rounded-lg font-small text-small font-bold bg-action-green text-text-primary hover:bg-action-green-hover transition-colors shadow-sm disabled:opacity-50"
                   type="button"
-                  onClick={() => {
-                    setIsPolicyModalOpen(false);
-                    setOperationMessage({ text: 'Institutional lending policies updated successfully.', type: 'success' });
-                  }}
+                  disabled={modalSubmitting}
+                  onClick={handleSavePolicy}
                 >
-                  Save Policy Parameters
+                  {modalSubmitting ? 'Saving...' : 'Save Policy Parameters'}
                 </button>
               </div>
             </div>

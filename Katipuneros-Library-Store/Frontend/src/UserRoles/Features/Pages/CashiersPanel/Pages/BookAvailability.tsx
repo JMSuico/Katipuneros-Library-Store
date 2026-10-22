@@ -463,7 +463,10 @@ export const BookAvailability: FC = () => {
                             </button>
                             {b.availableCopies > 0 && (
                               <button
-                                onClick={() => navigate(`/cashier/checkout?query=${encodeURIComponent(b.isbnBarcode || b.isbn || b.id.toString())}`)}
+                                onClick={() => {
+                                  const code = b.isbnBarcode || b.isbn || b.id.toString();
+                                  navigate(`/cashier/checkout?bookIsbn=${encodeURIComponent(code)}&query=${encodeURIComponent(code)}`);
+                                }}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-on-primary font-small text-small font-semibold transition-colors cursor-pointer"
                                 type="button"
                               >
@@ -543,7 +546,10 @@ export const BookAvailability: FC = () => {
                         </button>
                         {b.availableCopies > 0 && (
                           <button
-                            onClick={() => navigate(`/cashier/checkout?query=${encodeURIComponent(b.isbnBarcode || b.isbn || b.id.toString())}`)}
+                            onClick={() => {
+                              const code = b.isbnBarcode || b.isbn || b.id.toString();
+                              navigate(`/cashier/checkout?bookIsbn=${encodeURIComponent(code)}&query=${encodeURIComponent(code)}`);
+                            }}
                             className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-on-primary font-small text-small font-semibold transition-colors cursor-pointer"
                             type="button"
                           >
@@ -693,7 +699,7 @@ export const BookAvailability: FC = () => {
                 <button
                   onClick={() => {
                     const query = inspectedBook.isbnBarcode || inspectedBook.isbn || inspectedBook.id.toString();
-                    navigate(`/cashier/checkout?query=${encodeURIComponent(query)}`);
+                    navigate(`/cashier/checkout?bookIsbn=${encodeURIComponent(query)}&query=${encodeURIComponent(query)}`);
                   }}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-on-primary font-caption text-caption font-bold cursor-pointer transition-colors"
                   type="button"

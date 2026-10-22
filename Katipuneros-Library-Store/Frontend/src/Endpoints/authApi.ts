@@ -163,6 +163,8 @@ export const updateStoredUser = (updates: Partial<AuthUser>): AuthUser | null =>
   return merged;
 };
 
+export const logout = (): void => logoutUser();
+
 export const logoutUser = (): void => {
   clearAuthSession();
   try {

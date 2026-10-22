@@ -56,7 +56,7 @@ public class BooksController : ControllerBase
                 request.TotalCopies,
                 request.BayLocation,
                 request.Description,
-                request.RfidTag,
+                null,
                 request.CoverImage
             ) is { } created
                 ? CreatedAtAction(nameof(GetBookById), new { id = created.Id }, ApiResponse<object>.Ok(created, "Book accessioned into catalog."))
@@ -78,7 +78,7 @@ public class BooksController : ControllerBase
                 request.TotalCopies,
                 request.BayLocation,
                 request.Description,
-                request.RfidTag,
+                null,
                 request.CoverImage
             ) switch
             {

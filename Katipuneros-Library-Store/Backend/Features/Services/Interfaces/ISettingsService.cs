@@ -11,6 +11,7 @@ namespace Backend.Features.Services.Interfaces;
 public interface ISettingsService
 {
     Task<SystemSettingsResponse> GetSystemSettingsAsync();
+    Task<PublicSettingsResponse> GetPublicSettingsAsync();
     Task<bool> UpdateCirculationPolicyAsync(UpdateCirculationPolicyRequest request, string updatedBy);
     Task<bool> UpdateReservationSetupsAsync(UpdateReservationSetupsRequest request, string updatedBy);
     Task<bool> UpdateFineTariffsAsync(UpdateFineTariffsRequest request, string updatedBy);
@@ -20,6 +21,6 @@ public interface ISettingsService
     Task<CidrSubnetDto> AddCidrSubnetAsync(AddCidrSubnetRequest request, string createdBy);
     Task<bool> BulkDeleteCidrSubnetsAsync(List<Guid> ids);
     Task<SecurityTelemetryDto> GetSecurityTelemetryAsync();
-    Task<bool> SaveAllSettingsAsync(SystemSettingsResponse settings, string updatedBy);
+    Task<bool> SaveAllSettingsAsync(SystemSettingsSaveRequest settings, string updatedBy);
     Task<bool> ResetSettingsAsync(List<string> modules, string updatedBy);
 }

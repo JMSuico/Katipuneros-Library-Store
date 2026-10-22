@@ -25,7 +25,7 @@ public class BorrowController : ControllerBase
         _borrowService = borrowService;
 
     [HttpPost("checkout")]
-    [Authorize]
+    [Authorize(Roles = "Cashier,Admin")]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request) =>
         !ModelState.IsValid
             ? BadRequest(ApiResponse<object>.Fail("Invalid checkout request payload."))
@@ -34,7 +34,7 @@ public class BorrowController : ControllerBase
                     ? request.PatronId
                     : (Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var pid) ? pid : Guid.Empty),
                 request.BookBarcodes,
-                request.DueDate ?? DateTime.UtcNow.AddDays(14),
+                request.DueDate,
                 Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cid) ? cid : null,
                 request.PickupPin,
                 request.ReservationId

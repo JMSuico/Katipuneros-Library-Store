@@ -91,17 +91,48 @@ const CatalogPage: FC = () => {
     loadData();
   }, [loadData]);
 
-  // Sync Search URL params
+  // Two-way search and category filter synchronization
+  // 1. Inward URL sync: updates local filter state when URL search params change
   useEffect(() => {
-    const q = searchParams.get('q');
-    if (q !== null && q !== searchQuery) {
+    const q = searchParams.get('q') || '';
+    if (q !== searchQuery) {
       setSearchQuery(q);
     }
-    const cat = searchParams.get('category');
-    if (cat !== null && cat !== selectedCategory) {
+    const cat = searchParams.get('category') || 'all';
+    if (cat !== selectedCategory) {
       setSelectedCategory(cat);
     }
   }, [searchParams]);
+
+  // 2. Outward URL sync: updates URL search params when user alters searchQuery or selectedCategory
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const currentQ = searchParams.get('q') || '';
+      const currentCat = searchParams.get('category') || 'all';
+      const targetQ = searchQuery.trim();
+      const targetCat = selectedCategory || 'all';
+
+      if (currentQ !== targetQ || currentCat !== targetCat) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          if (targetQ) {
+            next.set('q', targetQ);
+          } else {
+            next.delete('q');
+          }
+
+          if (targetCat && targetCat !== 'all') {
+            next.set('category', targetCat);
+          } else {
+            next.delete('category');
+          }
+          return next;
+        }, { replace: true });
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategory, searchParams, setSearchParams]);
 
   // Derived Active Holds and Reserve Quota
   const activeHoldsCount = useMemo(() =>

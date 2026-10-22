@@ -8,8 +8,8 @@ import { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { getAdminBorrowings, BackendBorrowing } from '../../../../../Endpoints/Admin/borrowingsApi';
 import { getCashierDashboardKpis, CashierDashboardKpis } from '../../../../../Endpoints/Cashier/cashierApi';
-import { processBookReturn } from '../../../../../Endpoints/Cashier/transactionApi';
-import { notifyPatronFine } from '../../../../../Endpoints/Cashier/fineApi';
+import { notifyPatronFine, settleFine, waiveFine, getAllFines, FineRecord } from '../../../../../Endpoints/Cashier/fineApi';
+import { getPublicSystemSettings, SystemSettingsResponse } from '../../../../../Endpoints/Admin/settingsApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
 import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { Checkbox } from '../../../../../Shared/Checkbox';
@@ -21,6 +21,7 @@ export const OverdueFines: FC = () => {
 
   const [loans, setLoans] = useState<BackendBorrowing[]>([]);
   const [kpis, setKpis] = useState<CashierDashboardKpis | null>(null);
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'all' | '1-3' | '4-7' | 'critical' | 'repeat'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -50,13 +51,19 @@ export const OverdueFines: FC = () => {
   const [noticeTemplate, setNoticeTemplate] = useState<string>('1st');
   const [isDispatchingNotice, setIsDispatchingNotice] = useState<boolean>(false);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
+  const [finesList, setFinesList] = useState<FineRecord[]>([]);
+  const [isWaiving, setIsWaiving] = useState<boolean>(false);
+  const [isWaiveModalOpen, setIsWaiveModalOpen] = useState<boolean>(false);
+  const [waiverReason, setWaiverReason] = useState<string>('Academic courtesy exemption authorized by circulation supervisor');
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [borrowings, kpiData] = await Promise.all([
+      const [borrowings, kpiData, finesRecords, settings] = await Promise.all([
         getAdminBorrowings('Active'),
         getCashierDashboardKpis(),
+        getAllFines().catch(() => []),
+        getPublicSystemSettings(),
       ]);
 
       // Filter to overdue items: dueDate is past or status is Overdue or daysRemaining < 0
@@ -68,6 +75,10 @@ export const OverdueFines: FC = () => {
 
       setLoans(overdueList);
       setKpis(kpiData);
+      setFinesList(finesRecords || []);
+      if (settings) {
+        setSystemSettings(settings);
+      }
 
       if (overdueList.length > 0 && !selectedLoan) {
         setSelectedLoan(overdueList[0]);
@@ -106,10 +117,13 @@ export const OverdueFines: FC = () => {
     return Math.max(0, daysElapsed - 1);
   }, []);
 
+  const dailyOverdueTariff = systemSettings?.fines?.dailyOverdueTariff ?? 15.0;
+  const maxPenaltyCap = systemSettings?.fines?.maxPenaltyCap ?? 500.0;
+
   const getAccruedFine = useCallback((chargeableDays: number): number => {
-    // Regulated daily rate ₱15.00/day, capped at ₱500.00
-    return Math.min(500, chargeableDays * 15);
-  }, []);
+    // Dynamic daily rate and institutional cap from active system settings
+    return Math.min(maxPenaltyCap, chargeableDays * dailyOverdueTariff);
+  }, [maxPenaltyCap, dailyOverdueTariff]);
 
   // Filtered and Sorted loans list
   const filteredLoans = useMemo(() => {
@@ -231,7 +245,7 @@ export const OverdueFines: FC = () => {
     }
   };
 
-  // Handler: Collect & Print Receipt
+  // Handler: Collect & Settle Fine via fineApi.ts settleFine
   const handleCollectFine = async () => {
     if (!selectedLoan) {
       addToast('Please select a loan to settle.', 'warning');
@@ -242,28 +256,71 @@ export const OverdueFines: FC = () => {
     const billable = getChargeableDays(elapsed);
     const fineAmount = getAccruedFine(billable);
 
+    // Resolve matching fineId from active fine records or borrow record
+    const matchingFine = finesList.find(
+      (f) => f.borrowTransactionId === selectedLoan.id || f.id === selectedLoan.id
+    );
+    const targetFineId = matchingFine?.id || selectedLoan.id;
+
     try {
       setIsCollecting(true);
-      const res = await processBookReturn({
-        barcode: selectedLoan.bookBarcode,
-        conditionNotes: 'Checked in via Overdue and Fines Settlement Desk',
-        damageFee: 0,
+      const res: any = await settleFine({
+        fineId: targetFineId,
+        amountPaid: fineAmount,
+        paymentMethod: 'Cash',
       });
 
-      if (res.success) {
+      if (res?.success !== false) {
         addToast(
-          `Official receipt printed for ${selectedLoan.patronName}. Loan cleared and ₱${fineAmount.toFixed(2)} collected.`,
+          `Official receipt printed for ${selectedLoan.patronName}. Fine cleared: ₱${fineAmount.toFixed(2)} settled via Cash.`,
           'success'
         );
         window.dispatchEvent(new CustomEvent('cashier-refresh-kpis'));
         await loadData();
       } else {
-        addToast(res.message || 'Settlement failed. Please verify with circulation desk supervisor.', 'error');
+        addToast(res?.message || 'Settlement failed. Please verify with circulation desk supervisor.', 'error');
       }
     } catch {
       addToast('Failed to connect to settlement engine. Please check terminal connection.', 'error');
     } finally {
       setIsCollecting(false);
+    }
+  };
+
+  // Handler: Waive Fine via fineApi.ts waiveFine
+  const handleWaiveFine = async () => {
+    if (!selectedLoan) {
+      addToast('Please select a loan to waive.', 'warning');
+      return;
+    }
+
+    const matchingFine = finesList.find(
+      (f) => f.borrowTransactionId === selectedLoan.id || f.id === selectedLoan.id
+    );
+    const targetFineId = matchingFine?.id || selectedLoan.id;
+
+    try {
+      setIsWaiving(true);
+      const res: any = await waiveFine({
+        fineId: targetFineId,
+        reason: waiverReason.trim() || 'Academic courtesy exemption authorized by circulation supervisor',
+      });
+
+      if (res?.success !== false) {
+        addToast(
+          `Fine waived successfully for ${selectedLoan.patronName}. Balance cleared under supervisor authorization.`,
+          'success'
+        );
+        setIsWaiveModalOpen(false);
+        window.dispatchEvent(new CustomEvent('cashier-refresh-kpis'));
+        await loadData();
+      } else {
+        addToast(res?.message || 'Fine waiver authorization failed.', 'error');
+      }
+    } catch {
+      addToast('Failed to connect to waiver engine. Please check supervisor authorization.', 'error');
+    } finally {
+      setIsWaiving(false);
     }
   };
 
@@ -334,7 +391,7 @@ export const OverdueFines: FC = () => {
                 Overdue Balances &amp; Fines Ledger
               </h1>
               <p className="font-small text-small text-text-secondary max-w-2xl">
-                Standard academic loan cycle: <span className="font-semibold text-text-primary">₱15.00/day</span> after 24-hr courtesy grace. Automated user account freeze triggers on day 14 past due.
+                Standard academic loan cycle: <span className="font-semibold text-text-primary">₱{dailyOverdueTariff.toFixed(2)}/day</span> after 24-hr courtesy grace. Automated user account freeze triggers on day 14 past due.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-space-sm">
@@ -342,7 +399,7 @@ export const OverdueFines: FC = () => {
                 <span className="material-symbols-outlined text-primary text-[18px]">gavel</span>
                 <div className="flex flex-col">
                   <span className="font-caption text-[10px] text-text-secondary uppercase leading-none">Standard Rate</span>
-                  <span className="font-small text-small font-bold text-text-primary">₱15.00 / day</span>
+                  <span className="font-small text-small font-bold text-text-primary">₱{dailyOverdueTariff.toFixed(2)} / day</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-lowest shadow-sm">
@@ -443,7 +500,7 @@ export const OverdueFines: FC = () => {
               <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-2.5">
                 <div
                   className="bg-primary h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(0, (finesCollectedToday / 500) * 100))}%` }}
+                  style={{ width: `${Math.min(100, Math.max(0, (finesCollectedToday / maxPenaltyCap) * 100))}%` }}
                 ></div>
               </div>
               <p className="font-caption text-caption text-text-secondary mt-2">
@@ -752,7 +809,7 @@ export const OverdueFines: FC = () => {
                               >
                                 ₱{fine.toFixed(2)}
                               </span>
-                              <span className="font-caption text-caption text-text-secondary">₱15.00/day net</span>
+                              <span className="font-caption text-caption text-text-secondary">₱{dailyOverdueTariff.toFixed(2)}/day net</span>
                             </div>
                           </td>
                           <td className="py-4 px-space-md">
@@ -1015,7 +1072,7 @@ export const OverdueFines: FC = () => {
                           <span className="material-symbols-outlined text-[16px]">price_change</span>
                           <span>Regulated Daily Fine Rate:</span>
                         </span>
-                        <span className="font-bold text-text-primary">₱15.00 / day</span>
+                        <span className="font-bold text-text-primary">₱{dailyOverdueTariff.toFixed(2)} / day</span>
                       </div>
                       <div className="pt-2 mt-1 flex items-center justify-between bg-surface-container-lowest p-3 rounded-xl shadow-xs">
                         <div className="flex flex-col">
@@ -1139,6 +1196,17 @@ export const OverdueFines: FC = () => {
                       : 'Collect & Print Receipt'}
                   </span>
                 </button>
+                <button
+                  type="button"
+                  className="w-full h-11 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary font-body-medium text-body-medium font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  onClick={() => setIsWaiveModalOpen(true)}
+                  disabled={!selectedLoan || isWaiving}
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {isWaiving ? 'sync' : 'handshake'}
+                  </span>
+                  <span>{isWaiving ? 'Waiving...' : 'Waive Fine (Supervisor Authorized)'}</span>
+                </button>
                 <div className="flex items-center justify-center gap-2 font-caption text-caption text-text-secondary">
                   <span className="material-symbols-outlined text-[14px]">lock</span>
                   <span>PCI-DSS compliant desk audit trail generated instantly</span>
@@ -1148,6 +1216,85 @@ export const OverdueFines: FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Supervisor Fee Waiver Authorization Modal */}
+      {isWaiveModalOpen && selectedLoan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest w-full max-w-md rounded-2xl shadow-2xl border border-outline/10 overflow-hidden flex flex-col p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-surface-container">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-2xl">handshake</span>
+                <h3 className="font-headline-4 text-headline-4 text-text-primary">Authorize Fine Waiver</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWaiveModalOpen(false)}
+                className="p-1 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-surface-container-low text-caption text-text-secondary space-y-1">
+              <div>
+                Patron: <strong className="text-text-primary">{selectedLoan.patronName}</strong> ({selectedLoan.patronLibraryId})
+              </div>
+              <div>
+                Title: <strong className="text-text-primary">{selectedLoan.bookTitle}</strong>
+              </div>
+              <div>
+                Outstanding Accrued Fine: <strong className="text-status-danger font-mono font-bold">₱{selectedFine.toFixed(2)}</strong>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="font-caption text-caption font-bold text-text-primary">
+                Institutional Waiver Justification
+              </label>
+              <select
+                value={waiverReason}
+                onChange={(e) => setWaiverReason(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-surface-container-low font-caption text-caption text-text-primary border border-outline/10 outline-none cursor-pointer"
+              >
+                <option value="Academic courtesy exemption authorized by circulation supervisor">
+                  Academic courtesy exemption (Supervisor Authorized)
+                </option>
+                <option value="Documented medical or institutional emergency">
+                  Documented medical or institutional emergency
+                </option>
+                <option value="Administrative system or book intake delay">
+                  Administrative system or book intake delay
+                </option>
+                <option value="First-time borrower academic orientation policy waiver">
+                  First-time borrower academic orientation policy waiver
+                </option>
+              </select>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsWaiveModalOpen(false)}
+                disabled={isWaiving}
+                className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-primary font-caption text-caption font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleWaiveFine}
+                disabled={isWaiving}
+                className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-caption text-caption font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {isWaiving ? 'sync' : 'check'}
+                </span>
+                <span>{isWaiving ? 'Processing Waiver...' : 'Authorize & Clear Fine'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

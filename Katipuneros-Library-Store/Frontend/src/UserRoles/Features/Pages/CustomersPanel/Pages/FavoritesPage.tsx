@@ -14,12 +14,14 @@ import {
   createReadingList,
 } from '../../../../../Endpoints/Customer/favoriteApi';
 import {
+  getCustomerReservations,
   requestCustomerReservation,
   CustomerReservationResponse,
 } from '../../../../../Endpoints/Customer/reservationApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400';
+const MAX_RESERVE_QUOTA = 5;
 
 type SortOption = 'recent' | 'availability' | 'title' | 'dewey';
 type ViewMode = 'grid' | 'list';
@@ -160,10 +162,50 @@ export const FavoritesPage: FC = () => {
     }
 
     setIsReservingAll(true);
-    let successCount = 0;
 
     try {
-      for (const book of availableBooks) {
+      // Validate remaining reservation quota before dispatching batch holds
+      const existingReservations = await getCustomerReservations();
+      const activeHoldsCount = existingReservations.filter(
+        (r) => r.status === 'Pending' || r.status === 'StagedInLocker' || r.status === '0' || r.status === '1'
+      ).length;
+
+      const remainingQuota = MAX_RESERVE_QUOTA - activeHoldsCount;
+      if (remainingQuota <= 0) {
+        addToast(
+          `Reservation quota reached (${MAX_RESERVE_QUOTA} max concurrent holds). You cannot reserve additional titles.`,
+          'warning'
+        );
+        setIsReservingAll(false);
+        return;
+      }
+
+      // Filter out any books that already have active holds
+      const unreservedAvailable = availableBooks.filter(
+        (b) =>
+          !existingReservations.some(
+            (r) =>
+              r.bookId === b.id &&
+              (r.status === 'Pending' || r.status === 'StagedInLocker' || r.status === '0' || r.status === '1')
+          )
+      );
+
+      if (unreservedAvailable.length === 0) {
+        addToast('All currently available saved titles are already on hold in your reservations.', 'info');
+        setIsReservingAll(false);
+        return;
+      }
+
+      const booksToReserve = unreservedAvailable.slice(0, remainingQuota);
+      if (unreservedAvailable.length > remainingQuota) {
+        addToast(
+          `Quota permits reserving only ${remainingQuota} of ${unreservedAvailable.length} available title(s).`,
+          'info'
+        );
+      }
+
+      let successCount = 0;
+      for (const book of booksToReserve) {
         const res = await requestCustomerReservation({
           bookId: book.id,
           pickupBranch: 'Main Circulation Desk',

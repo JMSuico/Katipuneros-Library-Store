@@ -717,16 +717,6 @@ const Returns: FC = () => {
                 </div>
                 <div className="flex items-center gap-space-xs">
                   <button
-                    onClick={() => {
-                      addToast(`Bulk verified ${selectedIds.size} return receipts.`, 'success');
-                      setSelectedIds(new Set());
-                    }}
-                    className="px-3 py-1 rounded bg-action-green text-text-primary font-caption text-caption font-bold hover:bg-action-green-hover transition-colors shadow-xs"
-                    type="button"
-                  >
-                    Clear Selected
-                  </button>
-                  <button
                     onClick={() => setSelectedIds(new Set())}
                     className="px-3 py-1 rounded bg-surface-container hover:bg-surface-container-high text-text-secondary font-caption text-caption font-medium transition-colors"
                     type="button"

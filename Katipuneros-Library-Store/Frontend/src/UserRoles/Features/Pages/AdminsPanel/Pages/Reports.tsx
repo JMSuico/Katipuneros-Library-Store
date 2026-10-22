@@ -17,6 +17,7 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { useFluidResposiveness } from '../../../../../Hooks/useFluidResposiveness';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { getAnomalyAlert, CirculationAnomalyData } from '../../../../../Endpoints/Admin/analyticsApi';
 import {
   getReportSuites,
   createReportSuite,
@@ -82,6 +83,15 @@ const Reports: FC = () => {
   const [attestations, setAttestations] = useState<AuditAttestation[]>([]);
   const [schedules, setSchedules] = useState<ScheduleTrigger[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [anomaly, setAnomaly] = useState<CirculationAnomalyData | null>(null);
+  const [selectedSchemaModules, setSelectedSchemaModules] = useState<string[]>([
+    'Circulation Loan History',
+    'Physical Stacks Barcode Census',
+    'Overdue Delinquencies & Fines',
+    'User Demographic Profiles',
+  ]);
+  const [newScheduleTitle, setNewScheduleTitle] = useState('');
+  const [newScheduleCron, setNewScheduleCron] = useState('0 8 * * 1');
 
   // ----------------------------------------------------------------------
   // State: Parameter Generator Form
@@ -761,34 +771,36 @@ const Reports: FC = () => {
       {activeTab === 'dossiers' && (
         <div className="flex flex-col w-full space-y-space-lg">
           {/* Circulation Anomaly Alert Banner */}
-          <div className="w-full bg-gradient-to-r from-primary/10 via-soft-blue to-primary/5 border border-primary/25 rounded-2xl p-space-md flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0 shadow-sm">
-                <span className="material-symbols-outlined text-[22px]">auto_awesome</span>
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="font-headline-4 text-small font-bold text-primary">
-                    Circulation Anomaly Detected
-                  </span>
-                  <span className="font-caption text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary uppercase">
-                    +22% Holds
-                  </span>
+          {anomaly?.anomalyDetected && (
+            <div className="w-full bg-gradient-to-r from-primary/10 via-soft-blue to-primary/5 border border-primary/25 rounded-2xl p-space-md flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <span className="material-symbols-outlined text-[22px]">auto_awesome</span>
                 </div>
-                <p className="font-body text-small text-text-secondary mt-0.5">
-                  Pending hold volume increased by 22% this week for Computer Science literature. 3 key titles currently report 0 shelf availability.
-                </p>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-headline-4 text-small font-bold text-primary">
+                      Circulation Anomaly Detected
+                    </span>
+                    <span className="font-caption text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary uppercase">
+                      +{anomaly.percentageIncrease}% Holds
+                    </span>
+                  </div>
+                  <p className="font-body text-small text-text-secondary mt-0.5">
+                    {anomaly.message}
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={() => setIsStacksAllocationModalOpen(true)}
+                className="px-space-md py-2 rounded-xl bg-primary text-on-primary font-body-medium text-small font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-container transition-all flex-shrink-0 active:scale-95 cursor-pointer"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[18px]">shelves</span>
+                <span>Review Stacks Allocation</span>
+              </button>
             </div>
-            <button
-              onClick={() => setIsStacksAllocationModalOpen(true)}
-              className="px-space-md py-2 rounded-xl bg-primary text-on-primary font-body-medium text-small font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-container transition-all flex-shrink-0 active:scale-95"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[18px]">shelves</span>
-              <span>Review Stacks Allocation</span>
-            </button>
-          </div>
+          )}
 
           {/* Primary Working Zone: Parameter Form (7 cols) + Disciplinary Share Chart (5 cols) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
@@ -2133,17 +2145,17 @@ const Reports: FC = () => {
       <DefaultFloatingModalCard
         isOpen={isStacksAllocationModalOpen}
         onClose={() => setIsStacksAllocationModalOpen(false)}
-        title="Review Stacks Allocation: Computer Science"
+        title={`Review Stacks Allocation: ${anomaly?.discipline || 'Circulation Desk'}`}
         subtitle="Anomaly mitigation and hold backlog reallocation"
         size="md"
         footer={
           <button
             type="button"
             onClick={() => {
-              toast.success('Stacks allocation verified. Reserve holds prioritized.');
+              toast.success(`Stacks allocation verified for ${anomaly?.discipline || 'stacks'}. Reserve holds prioritized.`);
               setIsStacksAllocationModalOpen(false);
             }}
-            className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-small hover:bg-primary-container"
+            className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-small hover:bg-primary-container cursor-pointer"
           >
             Authorize Reallocation
           </button>
@@ -2151,13 +2163,13 @@ const Reports: FC = () => {
       >
         <div className="space-y-3 py-2 text-text-primary text-small">
           <p>
-            Computer Science literature hold density has increased by <strong>+22%</strong> this week. 3 key titles currently report 0 shelf availability:
+            {anomaly?.message || 'Pending hold volume increased this week. Reserve allocation has been dynamically prioritized.'}
           </p>
-          <ul className="list-disc pl-5 space-y-1 text-caption text-text-secondary">
-            <li>Clean Code (Robert C. Martin) - 18 waitlisted holds</li>
-            <li>Introduction to Algorithms (CLRS) - 14 waitlisted holds</li>
-            <li>Structure and Interpretation of Computer Programs (SICP) - 12 waitlisted holds</li>
-          </ul>
+          {anomaly?.keyTitlesWithZeroShelf ? (
+            <p className="text-caption text-text-secondary">
+              Key titles currently reporting 0 shelf availability: <strong>{anomaly.keyTitlesWithZeroShelf}</strong>
+            </p>
+          ) : null}
         </div>
       </DefaultFloatingModalCard>
 
@@ -2172,10 +2184,14 @@ const Reports: FC = () => {
           <button
             type="button"
             onClick={() => {
-              toast.success('Custom schema saved successfully.');
+              if (selectedSchemaModules.length === 0) {
+                toast.error('Please select at least one module for the schema.');
+                return;
+              }
+              toast.success(`Custom schema compiled with ${selectedSchemaModules.length} module(s).`);
               setIsSchemaModalOpen(false);
             }}
-            className="px-4 py-2 rounded-xl bg-action-green text-text-primary font-bold text-small hover:bg-action-green-hover"
+            className="px-4 py-2 rounded-xl bg-action-green text-text-primary font-bold text-small hover:bg-action-green-hover cursor-pointer"
           >
             Save Custom Schema
           </button>
@@ -2186,7 +2202,16 @@ const Reports: FC = () => {
           <div className="space-y-2">
             {['Circulation Loan History', 'Physical Stacks Barcode Census', 'Overdue Delinquencies & Fines', 'User Demographic Profiles'].map((mod) => (
               <label key={mod} className="flex items-center gap-2 cursor-pointer font-medium text-small">
-                <input type="checkbox" defaultChecked className="accent-primary" />
+                <input
+                  type="checkbox"
+                  checked={selectedSchemaModules.includes(mod)}
+                  onChange={() => {
+                    setSelectedSchemaModules((prev) =>
+                      prev.includes(mod) ? prev.filter((m) => m !== mod) : [...prev, mod]
+                    );
+                  }}
+                  className="accent-primary"
+                />
                 <span>{mod}</span>
               </label>
             ))}
@@ -2237,10 +2262,27 @@ const Reports: FC = () => {
           <button
             type="button"
             onClick={() => {
-              toast.success('New automated schedule trigger active.');
+              if (!newScheduleTitle.trim()) {
+                toast.error('Please enter a schedule title.');
+                return;
+              }
+              const newTrigger: ScheduleTrigger = {
+                id: `SCH-${Date.now().toString(36).toUpperCase()}`,
+                title: newScheduleTitle.trim(),
+                cronExpression: newScheduleCron.trim() || '0 8 * * 1',
+                description: 'Automated statutory dossier dispatch',
+                channel: 'Institutional Email',
+                recipients: 'administration@katipuneros.edu.ph',
+                nextRunFormatted: 'Next Monday at 08:00 AM UTC+8',
+                isActive: true,
+              };
+              setSchedules((prev) => [...prev, newTrigger]);
+              toast.success(`New automated schedule trigger active: "${newScheduleTitle}".`);
+              setNewScheduleTitle('');
+              setNewScheduleCron('0 8 * * 1');
               setIsAddScheduleModalOpen(false);
             }}
-            className="px-4 py-2 rounded-xl bg-action-green text-text-primary font-bold text-small hover:bg-action-green-hover"
+            className="px-4 py-2 rounded-xl bg-action-green text-text-primary font-bold text-small hover:bg-action-green-hover cursor-pointer"
           >
             Create Trigger
           </button>
@@ -2252,6 +2294,8 @@ const Reports: FC = () => {
             <input
               type="text"
               placeholder="e.g. Weekly Dean's Council Digest"
+              value={newScheduleTitle}
+              onChange={(e) => setNewScheduleTitle(e.target.value)}
               className="h-10 px-3 bg-surface-container-low rounded-xl border border-outline-variant/20 text-small"
             />
           </div>
@@ -2259,7 +2303,8 @@ const Reports: FC = () => {
             <label className="font-bold">Cron Expression</label>
             <input
               type="text"
-              defaultValue="0 8 * * 1"
+              value={newScheduleCron}
+              onChange={(e) => setNewScheduleCron(e.target.value)}
               className="h-10 px-3 bg-surface-container-low rounded-xl border border-outline-variant/20 font-mono text-small"
             />
           </div>

@@ -33,6 +33,7 @@ import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { useFluidResposiveness } from '../../../../../Hooks/useFluidResposiveness';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import { useToasts } from '../../../../../Hooks/useToasts';
 import {
   getBookCopies,
   createBookCopy,
@@ -145,11 +146,13 @@ const BooksManager: FC = () => {
   const [exportFormat, setExportFormat] = useState<'marc21' | 'csv' | 'excel'>('marc21');
 
   // Notification Toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  }, []);
+  const { toasts, addToast, removeToast } = useToasts();
+  const showToast = useCallback(
+    (msg: string, type: 'success' | 'info' | 'error' | 'warning' = 'info') => {
+      addToast(msg, type);
+    },
+    [addToast]
+  );
 
   // Drag-to-scroll hook for wide table
   const { containerRef } = useTableDraggable<HTMLDivElement>();
@@ -232,7 +235,7 @@ const BooksManager: FC = () => {
           const matchTitle = b.title.toLowerCase().includes(q);
           const matchAuthor = b.author.toLowerCase().includes(q);
           const matchIsbn = b.isbn.toLowerCase().includes(q);
-          const matchDewey = b.deweyCode.toLowerCase().includes(q);
+          const matchDewey = (b.deweyCode ?? '').toLowerCase().includes(q);
           const matchCategory = b.category?.name.toLowerCase().includes(q) ?? false;
           if (!matchTitle && !matchAuthor && !matchIsbn && !matchDewey && !matchCategory) {
             return false;
@@ -252,7 +255,7 @@ const BooksManager: FC = () => {
           return b.totalCopies - a.totalCopies;
         }
         if (sortFilter === 'dewey') {
-          return a.deweyCode.localeCompare(b.deweyCode);
+          return (a.deweyCode ?? '').localeCompare(b.deweyCode ?? '');
         }
         return 0;
       });
@@ -393,9 +396,11 @@ const BooksManager: FC = () => {
 
     try {
       const res = await updateCatalogBook(selectedBook.id, editForm);
-      if (res.success) {
-        showToast('Book classification and metadata updated successfully!');
+      if (!res.success) {
+        showToast(res.message || 'Failed to update catalog entry.', 'error');
+        return;
       }
+      showToast('Book classification and metadata updated successfully!', 'success');
       setBooks((prev) =>
         prev.map((b) =>
           b.id === selectedBook.id
@@ -414,8 +419,8 @@ const BooksManager: FC = () => {
       }));
       setIsEditModalOpen(false);
       loadData();
-    } catch {
-      showToast('Failed to update catalog entry.');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update catalog entry.', 'error');
     }
   };
 
@@ -539,16 +544,12 @@ const BooksManager: FC = () => {
     try {
       await bulkDeleteCatalogBooks(ids);
       setBooks((prev) => prev.filter((b) => !selectedIds.has(b.id)));
-      showToast(`${ids.length} catalog items de-accessioned.`);
+      showToast(`${ids.length} catalog items de-accessioned.`, 'success');
       clearSelection();
       setIsBulkDeleteModalOpen(false);
       loadData();
-    } catch {
-      // Local fallback removal
-      setBooks((prev) => prev.filter((b) => !selectedIds.has(b.id)));
-      showToast(`${ids.length} books removed from catalog.`);
-      clearSelection();
-      setIsBulkDeleteModalOpen(false);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to delete books', 'error');
     }
   };
 
@@ -559,10 +560,10 @@ const BooksManager: FC = () => {
     try {
       await Promise.all(ids.map((id) => toggleArchiveCatalogBook(id, true)));
       setBooks((prev) => prev.map((b) => (selectedIds.has(b.id) ? { ...b, isArchived: true } : b)));
-      showToast(`${ids.length} books moved to archive.`);
+      showToast(`${ids.length} books moved to archive.`, 'success');
       clearSelection();
-    } catch {
-      showToast('Bulk archive completed with local status updates.');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to archive books.', 'error');
     }
   };
 
@@ -574,23 +575,22 @@ const BooksManager: FC = () => {
       .filter((l) => l.length > 0);
 
     if (rawLines.length === 0) {
-      showToast('Please enter at least one ISBN or barcode.');
+      showToast('Please enter at least one ISBN or barcode.', 'error');
       return;
     }
 
     try {
       const res = await batchIngestIsbns(rawLines, batchCategoryId || undefined);
       if (res.success && res.data) {
-        showToast(`Batch Ingest: ${res.data.ingestedCount} titles successfully accessioned!`);
+        showToast(`Batch Ingest: ${res.data.ingestedCount} titles successfully accessioned!`, 'success');
+        setIsBatchImportModalOpen(false);
+        setBatchIsbnInput('');
+        loadData();
       } else {
-        showToast(`Ingested ${rawLines.length} ISBN barcodes into staging.`);
+        showToast(res?.message || 'Failed to import ISBN barcodes.', 'error');
       }
-      setIsBatchImportModalOpen(false);
-      setBatchIsbnInput('');
-      loadData();
-    } catch {
-      showToast('Batch import staged successfully.');
-      setIsBatchImportModalOpen(false);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to import ISBN barcodes.', 'error');
     }
   };
 
@@ -748,11 +748,35 @@ const BooksManager: FC = () => {
 
   return (
     <div className="w-full relative pb-20">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-surface-container-lowest text-text-primary px-5 py-3 rounded-2xl shadow-2xl border border-action-green/50 flex items-center gap-3 animate-fadeIn">
-          <span className="material-symbols-outlined text-action-green text-xl">check_circle</span>
-          <span className="font-small text-small font-semibold">{toastMessage}</span>
+      {/* Toast Notifications Container */}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all ${
+                t.type === 'error'
+                  ? 'bg-error-container text-on-error-container border-error/20'
+                  : t.type === 'success'
+                  ? 'bg-action-green/20 text-text-primary border-action-green/30'
+                  : 'bg-surface-container-highest text-text-primary border-outline-variant/30'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px]">
+                  {t.type === 'success' ? 'check_circle' : t.type === 'error' ? 'error' : 'info'}
+                </span>
+                <span>{t.message}</span>
+              </div>
+              <button
+                onClick={() => removeToast(t.id)}
+                className="text-text-secondary hover:text-text-primary material-symbols-outlined text-[16px] cursor-pointer"
+                type="button"
+              >
+                close
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

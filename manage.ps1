@@ -215,7 +215,7 @@ function Start-AllServices {
     Write-Host "[*] Synchronizing SQL Server Database Schema via EF Core..." -ForegroundColor Gray
     try {
         Push-Location $RootDir
-        & dotnet ef database update --project Backend
+        & dotnet ef database update --project Backend --context AppDbContext
         Pop-Location
         Write-Host "  [OK] Database schema is up to date." -ForegroundColor Green
     } catch {
@@ -346,7 +346,7 @@ function Run-DatabaseMigrations {
         "1" {
             Write-Host "[*] Applying migrations to SQL Server database..." -ForegroundColor Cyan
             Push-Location $RootDir
-            & dotnet ef database update --project Backend
+            & dotnet ef database update --project Backend --context AppDbContext
             Pop-Location
             Write-Host "[OK] Database schema update completed." -ForegroundColor Green
         }
@@ -361,7 +361,7 @@ function Run-DatabaseMigrations {
             & dotnet ef migrations add $migName --project Backend
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "[*] Applying new migration to database..." -ForegroundColor Cyan
-                & dotnet ef database update --project Backend
+                & dotnet ef database update --project Backend --context AppDbContext
                 Write-Host "[OK] Migration '$migName' successfully created and applied." -ForegroundColor Green
             }
             Pop-Location
@@ -369,7 +369,7 @@ function Run-DatabaseMigrations {
         "3" {
             Write-Host "[*] Triggering database re-seed via API..." -ForegroundColor Cyan
             Push-Location $RootDir
-            & dotnet ef database update --project Backend
+            & dotnet ef database update --project Backend --context AppDbContext
             Pop-Location
             Write-Host "[OK] Database seeded." -ForegroundColor Green
         }
@@ -430,7 +430,7 @@ function Run-HealthTests {
         $token = $null
         foreach ($email in $adminEmails) {
             try {
-                $loginJson = @{ email = $email; password = "Admin@2026!" } | ConvertTo-Json
+                $loginJson = @{ identifier = $email; email = $email; password = "Admin@2026!" } | ConvertTo-Json
                 $auth = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/login" -Method Post -Body $loginJson -ContentType "application/json" -TimeoutSec 3 -ErrorAction Stop
                 if ($auth.data.token) {
                     $token = $auth.data.token
@@ -539,7 +539,7 @@ switch ($Action.ToLower()) {
     "createdb" { 
         Write-Host "[*] Creating/Updating Database via EF Core migrations with InventoryLibrary credentials..." -ForegroundColor Cyan
         Push-Location $RootDir
-        & dotnet ef database update --project Backend
+        & dotnet ef database update --project Backend --context AppDbContext
         Pop-Location
         exit
     }
@@ -681,7 +681,7 @@ do {
         "12" { 
             Write-Host "[*] Executing EF Core database update (InventoryLibrary)..." -ForegroundColor Cyan
             Push-Location $RootDir
-            & dotnet ef database update --project Backend
+            & dotnet ef database update --project Backend --context AppDbContext
             Pop-Location
             Read-Host "`nPress Enter to return to menu..." 
         }

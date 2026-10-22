@@ -4,6 +4,7 @@
 // DO NOT put business logic or direct database queries here.
 
 using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -25,10 +26,16 @@ public class FinesController : ControllerBase
 
     [HttpGet("my-fines")]
     [Authorize]
-    public async Task<IActionResult> GetMyFines() =>
-        !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId)
-            ? Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."))
-            : Ok(ApiResponse<object>.Ok(await _fineService.GetPatronFinesAsync(patronId)));
+    public async Task<IActionResult> GetMyFines()
+    {
+        if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var patronId))
+            return Unauthorized(ApiResponse<object>.Fail("Invalid patron identity token."));
+
+        var fines = await _fineService.GetPatronFinesAsync(patronId);
+        var balance = fines.Sum(f => f.BalanceRemaining);
+        var paidFines = fines.Sum(f => Math.Max(0, f.Amount - f.BalanceRemaining));
+        return Ok(ApiResponse<object>.Ok(new { balance, fines, paidFines }));
+    }
 
     [HttpGet]
     [Authorize(Roles = "Cashier,Admin")]
@@ -40,11 +47,13 @@ public class FinesController : ControllerBase
     public async Task<IActionResult> SettleFine(Guid id, [FromBody] SettleFineRequest request) =>
         !ModelState.IsValid
             ? BadRequest(ApiResponse<object>.Fail("Invalid settlement payload."))
-            : await _fineService.SettleFineAsync(id, request.AmountPaid, request.PaymentMethod) switch
-            {
-                (true, _) => Ok(ApiResponse<object>.Ok(new { id, request.AmountPaid }, $"Payment of ₱{request.AmountPaid:F2} via {request.PaymentMethod} recorded.")),
-                (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Settlement processing failed."))
-            };
+            : !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cashierId)
+                ? Unauthorized(ApiResponse<object>.Fail("Invalid cashier identity token."))
+                : await _fineService.SettleFineAsync(id, request.AmountPaid, request.PaymentMethod, cashierId) switch
+                {
+                    (true, _) => Ok(ApiResponse<object>.Ok(new { id, request.AmountPaid }, $"Payment of ₱{request.AmountPaid:F2} via {request.PaymentMethod} recorded.")),
+                    (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Settlement processing failed."))
+                };
 
     [HttpPut("{id:guid}/waive")]
     [Authorize(Roles = "Cashier,Admin")]

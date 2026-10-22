@@ -38,7 +38,7 @@ export const adminCreateBook = async (payload: CreateBookPayload): Promise<CMSAp
       author: payload.author,
       isbn: payload.isbn,
       deweyCode: payload.deweyCode ?? '000 GEN',
-      categoryId: payload.categoryId ?? '831e8723-d0d3-450c-b26a-3e4ad3364135',
+      categoryId: payload.categoryId,
       publishedYear: payload.publishedYear ?? new Date().getFullYear(),
       totalCopies: payload.copies,
       bayLocation: payload.bayLocation ?? 'Bay A-01',

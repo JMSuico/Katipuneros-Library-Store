@@ -384,7 +384,7 @@ export const PendingReservations: FC = () => {
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between border border-outline/10">
             <div className="space-y-1">
               <p className="font-caption text-caption text-text-secondary uppercase font-semibold">
-                Staged in Lockers
+                Staged for Pickup
               </p>
               <p className="font-headline-3 text-headline-3 text-primary-container font-bold">
                 {metrics.stagedReady} Ready
@@ -401,17 +401,17 @@ export const PendingReservations: FC = () => {
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between border border-outline/10">
             <div className="space-y-1">
               <p className="font-caption text-caption text-text-secondary uppercase font-semibold">
-                Assigned Lockers
+                Staging Bay Capacity
               </p>
               <p className="font-headline-3 text-headline-3 text-status-available font-bold">
                 {Math.max(0, metrics.totalLockerSlots - metrics.occupiedLockers)} / {metrics.totalLockerSlots} Free
               </p>
               <span className="text-caption font-caption text-text-secondary font-medium">
-                Bay 01 Staging Unit
+                Circulation Desk Counter
               </span>
             </div>
             <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-secondary">
-              <span className="material-symbols-outlined text-2xl">lock_clock</span>
+              <span className="material-symbols-outlined text-2xl">shelves</span>
             </div>
           </div>
         </div>
@@ -895,7 +895,7 @@ export const PendingReservations: FC = () => {
                             </p>
                             <div className="mt-1 flex items-center gap-2">
                               <span className="font-caption text-caption text-status-available font-semibold">
-                                Locker {r.lockerBay || 'Auto'}
+                                Staging Bay {r.lockerBay || 'Bay 01 Counter'}
                               </span>
                               <span className="text-text-secondary text-caption">•</span>
                               <span className="font-caption text-caption text-text-secondary">
@@ -1156,7 +1156,7 @@ export const PendingReservations: FC = () => {
                         <span className="font-bold text-emerald-900">48 Hours from Approval</span>
                       </div>
                       <p className="text-[11px] text-emerald-700 italic pt-1 border-t border-emerald-200">
-                        This reservation has been approved and permanently locked (once-only). Patron has been issued smart voucher credentials.
+                        This reservation has been approved for physical counter release. Patron has been issued circulation pickup credentials.
                       </p>
                     </div>
                     <button

@@ -60,3 +60,5 @@ export const notifyPatronFine = async (fineId: string) =>
   await apiRequest<object>(`/fines/${fineId}/notify`, {
     method: 'POST',
   });
+
+export { getCustomerFines, type CustomerFineRecord, type CustomerFinesResponse } from '../Customer/borrowApi';

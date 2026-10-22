@@ -29,6 +29,7 @@ import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import { useToasts } from '../../../../../Hooks/useToasts';
 
 const Reservations: FC = () => {
   // Data States
@@ -88,6 +89,7 @@ const Reservations: FC = () => {
 
   const [modalSubmitting, setModalSubmitting] = useState<boolean>(false);
   const [operationMessage, setOperationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const { toasts, addToast, removeToast } = useToasts();
 
   // Table draggable hook
   const { containerRef } = useTableDraggable();
@@ -118,13 +120,7 @@ const Reservations: FC = () => {
   // Hook global refresh on network reconnection or window focus
   usePagesGlobalRefresh(loadData);
 
-  // Auto-dismiss feedback message
-  useEffect(() => {
-    if (operationMessage) {
-      const timer = setTimeout(() => setOperationMessage(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [operationMessage]);
+  
 
   // Filter & Search Logic
   const filteredReservations = useMemo(() => {
@@ -223,10 +219,10 @@ const Reservations: FC = () => {
         setTriageReason('');
         await loadData();
       } else {
-        setOperationMessage({ text: res.message || 'Triage failed.', type: 'error' });
+        addToast(res.message || 'Triage failed.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'An error occurred during triage.', type: 'error' });
+      addToast(err.message || 'An error occurred during triage.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -243,14 +239,14 @@ const Reservations: FC = () => {
         customMessage: customNotifyMessage || undefined,
       });
       if (res.success) {
-        setOperationMessage({ text: `Notice dispatched via ${notifyChannel} to ${selectedReservation.patronName}.`, type: 'success' });
+        addToast(`Notice dispatched via ${notifyChannel} to ${selectedReservation.patronName}.`, 'success');
         setIsNotifyModalOpen(false);
         setCustomNotifyMessage('');
       } else {
-        setOperationMessage({ text: res.message || 'Failed to dispatch notification.', type: 'error' });
+        addToast(res.message || 'Failed to dispatch notification.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Notification error.', type: 'error' });
+      addToast(err.message || 'Notification error.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -264,14 +260,14 @@ const Reservations: FC = () => {
       setModalSubmitting(true);
       const res = await fulfillReservationHold(selectedReservation.id);
       if (res.success) {
-        setOperationMessage({ text: `Hold #${selectedReservation.id.slice(0, 8)} fulfilled and released to user.`, type: 'success' });
+        addToast(`Hold #${selectedReservation.id.slice(0, 8)} fulfilled and released to user.`, 'success');
         setIsReleaseModalOpen(false);
         await loadData();
       } else {
-        setOperationMessage({ text: res.message || 'Failed to fulfill hold.', type: 'error' });
+        addToast(res.message || 'Failed to fulfill hold.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Release failed.', type: 'error' });
+      addToast(err.message || 'Release failed.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -285,15 +281,15 @@ const Reservations: FC = () => {
       setModalSubmitting(true);
       const res = await updateReservationStatus(selectedReservation.id, statusOverride, statusNotes);
       if (res.success) {
-        setOperationMessage({ text: `Hold status transitioned to ${statusOverride}.`, type: 'success' });
+        addToast(`Hold status transitioned to ${statusOverride}.`, 'success');
         setIsUpdateStatusModalOpen(false);
         setStatusNotes('');
         await loadData();
       } else {
-        setOperationMessage({ text: res.message || 'Failed to update status.', type: 'error' });
+        addToast(res.message || 'Failed to update status.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Status transition error.', type: 'error' });
+      addToast(err.message || 'Status transition error.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -311,15 +307,15 @@ const Reservations: FC = () => {
         lockerBay: batchAction === 'Stage' ? batchLockerBay : undefined,
       });
       if (res.success) {
-        setOperationMessage({ text: `${selectedIds.size} hold requests processed via batch ${batchAction}.`, type: 'success' });
+        addToast(`${selectedIds.size} hold requests processed via batch ${batchAction}.`, 'success');
         setIsBatchClearanceModalOpen(false);
         setSelectedIds(new Set());
         await loadData();
       } else {
-        setOperationMessage({ text: res.message || 'Batch clearance failed.', type: 'error' });
+        addToast(res.message || 'Batch clearance failed.', 'error');
       }
     } catch (err: any) {
-      setOperationMessage({ text: err.message || 'Batch action failed.', type: 'error' });
+      addToast(err.message || 'Batch action failed.', 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -433,7 +429,7 @@ const Reservations: FC = () => {
               type="button"
               onClick={() => {
                 if (selectedIds.size === 0) {
-                  setOperationMessage({ text: 'Please select at least one hold record from the queue.', type: 'error' });
+                  addToast('Please select at least one hold record from the queue.', 'error');
                   return;
                 }
                 setIsBatchClearanceModalOpen(true);
@@ -825,7 +821,8 @@ const Reservations: FC = () => {
                 <tbody className="divide-y divide-surface-container-low font-small text-small">
                   {paginatedReservations.map((r) => {
                     const isSelected = selectedIds.has(r.id);
-                    const isOverdue = new Date(r.expiryDate).getTime() <= Date.now() && r.status === 'StagedInLocker';
+                    const expiryTimestamp = r.expiryDate ? new Date(r.expiryDate).getTime() : NaN;
+                    const isOverdue = !Number.isNaN(expiryTimestamp) && expiryTimestamp <= Date.now() && r.status === 'StagedInLocker';
 
                     return (
                       <tr
@@ -893,7 +890,7 @@ const Reservations: FC = () => {
                         <td className="py-3.5 px-space-md align-middle">
                           <div className="inline-flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-full text-text-primary font-caption text-caption font-medium">
                             <span className="material-symbols-outlined text-[15px] text-primary">
-                              {r.lockerBay ? 'lock' : 'storefront'}
+                              {r.lockerBay ? 'inventory_2' : 'storefront'}
                             </span>
                             <span>{r.lockerBay || r.pickupBranch || 'Main Desk'}</span>
                           </div>
@@ -1289,14 +1286,14 @@ const Reservations: FC = () => {
                           setSelectedReservation(stagedHold);
                           setIsViewModalOpen(true);
                         } else {
-                          setOperationMessage({ text: `Staging Bay ${bayCode} is vacant and ready for new book holds.`, type: 'success' });
+                          addToast(`Staging Bay ${bayCode} is vacant and ready for new book holds.`, 'success');
                         }
                       }}
                       title={stagedHold ? `Staged: ${stagedHold.bookTitle}` : `Staging Bay ${bayCode} Vacant`}
                     >
                       <span className="font-caption text-[11px] font-bold">{bayCode}</span>
                       <span className="material-symbols-outlined text-[16px] my-0.5">
-                        {isOverdue ? 'error' : stagedHold ? 'lock_clock' : 'lock_open_right'}
+                        {isOverdue ? 'error' : stagedHold ? 'inventory_2' : 'shelves'}
                       </span>
                       <span className="text-[9px] font-caption font-bold">
                         {isOverdue ? 'OVERDUE' : stagedHold ? `${remainingHours}h` : 'EMPTY'}
@@ -1567,7 +1564,7 @@ const Reservations: FC = () => {
                   User: <strong className="text-text-primary">{selectedReservation.patronName}</strong> ({selectedReservation.patronLibraryId})
                 </p>
                 <p className="text-caption text-text-secondary">
-                  Locker Bay: <strong className="text-primary">{selectedReservation.lockerBay || 'Main Desk Counter'}</strong>
+                  Staging Bay: <strong className="text-primary">{selectedReservation.lockerBay || 'Main Desk Counter'}</strong>
                 </p>
               </div>
 
@@ -1614,7 +1611,7 @@ const Reservations: FC = () => {
                   onChange={(e) => setStatusOverride(e.target.value)}
                 >
                   <option value="Pending">Pending Review</option>
-                  <option value="StagedInLocker">Staged In Locker</option>
+                  <option value="StagedInLocker">Staged In Bay</option>
                   <option value="Fulfilled">Fulfilled / Picked Up</option>
                   <option value="Cancelled">Cancelled</option>
                   <option value="Expired">Expired</option>
@@ -1717,7 +1714,7 @@ const Reservations: FC = () => {
                   type="button"
                   onClick={() => {
                     setIsAdjustQuotasModalOpen(false);
-                    setOperationMessage({ text: 'Hold quotas updated and applied to policy engine.', type: 'success' });
+                    addToast('Hold quotas updated and applied to policy engine.', 'success');
                   }}
                 >
                   Save Policy
@@ -1995,7 +1992,7 @@ const Reservations: FC = () => {
                     >
                       <span className="font-bold text-caption">{bayCode}</span>
                       <span className="material-symbols-outlined text-[20px] my-1">
-                        {isOverdue ? 'error' : match ? 'lock' : 'lock_open_right'}
+                        {isOverdue ? 'error' : match ? 'inventory_2' : 'shelves'}
                       </span>
                       <span className="text-[10px] font-bold line-clamp-1">
                         {isOverdue ? 'OVERDUE' : match ? match.patronName.split(' ')[0] : 'VACANT'}

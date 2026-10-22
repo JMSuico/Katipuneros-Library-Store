@@ -87,6 +87,11 @@ export const getSystemSettings = async (): Promise<SystemSettingsResponse | null
   return res.success ? res.data : null;
 };
 
+export const getPublicSystemSettings = async (): Promise<SystemSettingsResponse | null> => {
+  const res = await apiRequest<SystemSettingsResponse>('/admin/settings/public');
+  return res.success && res.data ? res.data : null;
+};
+
 export const updateCirculationPolicy = async (data: Partial<CirculationPolicyResponse>) =>
   await apiRequest<object>('/admin/settings/circulation', {
     method: 'PUT',

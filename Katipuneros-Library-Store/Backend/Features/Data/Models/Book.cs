@@ -57,6 +57,9 @@ public class Book
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // Navigation properties
     public ICollection<BookCopy> Copies { get; set; } = new List<BookCopy>();
     public ICollection<BorrowTransaction> BorrowTransactions { get; set; } = new List<BorrowTransaction>();

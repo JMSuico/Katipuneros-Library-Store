@@ -20,7 +20,7 @@ export interface CustomerReservationRecord {
   reservationDate: string;
   expiryDate: string;
   fulfilledDate?: string;
-  status: number;
+  status: 'Pending' | 'StagedInLocker' | 'Fulfilled' | 'Cancelled' | 'Expired' | string;
   counterBay?: string;
   lockerBay?: string;
   accessionPassCode?: string;

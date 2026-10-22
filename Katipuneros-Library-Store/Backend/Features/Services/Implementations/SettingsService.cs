@@ -16,6 +16,7 @@ namespace Backend.Features.Services.Implementations;
 
 public class SettingsService : ISettingsService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly ISettingsRepository _settingsRepo;
     private readonly IAuditRepository _auditRepository;
 
@@ -33,7 +34,7 @@ public class SettingsService : ISettingsService
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<CirculationPolicyResponse>(circSetting.Value);
+                var parsed = JsonSerializer.Deserialize<CirculationPolicyResponse>(circSetting.Value, JsonOptions);
                 if (parsed != null) response.Circulation = parsed;
             }
             catch { /* fallback to defaults */ }
@@ -49,7 +50,7 @@ public class SettingsService : ISettingsService
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<ReservationSetupsResponse>(resSetting.Value);
+                var parsed = JsonSerializer.Deserialize<ReservationSetupsResponse>(resSetting.Value, JsonOptions);
                 if (parsed != null) response.Reservations = parsed;
             }
             catch { /* fallback to defaults */ }
@@ -61,7 +62,7 @@ public class SettingsService : ISettingsService
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<FineTariffsResponse>(finesSetting.Value);
+                var parsed = JsonSerializer.Deserialize<FineTariffsResponse>(finesSetting.Value, JsonOptions);
                 if (parsed != null) response.Fines = parsed;
             }
             catch { /* fallback to defaults */ }
@@ -73,7 +74,7 @@ public class SettingsService : ISettingsService
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<SecurityGovernanceResponse>(secSetting.Value);
+                var parsed = JsonSerializer.Deserialize<SecurityGovernanceResponse>(secSetting.Value, JsonOptions);
                 if (parsed != null) response.Security = parsed;
             }
             catch { /* fallback to defaults */ }
@@ -95,6 +96,18 @@ public class SettingsService : ISettingsService
         };
 
         return response;
+    }
+
+    public async Task<PublicSettingsResponse> GetPublicSettingsAsync()
+    {
+        var settings = await GetSystemSettingsAsync();
+        return new PublicSettingsResponse
+        {
+            Circulation = settings.Circulation,
+            Fines = settings.Fines,
+            Reservations = settings.Reservations,
+            Security = settings.Security
+        };
     }
 
     public async Task<bool> UpdateCirculationPolicyAsync(UpdateCirculationPolicyRequest request, string updatedBy) =>
@@ -250,38 +263,57 @@ public class SettingsService : ISettingsService
             updatedBy
         ).ContinueWith(_ => true);
 
-    public async Task<bool> SaveAllSettingsAsync(SystemSettingsResponse settings, string updatedBy)
+    public async Task<bool> SaveAllSettingsAsync(SystemSettingsSaveRequest settings, string updatedBy)
     {
-        await UpdateCirculationPolicyAsync(new UpdateCirculationPolicyRequest
-        {
-            Tier1 = settings.Circulation.Tier1,
-            Tier2 = settings.Circulation.Tier2,
-            Tier3 = settings.Circulation.Tier3,
-            GracePeriodHours = settings.Circulation.GracePeriodHours
-        }, updatedBy);
+        if (settings == null) return false;
 
-        await UpdateReservationSetupsAsync(new UpdateReservationSetupsRequest
+        if (settings.Circulation?.Tier1 != null)
         {
-            InstantReshelveNotice = settings.Reservations.InstantReshelveNotice,
-            ThesisScholarPriority = settings.Reservations.ThesisScholarPriority,
-            PickupNotificationCadence = settings.Reservations.PickupNotificationCadence
-        }, updatedBy);
+            await UpdateCirculationPolicyAsync(new UpdateCirculationPolicyRequest
+            {
+                Tier1 = settings.Circulation.Tier1,
+                Tier2 = settings.Circulation.Tier2 ?? settings.Circulation.Tier1,
+                Tier3 = settings.Circulation.Tier3 ?? settings.Circulation.Tier1,
+                GracePeriodHours = settings.Circulation.GracePeriodHours
+            }, updatedBy);
+        }
 
-        await UpdateFineTariffsAsync(new UpdateFineTariffsRequest
+        if (settings.Reservations != null && !string.IsNullOrEmpty(settings.Reservations.PickupNotificationCadence))
         {
-            DailyOverdueTariff = settings.Fines.DailyOverdueTariff,
-            MaxPenaltyCap = settings.Fines.MaxPenaltyCap,
-            BindingRepairTariff = settings.Fines.BindingRepairTariff,
-            LostBookAdministrativeFee = settings.Fines.LostBookAdministrativeFee,
-            MedicalWaiverEnabled = settings.Fines.MedicalWaiverEnabled,
-            TyphoonWaiverEnabled = settings.Fines.TyphoonWaiverEnabled
-        }, updatedBy);
+            await UpdateReservationSetupsAsync(new UpdateReservationSetupsRequest
+            {
+                InstantReshelveNotice = settings.Reservations.InstantReshelveNotice,
+                ThesisScholarPriority = settings.Reservations.ThesisScholarPriority,
+                PickupNotificationCadence = settings.Reservations.PickupNotificationCadence
+            }, updatedBy);
+        }
 
-        await UpdateSecurityGovernanceAsync(new UpdateSecurityGovernanceRequest
+        if (settings.DailyOverdueTariff.HasValue && settings.DailyOverdueTariff.Value > 0)
         {
-            PosAutoLogoffMinutes = settings.Security.PosAutoLogoffMinutes,
-            SuperAdminTimeoutMinutes = settings.Security.SuperAdminTimeoutMinutes
-        }, updatedBy);
+            (settings.Fines ??= new()).DailyOverdueTariff = settings.DailyOverdueTariff.Value;
+        }
+
+        if (settings.Fines != null && settings.Fines.DailyOverdueTariff > 0)
+        {
+            await UpdateFineTariffsAsync(new UpdateFineTariffsRequest
+            {
+                DailyOverdueTariff = settings.Fines.DailyOverdueTariff,
+                MaxPenaltyCap = settings.Fines.MaxPenaltyCap > 0 ? settings.Fines.MaxPenaltyCap : 500.00m,
+                BindingRepairTariff = settings.Fines.BindingRepairTariff > 0 ? settings.Fines.BindingRepairTariff : 280.00m,
+                LostBookAdministrativeFee = settings.Fines.LostBookAdministrativeFee > 0 ? settings.Fines.LostBookAdministrativeFee : 150.00m,
+                MedicalWaiverEnabled = settings.Fines.MedicalWaiverEnabled,
+                TyphoonWaiverEnabled = settings.Fines.TyphoonWaiverEnabled
+            }, updatedBy);
+        }
+
+        if (settings.Security != null && settings.Security.PosAutoLogoffMinutes > 0)
+        {
+            await UpdateSecurityGovernanceAsync(new UpdateSecurityGovernanceRequest
+            {
+                PosAutoLogoffMinutes = settings.Security.PosAutoLogoffMinutes,
+                SuperAdminTimeoutMinutes = settings.Security.SuperAdminTimeoutMinutes > 0 ? settings.Security.SuperAdminTimeoutMinutes : 60
+            }, updatedBy);
+        }
 
         return true;
     }

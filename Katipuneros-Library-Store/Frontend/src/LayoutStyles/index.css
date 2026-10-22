@@ -19,6 +19,10 @@
 
 /* Base Layer Resets -- extracted from source HTML @layer base blocks */
 @layer base {
+  html {
+    font-size: calc(16px * var(--font-size-multiplier, 1));
+  }
+
   html,
   body {
     margin: 0;

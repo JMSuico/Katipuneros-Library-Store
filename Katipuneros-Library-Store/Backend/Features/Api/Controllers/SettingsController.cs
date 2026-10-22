@@ -26,6 +26,14 @@ public class SettingsController : ControllerBase
     public async Task<IActionResult> GetSettings() =>
         Ok(ApiResponse<SystemSettingsResponse>.Ok(await _settingsService.GetSystemSettingsAsync()));
 
+    /// <summary> Retrieve active system governance policies and parameters for cashier and client terminals </summary>
+    [HttpGet("public")]
+    [HttpGet("/api/settings/public")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<SystemSettingsResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPublicSettings() =>
+        Ok(ApiResponse<SystemSettingsResponse>.Ok(await _settingsService.GetSystemSettingsAsync()));
+
     /// <summary> Update circulation durations and patron tier caps </summary>
     [HttpPut("circulation")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
@@ -113,7 +121,7 @@ public class SettingsController : ControllerBase
     /// <summary> Save full system governance configuration bundle </summary>
     [HttpPost("save")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> SaveAll([FromBody] SystemSettingsResponse request) =>
+    public async Task<IActionResult> SaveAll([FromBody] SystemSettingsSaveRequest request) =>
         Ok(ApiResponse<object>.Ok(
             new { success = await _settingsService.SaveAllSettingsAsync(request, User?.Identity?.Name ?? "Admin") },
             "All system configurations saved and applied across campus nodes."

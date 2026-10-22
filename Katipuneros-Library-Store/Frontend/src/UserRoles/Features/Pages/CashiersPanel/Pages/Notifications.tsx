@@ -426,14 +426,14 @@ export const Notifications: FC = () => {
             </div>
           </div>
 
-          {/* Bento Card 2: Staging Locker Holds */}
+          {/* Bento Card 2: Staging Bay Holds */}
           <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-space-lg shadow-sm flex flex-col justify-between group hover:shadow-md transition-shadow">
             <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-action-green/15 pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-xl bg-soft-blue flex items-center justify-center text-primary">
                 <span className="material-symbols-outlined text-[22px]">inventory_2</span>
               </div>
-              <span className="font-caption text-caption font-semibold text-text-secondary">Bay Locker Area</span>
+              <span className="font-caption text-caption font-semibold text-text-secondary">Circulation Desk Counter</span>
             </div>
             <div className="mt-4">
               <div className="flex items-baseline gap-2">
@@ -443,10 +443,10 @@ export const Notifications: FC = () => {
                 </span>
               </div>
               <p className="font-body-medium text-body-medium font-semibold text-text-primary mt-0.5">
-                Staging Locker Holds
+                Staging Bay Holds
               </p>
               <p className="font-caption text-caption text-text-secondary mt-1">
-                {toReleaseCount > 0 ? 'Awaiting user pickup in staged bays' : 'Zero pending pickup holds'}
+                {toReleaseCount > 0 ? 'Awaiting patron pickup at circulation desk counter' : 'Zero pending pickup holds'}
               </p>
             </div>
           </div>

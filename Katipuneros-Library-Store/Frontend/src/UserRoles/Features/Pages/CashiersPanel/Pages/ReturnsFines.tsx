@@ -18,6 +18,7 @@ import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { dispatchCirculationNotification } from '../../../../../Shared/Utils/notificationBus';
 import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
+import { getPublicSystemSettings, SystemSettingsResponse } from '../../../../../Endpoints/Admin/settingsApi';
 
 
 export interface ReturnReceiptData {
@@ -46,6 +47,7 @@ export const ReturnsFines: FC = () => {
 
   const [activeLoans, setActiveLoans] = useState<BackendBorrowing[]>([]);
   const [kpis, setKpis] = useState<CashierDashboardKpis | null>(null);
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsResponse | null>(null);
   const [scannerInput, setScannerInput] = useState<string>('');
   const debouncedScannerInput = useDebounce(scannerInput, 300);
   const [selectedLoan, setSelectedLoan] = useState<BackendBorrowing | null>(null);
@@ -92,12 +94,16 @@ export const ReturnsFines: FC = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [loans, kpiData] = await Promise.all([
+      const [loans, kpiData, settings] = await Promise.all([
         getAdminBorrowings('Active'),
         getCashierDashboardKpis(),
+        getPublicSystemSettings(),
       ]);
       setActiveLoans(loans);
       setKpis(kpiData);
+      if (settings) {
+        setSystemSettings(settings);
+      }
     } catch {
       addToast('Failed to synchronize circulation loans with database.', 'error');
     }
@@ -412,14 +418,23 @@ export const ReturnsFines: FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Condition surcharge
-  const conditionSurcharge = useMemo(() => {
-    if (condition === 'damage') return 150.0;
-    if (condition === 'lost') return 1450.0;
-    return 0.0;
-  }, [condition]);
+  // Dynamic tariffs from active System Settings (with robust fallbacks)
+  const dailyOverdueTariff = systemSettings?.fines?.dailyOverdueTariff ?? 15.0;
+  const maxPenaltyCap = systemSettings?.fines?.maxPenaltyCap ?? 500.0;
+  const bindingRepairTariff = systemSettings?.fines?.bindingRepairTariff ?? 300.0;
+  const lostReplacementFee = systemSettings?.fines?.lostBookAdministrativeFee
+    ? 1300.0 + systemSettings.fines.lostBookAdministrativeFee
+    : 1450.0;
 
-  // Overdue calculation (₱15.00/day for overdue days)
+  // Condition surcharge: ₱50.00 minor wear, dynamic bindingRepairTariff severe damage, dynamic lost replacement
+  const conditionSurcharge = useMemo(() => {
+    if (condition === 'wear') return 50.0;
+    if (condition === 'damage') return bindingRepairTariff;
+    if (condition === 'lost') return lostReplacementFee;
+    return 0.0;
+  }, [condition, bindingRepairTariff, lostReplacementFee]);
+
+  // Overdue calculation (dynamic dailyOverdueTariff for overdue days)
   const daysOverdue = useMemo(() => {
     if (!selectedLoan) return 0;
     const due = new Date(selectedLoan.dueDate).getTime();
@@ -433,8 +448,8 @@ export const ReturnsFines: FC = () => {
 
   const baseOverdueFine = useMemo(() => {
     if (isAfterHoursCounterSlot && daysOverdue <= 1) return 0.0; // Counter drop slot 24h courtesy grace waiver
-    return daysOverdue * 15.0;
-  }, [daysOverdue, isAfterHoursCounterSlot]);
+    return Math.min(maxPenaltyCap, daysOverdue * dailyOverdueTariff);
+  }, [daysOverdue, isAfterHoursCounterSlot, maxPenaltyCap, dailyOverdueTariff]);
 
   const totalFineDue = baseOverdueFine + conditionSurcharge;
 
@@ -1339,9 +1354,11 @@ export const ReturnsFines: FC = () => {
                     />
                   </div>
                   <span className="font-caption text-caption text-text-secondary mt-1">
-                    Highlighter or minor dog-ears. Normal academic wear.
+                    Highlighter or minor dog-ears. Academic wear fee assessed.
                   </span>
-                  <span className="mt-2 text-caption font-caption font-bold text-text-secondary">Fee: ₱0.00</span>
+                  <span className="mt-2 text-caption font-caption font-bold text-status-pending">
+                    +₱50.00 Minor Wear Fee
+                  </span>
                 </label>
 
                 <label
@@ -1365,7 +1382,7 @@ export const ReturnsFines: FC = () => {
                     Broken spine, water damage, or torn pages. Rebinder required.
                   </span>
                   <span className="mt-2 text-caption font-caption font-bold text-status-danger">
-                    +₱150.00 Repair Fee
+                    +₱{bindingRepairTariff.toFixed(2)} Severe Damage Fee
                   </span>
                 </label>
 
@@ -1390,7 +1407,7 @@ export const ReturnsFines: FC = () => {
                     User unable to produce physical volume.
                   </span>
                   <span className="mt-2 text-caption font-caption font-bold text-status-danger">
-                    Full Replacement: +₱1,450.00
+                    Full Replacement: +₱{lostReplacementFee.toFixed(2)}
                   </span>
                 </label>
               </div>
@@ -1421,7 +1438,7 @@ export const ReturnsFines: FC = () => {
 
                 <div className="flex items-center justify-between py-1 px-3">
                   <span className="text-text-secondary">Overdue Rate:</span>
-                  <span className="font-bold text-text-primary">₱15.00 / day</span>
+                  <span className="font-bold text-text-primary">₱{dailyOverdueTariff.toFixed(2)} / day (Institutional Cap: ₱{maxPenaltyCap.toFixed(2)})</span>
                 </div>
 
                 <div className="flex items-center justify-between py-1 px-3">
@@ -1821,8 +1838,52 @@ export const ReturnsFines: FC = () => {
 
       {/* Return Receipt & Audit Docket Modal */}
       {isReceiptModalOpen && completedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline/10 overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 print:bg-white print:p-0 print:static print:inset-auto">
+          {/* Scoped @media print stylesheet: prints ONLY #printable-receipt, hiding sidebars, navigation, backgrounds */}
+          <style>{`
+            @media print {
+              /* Universal background & canvas reset */
+              html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              /* Hide all page content except the printable receipt modal container */
+              body * {
+                visibility: hidden !important;
+              }
+              /* Scoped printable container and children */
+              #printable-receipt,
+              #printable-receipt * {
+                visibility: visible !important;
+              }
+              #printable-receipt {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 24px !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+                border: 1px solid #e5e7eb !important;
+                border-radius: 0 !important;
+                z-index: 99999 !important;
+              }
+              /* Explicitly conceal all sidebars, navigation headers, dialog buttons, footers */
+              nav, aside, header, footer, .sidebar, .no-print, .no-print * {
+                display: none !important;
+                visibility: hidden !important;
+              }
+            }
+          `}</style>
+          <div
+            id="printable-receipt"
+            className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline/10 overflow-hidden flex flex-col print:border-none print:shadow-none"
+          >
             {/* Modal Header */}
             <div className="p-5 border-b border-surface-container bg-surface-container-low flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1839,7 +1900,7 @@ export const ReturnsFines: FC = () => {
               <button
                 type="button"
                 onClick={() => setIsReceiptModalOpen(false)}
-                className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-container transition-colors cursor-pointer no-print"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
@@ -1863,7 +1924,7 @@ export const ReturnsFines: FC = () => {
                       addToast('Reference copied to clipboard!', 'info');
                     }}
                     title="Copy Reference"
-                    className="p-1 text-text-secondary hover:text-primary transition-colors cursor-pointer"
+                    className="p-1 text-text-secondary hover:text-primary transition-colors cursor-pointer no-print"
                   >
                     <span className="material-symbols-outlined text-base">content_copy</span>
                   </button>
@@ -1976,7 +2037,7 @@ export const ReturnsFines: FC = () => {
               <span className="font-caption text-caption text-text-secondary">
                 {completedReceipt.deskBay} • Katipuneros Library System
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 no-print">
                 <button
                   type="button"
                   onClick={() => {

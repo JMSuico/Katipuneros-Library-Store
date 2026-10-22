@@ -161,10 +161,10 @@ const AuditLogs: FC = () => {
       if (result.isIntact) {
         addToast(`Hash chain verified: ${result.verifiedCount} blocks intact with zero discrepancies.`, 'success');
       } else {
-        addToast(`Integrity breach detected at block ID: ${result.brokenEntryId}`, 'error');
+        addToast(`Integrity breach detected at block ID: ${result.brokenEntryId || 'unknown'}`, 'error');
       }
-    } catch {
-      addToast('Hash chain 100% verified against local SHA-256 cryptographic hashes.', 'info');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to verify audit hash chain.', 'error');
     }
   };
 

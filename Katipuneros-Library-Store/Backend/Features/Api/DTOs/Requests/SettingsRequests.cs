@@ -116,3 +116,8 @@ public class UpdateSecurityGovernanceRequest
     [Range(1, 1440)]
     public int SuperAdminTimeoutMinutes { get; set; } = 60;
 }
+
+public class SystemSettingsSaveRequest : Backend.Features.Api.DTOs.Responses.SystemSettingsResponse
+{
+    public decimal? DailyOverdueTariff { get; set; }
+}

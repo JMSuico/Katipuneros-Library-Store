@@ -7,10 +7,13 @@ import { FC, useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CustomerLoanRecord,
+  CustomerFinesResponse,
   getCustomerActiveLoans,
   getCustomerLoanHistory,
+  getCustomerFines,
   renewCustomerLoan,
 } from '../../../../../Endpoints/Customer/borrowApi';
+import { getPublicSystemSettings, SystemSettingsResponse } from '../../../../../Endpoints/settingsApi';
 import { getStoredUser, AuthUser } from '../../../../../Endpoints/authApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
 
@@ -27,16 +30,22 @@ const BorrowingsPage: FC = () => {
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [finesData, setFinesData] = useState<CustomerFinesResponse>({ balance: 0, fines: [], paidFines: 0 });
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsResponse | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [actives, history] = await Promise.all([
+      const [actives, history, fines, settings] = await Promise.all([
         getCustomerActiveLoans(),
         getCustomerLoanHistory(),
+        getCustomerFines(),
+        getPublicSystemSettings(),
       ]);
       setActiveLoans(actives);
       setLoanHistory(history);
+      if (fines) setFinesData(fines);
+      if (settings) setSystemSettings(settings);
       if (actives.length > 0 && !selectedLoanId) {
         setSelectedLoanId(actives[0].id);
       }
@@ -378,20 +387,28 @@ const BorrowingsPage: FC = () => {
                 </div>
                 <div className="mt-space-md">
                   <span className="font-headline-3 text-headline-3 text-on-primary">
-                    {overdueCount > 0 ? 'Review Needed' : 'Zero Fines'}
+                    {overdueCount > 0 || finesData.balance > 0 ? 'Review Needed' : 'Zero Fines'}
                   </span>
                   <div className="font-caption text-caption text-primary-fixed mt-1 flex items-center gap-space-xs">
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        overdueCount > 0 ? 'bg-status-pending' : 'bg-action-green'
+                        overdueCount > 0 || finesData.balance > 0 ? 'bg-status-pending' : 'bg-action-green'
                       }`}
                     ></span>
-                    <span>{overdueCount > 0 ? 'Late Returns Pending' : 'Account in Exemplary Standing'}</span>
+                    <span>
+                      {overdueCount > 0
+                        ? 'Late Returns Pending'
+                        : finesData.balance > 0
+                        ? 'Outstanding Fine Assessment'
+                        : 'Account in Exemplary Standing'}
+                    </span>
                   </div>
                 </div>
                 <div className="mt-space-sm flex items-center justify-between font-caption text-caption pt-space-xs border-t border-white/10">
                   <span>Standard Privilege</span>
-                  <span className="font-medium text-action-green">₱0.00 Balance</span>
+                  <span className={`font-medium ${finesData.balance > 0 ? 'text-status-danger font-semibold' : 'text-action-green'}`}>
+                    ₱{finesData.balance.toFixed(2)} Balance
+                  </span>
                 </div>
               </div>
             </div>
@@ -962,7 +979,7 @@ const BorrowingsPage: FC = () => {
                 <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-space-md text-caption text-text-secondary">
                   <span>Showing {filteredHistory.length} audited circulation event(s)</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-status-available"></span>
-                  <span className="text-text-primary font-semibold">Total Fines Paid: ₱0.00</span>
+                  <span className="text-text-primary font-semibold">Total Fines Paid: ₱{finesData.paidFines.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -1155,7 +1172,13 @@ const BorrowingsPage: FC = () => {
                           <span>Renewal Limits</span>
                         </div>
                         <p className="font-caption text-caption text-text-secondary leading-relaxed">
-                          Active loans may be extended up to <strong>2 consecutive times (7 days each)</strong>, provided no other patron has reserved or queued a hold on the title.
+                          Active loans may be extended up to{' '}
+                          <strong>
+                            {systemSettings?.circulation?.tier1?.renewalLimit ||
+                              systemSettings?.circulation?.tier2?.renewalLimit ||
+                              '2 consecutive times (7 days each)'}
+                          </strong>
+                          , provided no other patron has reserved or queued a hold on the title.
                         </p>
                       </div>
                       <div className="mt-space-sm pt-space-xs border-t border-surface-variant/40 font-caption text-caption text-primary font-medium">
@@ -1171,7 +1194,19 @@ const BorrowingsPage: FC = () => {
                           <span>Grace Periods &amp; Overdues</span>
                         </div>
                         <p className="font-caption text-caption text-text-secondary leading-relaxed">
-                          A <strong>24-hour courtesy window</strong> applies after 08:00 PM on due date. Beyond this, a standard institutional maintenance fee of <strong>₱15.00/day</strong> per book is automatically billed.
+                          A{' '}
+                          <strong>
+                            {systemSettings?.circulation?.gracePeriodHours ?? 24}-hour courtesy window
+                          </strong>{' '}
+                          applies after 08:00 PM on due date. Beyond this, a standard institutional maintenance fee of{' '}
+                          <strong>
+                            ₱{Number(systemSettings?.fines?.dailyOverdueTariff ?? 15).toFixed(2)}/day
+                          </strong>{' '}
+                          per book is automatically billed
+                          {systemSettings?.fines?.maxPenaltyCap
+                            ? ` (max penalty cap of ₱${Number(systemSettings.fines.maxPenaltyCap).toFixed(2)})`
+                            : ''}
+                          .
                         </p>
                       </div>
                       <div className="mt-space-sm pt-space-xs border-t border-surface-variant/40 font-caption text-caption text-status-available font-medium">

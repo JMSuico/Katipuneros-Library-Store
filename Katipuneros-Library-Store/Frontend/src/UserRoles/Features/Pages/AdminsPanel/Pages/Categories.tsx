@@ -12,6 +12,7 @@ import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { useSelection } from '../../../../../Hooks/useSelection';
+import { useToasts } from '../../../../../Hooks/useToasts';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 import { Checkbox } from '../../../../../Shared/Checkbox';
 import { SearchBar } from '../../../../../Shared/SearchBar';
@@ -52,7 +53,7 @@ const Categories: FC = () => {
   const [formName, setFormName] = useState<string>('');
   const [formSubFields, setFormSubFields] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { toasts, addToast, removeToast } = useToasts();
 
   // Edit Modal State
   const [editingCategory, setEditingCategory] = useState<BackendCategory | null>(null);
@@ -62,12 +63,6 @@ const Categories: FC = () => {
   const [editFormError, setEditFormError] = useState<string | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 3500);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   // Load Real Data from Endpoints
   const loadData = useCallback(async () => {
@@ -209,7 +204,7 @@ const Categories: FC = () => {
         setFormName('');
         setFormSubFields('');
         await loadData();
-        setToast({ message: 'Category registered successfully.', type: 'success' });
+        addToast('Category registered successfully.', 'success');
       } else {
         setFormError(res.message || 'Failed to register category.');
       }
@@ -251,7 +246,7 @@ const Categories: FC = () => {
         setIsEditModalOpen(false);
         setEditingCategory(null);
         await loadData();
-        setToast({ message: 'Category updated successfully.', type: 'success' });
+        addToast('Category updated successfully.', 'success');
       } else {
         setEditFormError(res.message || 'Failed to update category.');
       }
@@ -279,13 +274,13 @@ const Categories: FC = () => {
           setSelectedCategoryId(null);
         }
         await loadData();
-        setToast({ message: 'Category deleted successfully.', type: 'success' });
+        addToast('Category deleted successfully.', 'success');
       } else {
-        setToast({ message: res.message || 'Failed to remove category.', type: 'error' });
+        addToast(res.message || 'Failed to remove category.', 'error');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An error occurred during deletion.';
-      setToast({ message: msg, type: 'error' });
+      addToast(msg, 'error');
     } finally {
       setIsDeleting(false);
       setCategoryToDelete(null);
@@ -305,16 +300,13 @@ const Categories: FC = () => {
         selection.clearSelection();
         setIsBulkDeleteModalOpen(false);
         await loadData();
-        setToast({
-          message: `${res.data?.deletedCount ?? selection.selectedCount} categories de-accessioned successfully.`,
-          type: 'success',
-        });
+        addToast(`${res.data?.deletedCount ?? selection.selectedCount} categories de-accessioned successfully.`, 'success');
       } else {
-        setToast({ message: res.message || 'Failed to remove selected categories.', type: 'error' });
+        addToast(res.message || 'Failed to remove selected categories.', 'error');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An error occurred during bulk deletion.';
-      setToast({ message: msg, type: 'error' });
+      addToast(msg, 'error');
     } finally {
       setIsBulkDeleting(false);
     }
@@ -328,7 +320,7 @@ const Categories: FC = () => {
       dl.setAttribute('href', dataStr);
       dl.setAttribute('download', `katipuneros_taxonomy_${new Date().toISOString().slice(0, 10)}.json`);
       dl.click();
-      setToast({ message: 'JSON Concordance exported.', type: 'success' });
+      addToast('JSON Concordance exported.', 'success');
     } else if (type === 'csv') {
       const headers = ['ID', 'CategoryCode', 'Name', 'SubjectHeadings'];
       const rows = categories.map((c) => [
@@ -343,26 +335,42 @@ const Categories: FC = () => {
       dl.setAttribute('href', encodeURI(csvContent));
       dl.setAttribute('download', `katipuneros_taxonomy_${new Date().toISOString().slice(0, 10)}.csv`);
       dl.click();
-      setToast({ message: 'CSV Master Index exported.', type: 'success' });
+      addToast('CSV Master Index exported.', 'success');
     }
   };
 
   return (
     <div className="w-full">
       <div className="flex flex-col w-full">
-        {/* Toast Feedback Alert */}
-        {toast && (
-          <div
-            className={`p-space-sm rounded-xl font-small text-small flex items-center gap-space-xs transition-all shadow-md mb-space-md ${
-              toast.type === 'success'
-                ? 'bg-action-green/20 text-text-primary border border-action-green/40'
-                : 'bg-error-container text-error border border-error/40'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {toast.type === 'success' ? 'check_circle' : 'error'}
-            </span>
-            <span>{toast.message}</span>
+        {/* Toast Notifications Container */}
+        {toasts.length > 0 && (
+          <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+            {toasts.map((t) => (
+              <div
+                key={t.id}
+                className={`pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all ${
+                  t.type === 'error'
+                    ? 'bg-error-container text-on-error-container border-error/20'
+                    : t.type === 'success'
+                    ? 'bg-action-green/20 text-text-primary border-action-green/30'
+                    : 'bg-surface-container-highest text-text-primary border-outline-variant/30'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">
+                    {t.type === 'success' ? 'check_circle' : t.type === 'error' ? 'error' : 'info'}
+                  </span>
+                  <span>{t.message}</span>
+                </div>
+                <button
+                  onClick={() => removeToast(t.id)}
+                  className="text-text-secondary hover:text-text-primary material-symbols-outlined text-[16px] cursor-pointer"
+                  type="button"
+                >
+                  close
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -871,10 +879,7 @@ const Categories: FC = () => {
                         className="w-full h-11 bg-primary text-on-primary font-small text-small font-semibold rounded-xl hover:bg-primary-container shadow-sm flex items-center justify-center gap-space-xs transition-colors cursor-pointer"
                         type="button"
                         onClick={() =>
-                          setToast({
-                            message: `Category: ${selectedCategory.name} (${selectedCategory.deweyRange})`,
-                            type: 'success',
-                          })
+                          addToast(`Category: ${selectedCategory.name} (${selectedCategory.deweyRange})`, 'success')
                         }
                       >
                         <span className="material-symbols-outlined text-[18px]">rule</span>
@@ -1053,7 +1058,7 @@ const Categories: FC = () => {
 
         {/* Delete Category Confirmation Modal */}
         {(() => {
-          const assignedBooksCount = categoryToDelete ? books.filter((b) => b.categoryId === categoryToDelete.id).length : 0;
+          const assignedBooksCount = categoryToDelete ? books.filter((b) => b.categoryId === categoryToDelete.id || b.category?.id === categoryToDelete.id).length : 0;
           return (
             <DefaultFloatingModalCard
               isOpen={!!categoryToDelete}

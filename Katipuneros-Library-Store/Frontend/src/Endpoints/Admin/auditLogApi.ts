@@ -139,23 +139,31 @@ export const verifyAuditChain = async (): Promise<{
   verifiedCount: number;
   brokenEntryId?: string;
   message: string;
-}> =>
-  (
-    await apiRequest<{
-      isIntact: boolean;
-      verifiedCount: number;
-      brokenEntryId?: string;
-      message: string;
-    }>('/admin/audit-logs/verify-chain')
-  ).data!;
+}> => {
+  const res = await apiRequest<{
+    isIntact: boolean;
+    verifiedCount: number;
+    brokenEntryId?: string;
+    message: string;
+  }>('/admin/audit-logs/verify-chain');
+  return (
+    res.data ?? {
+      isIntact: false,
+      verifiedCount: 0,
+      message: res.message || 'Chain verification failed or unreachable',
+    }
+  );
+};
 
-export const getAuthMonitorStream = async (): Promise<UserLoginAudit[]> =>
-  (await apiRequest<UserLoginAudit[]>('/admin/audit-logs/auth-monitor')).data!;
+export const getAuthMonitorStream = async (): Promise<UserLoginAudit[]> => {
+  const res = await apiRequest<UserLoginAudit[]>('/admin/audit-logs/auth-monitor');
+  return Array.isArray(res.data) ? res.data : [];
+};
 
-export const bulkDeleteAuditLogs = async (ids: string[]): Promise<{ message: string }> =>
-  (
-    await apiRequest<{ message: string }>('/admin/audit-logs/bulk-delete', {
-      method: 'POST',
-      body: JSON.stringify({ ids }),
-    })
-  ).data!;
+export const bulkDeleteAuditLogs = async (ids: string[]): Promise<{ message: string }> => {
+  const res = await apiRequest<{ message: string }>('/admin/audit-logs/bulk-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+  return res.data ?? { message: res.message || (res.success ? 'Audit logs deleted' : 'Failed to delete audit logs') };
+};

@@ -37,6 +37,7 @@ public class CreateBookRequest
 
     public string? Description { get; set; }
 
+    [Obsolete("Legacy RFID tag hardware property is deprecated and ignored.")]
     public string? RfidTag { get; set; }
 
     public string? CoverImage { get; set; }
@@ -72,6 +73,7 @@ public class UpdateBookRequest
 
     public string? Description { get; set; }
 
+    [Obsolete("Legacy RFID tag hardware property is deprecated and ignored.")]
     public string? RfidTag { get; set; }
 
     public string? CoverImage { get; set; }

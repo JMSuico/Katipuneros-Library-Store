@@ -167,7 +167,7 @@ if ($copiesAfterReturn -ne 5) {
 Write-Host "`n=== 6. Cleanup Verification Artifacts ==="
 $conn.Open()
 $cmd = $conn.CreateCommand()
-$cmd.CommandText = "DELETE FROM BorrowTransactions WHERE Id = '$txId'; DELETE FROM Books WHERE Id = '$bookId'; DELETE FROM Users WHERE Id = '$patronId';"
+$cmd.CommandText = "DELETE FROM BorrowTransactions WHERE Id = '$txId'; DELETE FROM BookCopies WHERE BookId = '$bookId'; DELETE FROM Books WHERE Id = '$bookId'; DELETE FROM Users WHERE Id = '$patronId';"
 $cmd.ExecuteNonQuery() | Out-Null
 $conn.Close()
 Write-Host "  Test records cleaned up successfully."

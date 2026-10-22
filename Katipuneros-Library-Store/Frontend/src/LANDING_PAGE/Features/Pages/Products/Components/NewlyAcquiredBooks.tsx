@@ -178,9 +178,9 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
             </button>
           </div>
         ) : (
-          filteredBooks.map((book) => (
+          filteredBooks.map((book, idx) => (
             <div
-              key={book.title}
+              key={book.isbn || `${book.title}-${idx}`}
               className="group p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
             >
               <div>

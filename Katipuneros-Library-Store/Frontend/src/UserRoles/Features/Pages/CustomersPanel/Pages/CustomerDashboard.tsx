@@ -16,7 +16,9 @@ import {
 import {
   getCustomerActiveLoans,
   getCustomerLoanHistory,
+  getCustomerFines,
   CustomerLoanRecord,
+  CustomerFinesResponse,
 } from '../../../../../Endpoints/Customer/borrowApi';
 import {
   getCustomerReservations,
@@ -61,6 +63,7 @@ const CustomerDashboard: FC = () => {
   const [reservingBookId, setReservingBookId] = useState<string | null>(null);
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
   const [latestCirculationAlert, setLatestCirculationAlert] = useState<CirculationNotificationEvent | null>(null);
+  const [fines, setFines] = useState<CustomerFinesResponse>({ balance: 0, fines: [], paidFines: 0 });
 
   // Load all data on mount
   const loadDashboardData = useCallback(async () => {
@@ -75,6 +78,7 @@ const CustomerDashboard: FC = () => {
         fetchedHistory,
         fetchedReservations,
         fetchedFavorites,
+        fetchedFines,
       ] = await Promise.all([
         fetchCurrentProfile(),
         getCatalogBooks(),
@@ -84,6 +88,7 @@ const CustomerDashboard: FC = () => {
         getCustomerLoanHistory(),
         getCustomerReservations(),
         getCustomerFavorites(),
+        getCustomerFines(),
       ]);
 
       if (fetchedProfile) setCurrentUser(fetchedProfile);
@@ -93,6 +98,7 @@ const CustomerDashboard: FC = () => {
       setLoans(fetchedLoans);
       setLoanHistory(fetchedHistory);
       setReservations(fetchedReservations);
+      if (fetchedFines) setFines(fetchedFines);
 
       const favIds = new Set(fetchedFavorites.map((b) => b.id));
       setFavoriteBookIds(favIds);
@@ -140,24 +146,24 @@ const CustomerDashboard: FC = () => {
   }, []);
 
   const holdsActive = useMemo(() =>
-    reservations.filter((r) => r.status === 0 || r.status === 1).length,
+    reservations.filter((r) => r.status === 'Pending' || r.status === 'StagedInLocker').length,
     [reservations]
   );
 
   const readyCount = useMemo(() =>
-    reservations.filter((r) => r.status === 1).length,
+    reservations.filter((r) => r.status === 'StagedInLocker').length,
     [reservations]
   );
 
   const loansInHand = useMemo(() =>
-    loans.filter((l) => l.status === 0).length,
+    loans.filter((l) => l.status === 'Active' || l.status === 'Overdue').length,
     [loans]
   );
 
   const dueSoonCount = useMemo(() => {
     const now = new Date();
     return loans.filter((l) => {
-      if (l.status !== 0) return false;
+      if (l.status !== 'Active') return false;
       const due = new Date(l.dueDate);
       const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return diffDays >= 0 && diffDays <= 3;
@@ -165,7 +171,7 @@ const CustomerDashboard: FC = () => {
   }, [loans]);
 
   const nearestDueDate = useMemo(() => {
-    const active = loans.filter((l) => l.status === 0);
+    const active = loans.filter((l) => l.status === 'Active' || l.status === 'Overdue');
     if (!active.length) return '—';
     const now = new Date();
     const diffs = active.map((l) => {
@@ -328,6 +334,30 @@ const CustomerDashboard: FC = () => {
                     </span>
                   )}
                 </div>
+                {/* Outstanding Fine Notice banner if fine balance > 0 */}
+                {fines.balance > 0 && (
+                  <div className="flex items-center justify-between p-3.5 px-4 bg-status-danger/10 border border-status-danger/30 rounded-2xl animate-fade-in shadow-sm">
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-status-danger text-2xl">payments</span>
+                      <div>
+                        <p className="text-small font-bold text-text-primary">
+                          Outstanding Fine Balance:{' '}
+                          <span className="text-status-danger font-extrabold">₱{fines.balance.toFixed(2)}</span>
+                        </p>
+                        <p className="text-caption text-text-secondary">
+                          Overdue penalties assessed. Settle at Circulation Bay 2 or view ledger details.
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/customer/borrowings"
+                      className="px-3.5 py-1.5 bg-status-danger hover:bg-status-danger/90 text-white rounded-xl text-caption font-semibold transition-all shadow-sm active:scale-95 shrink-0"
+                    >
+                      View Fine Ledger
+                    </Link>
+                  </div>
+                )}
+
                 {latestCirculationAlert && (
                   <div className="flex items-center justify-between gap-3 p-3.5 bg-soft-blue/90 border border-primary/20 rounded-2xl shadow-sm animate-fade-in">
                     <div className="flex items-center gap-2.5">
@@ -409,7 +439,7 @@ const CustomerDashboard: FC = () => {
                     }`}
                     type="button"
                   >
-                    All Disciplines
+                    All Categories
                   </button>
                   {categories.map((cat) => (
                     <button
@@ -468,11 +498,31 @@ const CustomerDashboard: FC = () => {
                     </div>
                   </div>
 
+                  {/* Outstanding Fine Pill in Quick Metrics Card */}
+                  {fines.balance > 0 && (
+                    <div className="flex items-center justify-between px-space-md py-2 bg-status-danger/10 border border-status-danger/30 rounded-2xl text-caption">
+                      <div className="flex items-center gap-1.5 text-status-danger font-medium">
+                        <span className="material-symbols-outlined text-base">warning</span>
+                        <span>Outstanding Fine</span>
+                      </div>
+                      <span className="font-bold text-status-danger text-small">₱{fines.balance.toFixed(2)}</span>
+                    </div>
+                  )}
+
                   {/* Quick circulation insight note */}
-                  <div className="flex items-center gap-space-sm bg-soft-blue/40 rounded-xl p-space-xs px-space-sm">
-                    <span className="material-symbols-outlined text-primary text-xl">auto_stories</span>
+                  <div className={`flex items-center gap-space-sm ${fines.balance > 0 ? 'bg-status-danger/10 border border-status-danger/20' : 'bg-soft-blue/40'} rounded-xl p-space-xs px-space-sm`}>
+                    <span className={`material-symbols-outlined ${fines.balance > 0 ? 'text-status-danger' : 'text-primary'} text-xl`}>
+                      {fines.balance > 0 ? 'payments' : 'auto_stories'}
+                    </span>
                     <p className="font-small text-small text-text-primary leading-tight">
-                      {readyCount > 0 ? (
+                      {fines.balance > 0 ? (
+                        <>
+                          <strong>Outstanding balance of ₱{fines.balance.toFixed(2)}.</strong> Please settle at Circulation Desk or view{' '}
+                          <Link to="/customer/borrowings" className="underline font-semibold hover:text-primary">
+                            Borrowings
+                          </Link>.
+                        </>
+                      ) : readyCount > 0 ? (
                         <>
                           <strong>{readyCount} hold{readyCount > 1 ? 's' : ''} ready!</strong> Pick up at Circulation Desk Bay 2 before 5:00 PM.
                         </>
@@ -877,16 +927,16 @@ const CustomerDashboard: FC = () => {
             ) : (
               <div className="p-space-xl rounded-2xl bg-surface-container-lowest border border-border-card text-center flex flex-col items-center gap-space-sm">
                 <span className="material-symbols-outlined text-4xl text-text-secondary">menu_book</span>
-                <p className="font-headline-4 text-headline-4 text-text-primary">No Titles Available in This Discipline</p>
+                <p className="font-headline-4 text-headline-4 text-text-primary">No Titles Available in This Category</p>
                 <p className="font-body text-body text-text-secondary max-w-md">
-                  We could not find any active catalog items under the selected discipline. Try selecting another category or view all disciplines.
+                  We could not find any active catalog items under the selected category. Try selecting another category or view all categories.
                 </p>
                 <button
                   onClick={() => setSelectedCategory('all')}
                   className="mt-space-xs px-space-md py-1.5 rounded-full bg-primary text-on-primary font-small text-small font-semibold cursor-pointer"
                   type="button"
                 >
-                  View All Disciplines
+                  View All Categories
                 </button>
               </div>
             )}

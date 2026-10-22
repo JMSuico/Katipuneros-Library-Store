@@ -29,6 +29,7 @@ import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { useFluidResposiveness } from '../../../../../Hooks/useFluidResposiveness';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
+import { useToasts } from '../../../../../Hooks/useToasts';
 
 const Inventory: FC = () => {
   const { isMobile, isTablet, getFluidClamp } = useFluidResposiveness();
@@ -61,8 +62,7 @@ const Inventory: FC = () => {
     [replacements]
   );
   const budgetBurnPercent = useMemo(() => {
-    if (allocatedBudget <= 0 || spentBudget <= 0) return 0;
-    return Math.min(100, Math.round((spentBudget / allocatedBudget) * 100));
+    return allocatedBudget === 0 ? 0 : Math.min(100, Math.round((spentBudget / allocatedBudget) * 100));
   }, [spentBudget, allocatedBudget]);
 
   const criticalWearCount = useMemo(() =>
@@ -119,6 +119,7 @@ const Inventory: FC = () => {
   const [showMarcSyncModal, setShowMarcSyncModal] = useState(false);
   const [marcSyncing, setMarcSyncing] = useState(false);
   const [marcSyncResult, setMarcSyncResult] = useState<string | null>(null);
+  const [marcSyncError, setMarcSyncError] = useState<boolean>(false);
 
   // Form states for modals
   const [labelText, setLabelText] = useState('');
@@ -151,17 +152,19 @@ const Inventory: FC = () => {
   const [editCopiesBay, setEditCopiesBay] = useState('');
 
   // Toast Notification
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const { toasts, addToast, removeToast } = useToasts();
 
-  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success') => {
+      addToast(message, type);
+    },
+    [addToast]
+  );
 
   // -------------------------------------------------------------
   // Data Fetching
   // -------------------------------------------------------------
-  const fetchData = useCallback(async () => {
+  const fetchInventoryData = useCallback(async () => {
     setLoading(true);
     try {
       const [itemsData, metricsData, replacementsData] = await Promise.all([
@@ -178,6 +181,7 @@ const Inventory: FC = () => {
       setLoading(false);
     }
   }, []);
+  const fetchData = fetchInventoryData;
 
   useEffect(() => {
     fetchData();
@@ -220,8 +224,7 @@ const Inventory: FC = () => {
       result = result.filter(
         (item) =>
           item.barcode.toLowerCase().includes(q) ||
-          item.rfidTag.toLowerCase().includes(q) ||
-          item.title.toLowerCase().includes(q) ||
+                    item.title.toLowerCase().includes(q) ||
           item.edition.toLowerCase().includes(q) ||
           item.deweyCode.toLowerCase().includes(q) ||
           item.bayLocation.toLowerCase().includes(q) ||
@@ -428,35 +431,13 @@ const Inventory: FC = () => {
         barcodes: rawCodes,
       });
 
-      const newItems: PhysicalInventoryItem[] = rawCodes.map((code, idx) => ({
-        id: `inv-new-${Date.now()}-${idx}`,
-        barcode: code.startsWith('#') ? code : `#${code}`,
-        accessionBarcode: `KP-ACC-${Math.floor(100000 + Math.random() * 900000)}`,
-        rfidTag: `KP-ACC-${Math.floor(100000 + Math.random() * 900000)}`,
-        title: ingestTitle,
-        edition: 'Accession Batch 2026',
-        deweyCode: ingestDewey,
-        bayLocation: ingestBay,
-        wing: 'Stacks South',
-        condition: 'Mint / Good',
-        conditionStatus: 'good',
-        status: 'Available',
-        custodyDetails: 'Public shelf inventory',
-        acquiredDate: 'Feb 2026',
-      }));
+      await fetchInventoryData();
 
-      setItems((prev) => [...newItems, ...prev]);
-      setMetrics((prev) => ({
-        ...prev,
-        totalRegistered: prev.totalRegistered + rawCodes.length,
-        onShelfActive: prev.onShelfActive + rawCodes.length,
-      }));
-
-      showToast(`Successfully ingested ${rawCodes.length} physical copies.`);
+      showToast(`Successfully ingested ${rawCodes.length} physical copies.`, 'success');
       stopCamera();
       setShowIngestBarcodesModal(false);
       setIngestBarcodesInput('');
-    } catch {
+    } catch (err: any) {
       showToast('Failed to ingest barcodes', 'error');
     }
   };
@@ -484,9 +465,11 @@ const Inventory: FC = () => {
       setMarcSyncResult(
         res?.message || 'Successfully synchronized 24 MARC 21 bibliographic catalog records with physical inventory stacks coordinates.'
       );
-      showToast('Automated MARC 21 synchronization complete!');
-    } catch {
-      setMarcSyncResult('MARC Sync complete: Stacks bay locations mapped to LC Call Tags (082 & 852).');
+      showToast('Automated MARC 21 synchronization complete!', 'success');
+    } catch (err: any) {
+      setMarcSyncError(true);
+      setMarcSyncResult(err?.message || 'MARC Sync failed: Unable to connect to bibliographic catalog service.');
+      showToast(err?.message || 'Failed to complete MARC 21 synchronization.', 'error');
     } finally {
       setMarcSyncing(false);
     }
@@ -524,7 +507,7 @@ const Inventory: FC = () => {
     const headers = ['Barcode', 'Accession_No', 'Title', 'Dewey_Call_No', 'Stacks_Bay', 'Condition', 'Status', 'Custody', 'Acquired'];
     const rows = exportItems.map((it) => [
       `"${it.barcode}"`,
-      `"${it.rfidTag}"`,
+      `"${it.accessionBarcode || it.barcode}"`,
       `"${it.title.replace(/"/g, '""')}"`,
       `"${it.deweyCode}"`,
       `"${it.bayLocation}"`,
@@ -551,17 +534,35 @@ const Inventory: FC = () => {
 
   return (
     <div className="w-full flex flex-col gap-space-lg">
-      {/* Toast Notification Container */}
-      {toast && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-space-sm px-space-md py-3 rounded-xl bg-surface-container-lowest text-text-primary shadow-2xl border border-white/20 animate-fade-in">
-          <span
-            className={`material-symbols-outlined text-[20px] ${
-              toast.type === 'success' ? 'text-action-green' : toast.type === 'error' ? 'text-status-danger' : 'text-primary'
-            }`}
-          >
-            {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
-          </span>
-          <span className="font-small text-small font-semibold">{toast.message}</span>
+      {/* Toast Notifications Container */}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all ${
+                t.type === 'error'
+                  ? 'bg-error-container text-on-error-container border-error/20'
+                  : t.type === 'success'
+                  ? 'bg-action-green/20 text-text-primary border-action-green/30'
+                  : 'bg-surface-container-highest text-text-primary border-outline-variant/30'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px]">
+                  {t.type === 'success' ? 'check_circle' : t.type === 'error' ? 'error' : 'info'}
+                </span>
+                <span>{t.message}</span>
+              </div>
+              <button
+                onClick={() => removeToast(t.id)}
+                className="text-text-secondary hover:text-text-primary material-symbols-outlined text-[16px] cursor-pointer"
+                type="button"
+              >
+                close
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -2318,6 +2319,16 @@ const Inventory: FC = () => {
                 <p className="font-small text-small font-semibold text-text-primary">
                   Synchronizing MARC 21 Tags (020, 082, 852) with physical stacks barcodes...
                 </p>
+              </>
+            ) : marcSyncError ? (
+              <>
+                <div className="w-14 h-14 rounded-full bg-status-danger/20 text-status-danger flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[32px]">error</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h3 className="font-headline-4 text-headline-4 font-bold text-status-danger">MARC Sync Failed</h3>
+                  <p className="font-small text-small text-text-secondary">{marcSyncResult}</p>
+                </div>
               </>
             ) : (
               <>

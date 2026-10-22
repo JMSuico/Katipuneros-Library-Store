@@ -17,6 +17,19 @@ import { SearchBar, useDebounce } from '../../../../../Shared/SearchBar';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
+import { getPublicSystemSettings, SystemSettingsResponse } from '../../../../../Endpoints/Admin/settingsApi';
+
+const isIsbnOrAccessionBarcode = (code: string): boolean => {
+  const clean = code.trim();
+  if (!clean) return false;
+  if (/^(scan-bay-|pass-)/i.test(clean)) return false;
+  if (/^(lib|pat|usr|stu|fac)-/i.test(clean)) return false;
+  const digitsOnly = clean.replace(/[-\s]/g, '');
+  if (/^(\d{10}|\d{13}|\d{9}[\dXx])$/.test(digitsOnly)) return true;
+  if (/^(kls|kp-acc|acc|bc|barcode|isbn)-/i.test(clean)) return true;
+  if (/^[A-Z]{2,4}-\d{3,8}(-[A-Z0-9]+)?$/i.test(clean)) return true;
+  return false;
+};
 
 export const CheckoutBorrow: FC = () => {
   const location = useLocation();
@@ -64,6 +77,7 @@ export const CheckoutBorrow: FC = () => {
   // Staged Books State
   const [bookBarcodeQuery, setBookBarcodeQuery] = useState<string>('');
   const [stagedBooks, setStagedBooks] = useState<BackendBook[]>([]);
+  const [pendingBookToStage, setPendingBookToStage] = useState<BackendBook | null>(null);
   const [isStagingBook, setIsStagingBook] = useState<boolean>(false);
 
   // View Mode for Staged Books (table vs card)
@@ -85,11 +99,69 @@ export const CheckoutBorrow: FC = () => {
   const [loanDays, setLoanDays] = useState<number>(14);
   const [customDays, setCustomDays] = useState<string>('30');
   const [isCustomDuration, setIsCustomDuration] = useState<boolean>(false);
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsResponse | null>(null);
+
+  const tier1Days = systemSettings?.circulation?.tier1?.daysDuration ?? 14;
+  const tier2Days = systemSettings?.circulation?.tier2?.daysDuration ?? 28;
+  const tier3Days = systemSettings?.circulation?.tier3?.daysDuration ?? 60;
+
+  // Resolve patron tier based on role, department, and employment classification
+  const getPatronTier = useCallback((patron: AdminUserRecord | null): 'tier1' | 'tier2' | 'tier3' => {
+    if (!patron) return 'tier1';
+    const role = (patron.role || '').toLowerCase();
+    const dept = (patron.department || '').toLowerCase();
+    const emp = (patron.employmentStatus || '').toLowerCase();
+
+    // Tier 3: Faculty / Fellow
+    if (
+      role === 'admin' ||
+      role.includes('faculty') ||
+      dept.includes('faculty') ||
+      dept.includes('fellow') ||
+      dept.includes('professor') ||
+      dept.includes('instructor') ||
+      emp.includes('faculty') ||
+      emp.includes('fellow')
+    ) {
+      return 'tier3';
+    }
+
+    // Tier 2: Scholar / Graduate
+    if (
+      dept.includes('grad') ||
+      dept.includes('scholar') ||
+      dept.includes('master') ||
+      dept.includes('phd') ||
+      dept.includes('doctoral') ||
+      dept.includes('postgrad') ||
+      emp.includes('grad') ||
+      emp.includes('scholar')
+    ) {
+      return 'tier2';
+    }
+
+    // Tier 1: Undergraduate / General Patron
+    return 'tier1';
+  }, []);
+
+  // When a patron is selected, automatically select the preset duration matching their tier
+  useEffect(() => {
+    if (!selectedPatron) return;
+    const tier = getPatronTier(selectedPatron);
+    setIsCustomDuration(false);
+    if (tier === 'tier3') {
+      setLoanDays(tier3Days);
+    } else if (tier === 'tier2') {
+      setLoanDays(tier2Days);
+    } else {
+      setLoanDays(tier1Days);
+    }
+  }, [selectedPatron, tier1Days, tier2Days, tier3Days, getPatronTier]);
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Initial load: patrons and pending holds
+  // Initial load: patrons, settings, and pending holds
   const loadPatrons = useCallback(async () => {
     try {
       const users = await getAdminUsersList();
@@ -98,6 +170,17 @@ export const CheckoutBorrow: FC = () => {
       addToast('Failed to load user directory.', 'error');
     }
   }, [addToast]);
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const settings = await getPublicSystemSettings();
+      if (settings) {
+        setSystemSettings(settings);
+      }
+    } catch {
+      // Non-fatal if settings endpoint is temporarily unreachable
+    }
+  }, []);
 
   const loadReservations = useCallback(async () => {
     setIsLoadingReservations(true);
@@ -120,65 +203,148 @@ export const CheckoutBorrow: FC = () => {
   useEffect(() => {
     loadPatrons();
     loadReservations();
-  }, [loadPatrons, loadReservations]);
+    loadSettings();
+  }, [loadPatrons, loadReservations, loadSettings]);
 
-  // Handle query param if navigated from dashboard manual scan or reservations bridge
+  // Handle query params if navigated from dashboard manual scan, customer lookup, catalog, or reservations bridge
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const q = params.get('query') || params.get('patronId');
-    const bookBarcode = params.get('barcode');
-    const bookId = params.get('bookId');
+    const rawQuery = params.get('query');
+    const patronIdParam = params.get('patronId');
+    const patronQueryParam = params.get('patronQuery');
+    const bookIsbnParam = params.get('bookIsbn') || params.get('barcode');
+    const bookIdParam = params.get('bookId');
 
-    if (q && allUsers.length > 0) {
-      setPatronSearchInput(q);
+    // 1. Patron resolution: patronId, patronQuery, or non-ISBN/accession query
+    let targetPatronSearch = patronIdParam || patronQueryParam;
+    if (!targetPatronSearch && rawQuery && !isIsbnOrAccessionBarcode(rawQuery)) {
+      targetPatronSearch = rawQuery;
+    }
+
+    if (targetPatronSearch && allUsers.length > 0) {
+      const q = targetPatronSearch.trim().toLowerCase();
+      setPatronSearchInput(targetPatronSearch.trim());
       const matched = allUsers.find(
         (u) =>
-          u.libraryCardNumber?.toLowerCase() === q.toLowerCase() ||
-          u.id.toLowerCase() === q.toLowerCase() ||
-          u.email.toLowerCase() === q.toLowerCase() ||
-          u.fullName?.toLowerCase().includes(q.toLowerCase())
+          u.id.toLowerCase() === q ||
+          u.libraryCardNumber?.toLowerCase() === q ||
+          u.email.toLowerCase() === q ||
+          u.fullName?.toLowerCase().includes(q) ||
+          u.name?.toLowerCase().includes(q)
       );
       if (matched) {
         setSelectedPatron(matched);
+        if (!matched.isActive || matched.status === 'suspended') {
+          addToast(`Patron ${matched.fullName || matched.name} account is inactive / suspended. Checkout blocked.`, 'warning');
+        } else {
+          addToast(`Patron ${matched.fullName || matched.name} verified & selected.`, 'info');
+        }
       }
     }
 
-    if (bookBarcode || bookId) {
+    // 2. Book resolution: bookIsbn, barcode, bookId, or ISBN/accession-looking query
+    let targetBookSearch = bookIsbnParam;
+    if (!targetBookSearch && rawQuery && isIsbnOrAccessionBarcode(rawQuery)) {
+      targetBookSearch = rawQuery;
+    } else if (!targetBookSearch && bookIdParam) {
+      targetBookSearch = bookIdParam;
+    }
+
+    if (targetBookSearch) {
       const fetchAndStage = async () => {
         try {
-          const searchParam = bookBarcode || bookId;
-          const books = await getCatalogBooks(undefined, searchParam || undefined);
-          const matched = books.find(
-            (b) =>
-              (bookId && b.id.toLowerCase() === bookId.toLowerCase()) ||
-              (bookBarcode && (
-                b.isbnBarcode?.toLowerCase() === bookBarcode.toLowerCase() ||
-                b.isbn?.toLowerCase() === bookBarcode.toLowerCase() ||
-                b.deweyCode?.toLowerCase() === bookBarcode.toLowerCase() ||
-                b.title?.toLowerCase().includes(bookBarcode.toLowerCase())
-              ))
-          );
-          if (matched) {
-            setStagedBooks((prev) => {
-              if (prev.some((b) => b.id === matched.id)) return prev;
-              return [...prev, matched];
-            });
-            addToast(`"${matched.title}" staged from reservation bridge.`, 'info');
+          const searchParam = targetBookSearch!.trim();
+          let matchedBook: BackendBook | null = null;
+
+          // Attempt copy scan lookup first (handles barcodes / accession tags)
+          try {
+            const copyScanRes = await scanBookCopy(searchParam);
+            if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
+              const copyBookId = copyScanRes.data.copy.bookId;
+              const allCatalog = await getCatalogBooks();
+              const b = allCatalog.find((x) => x.id.toLowerCase() === copyBookId.toLowerCase());
+              if (b) matchedBook = b;
+            }
+          } catch {
+            // Ignore copy scan error and proceed to catalog search
+          }
+
+          if (!matchedBook) {
+            const books = await getCatalogBooks(undefined, searchParam);
+            const lower = searchParam.toLowerCase();
+            const matched = books.find(
+              (b) =>
+                (bookIdParam && b.id.toLowerCase() === bookIdParam.toLowerCase()) ||
+                b.isbnBarcode?.toLowerCase() === lower ||
+                b.isbn?.toLowerCase() === lower ||
+                b.deweyCode?.toLowerCase() === lower ||
+                b.id.toLowerCase() === lower ||
+                b.title?.toLowerCase().includes(lower)
+            );
+            if (matched) matchedBook = matched;
+          }
+
+          if (matchedBook) {
+            if (matchedBook.availableCopies <= 0) {
+              addToast(`Book "${matchedBook.title}" has 0 copies available in stacks.`, 'warning');
+            }
+            if (selectedPatron) {
+              if (matchedBook.availableCopies <= 0) {
+                addToast(`Cannot stage "${matchedBook.title}": 0 available copies.`, 'error');
+              } else {
+                setStagedBooks((prev) => {
+                  if (prev.some((b) => b.id === matchedBook!.id)) return prev;
+                  return [...prev, matchedBook!];
+                });
+                addToast(`"${matchedBook.title}" staged into checkout cart.`, 'success');
+              }
+            } else {
+              setPendingBookToStage(matchedBook);
+              addToast(`"${matchedBook.title}" pre-staged. Select or scan a patron to begin checkout.`, 'info');
+            }
+          } else {
+            addToast(`No book found matching code: ${searchParam}`, 'warning');
           }
         } catch {
-          // Graceful fallback
+          addToast('Error querying book catalog.', 'error');
         }
       };
       fetchAndStage();
     }
-  }, [location.search, allUsers, addToast]);
+  }, [location.search, allUsers, selectedPatron, addToast]);
+
+  // Automatically stage pre-staged book once a patron is selected
+  useEffect(() => {
+    if (selectedPatron && pendingBookToStage) {
+      if ((pendingBookToStage.availableCopies ?? 0) <= 0) {
+        addToast(
+          `Pre-staged book "${pendingBookToStage.title}" cannot be checked out: 0 available copies in stacks.`,
+          'error'
+        );
+      } else {
+        setStagedBooks((prev) => {
+          if (prev.some((b) => b.id === pendingBookToStage.id)) return prev;
+          return [...prev, pendingBookToStage];
+        });
+        addToast(
+          `Pre-staged book "${pendingBookToStage.title}" added to checkout cart for ${selectedPatron.fullName || selectedPatron.name}.`,
+          'success'
+        );
+      }
+      setPendingBookToStage(null);
+    }
+  }, [selectedPatron, pendingBookToStage, addToast]);
 
   // Patron selection handler
   const handleSelectPatron = (patron: AdminUserRecord) => {
     setSelectedPatron(patron);
     setPatronSearchInput('');
     setIsPatronModalOpen(false);
-    addToast(`Patron ${patron.fullName || patron.name} selected.`, 'info');
+    if (!patron.isActive || patron.status === 'suspended') {
+      addToast(`Patron ${patron.fullName || patron.name} is INACTIVE / SUSPENDED. Circulation checkout will be blocked.`, 'warning');
+    } else {
+      addToast(`Patron ${patron.fullName || patron.name} selected.`, 'info');
+    }
   };
 
   // Camera Devices Enumeration
@@ -736,8 +902,23 @@ export const CheckoutBorrow: FC = () => {
       addToast('Please scan or select a patron first.', 'warning');
       return;
     }
+    if (!selectedPatron.isActive || selectedPatron.status === 'suspended') {
+      addToast(
+        `Checkout blocked: Patron ${selectedPatron.fullName || selectedPatron.name} account is inactive (${selectedPatron.status || 'suspended'}). Clearance required.`,
+        'error'
+      );
+      return;
+    }
     if (stagedBooks.length === 0) {
       addToast('Please stage at least one book to borrow.', 'warning');
+      return;
+    }
+    const zeroCopiesBook = stagedBooks.find((b) => (b.availableCopies ?? 0) <= 0);
+    if (zeroCopiesBook) {
+      addToast(
+        `Checkout blocked: "${zeroCopiesBook.title}" has 0 available copies in stacks.`,
+        'error'
+      );
       return;
     }
 
@@ -1083,10 +1264,16 @@ export const CheckoutBorrow: FC = () => {
                         <span className="bg-surface-container-highest text-text-primary font-caption text-caption font-semibold px-2 py-0.5 rounded-full">
                           {selectedPatron.libraryCardNumber || 'KP-CARD'}
                         </span>
-                        <span className="bg-status-available text-on-primary font-caption text-caption px-2 py-0.5 rounded-full font-bold">
-                          {selectedPatron.isActive ? 'Active • Good Standing' : 'Suspended'}
+                        <span className={`font-caption text-caption px-2 py-0.5 rounded-full font-bold ${selectedPatron.isActive ? 'bg-status-available text-on-primary' : 'bg-status-danger text-on-primary'}`}>
+                          {selectedPatron.isActive ? 'Active • Good Standing' : 'Suspended • Inactive'}
                         </span>
                       </div>
+                      {!selectedPatron.isActive && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-status-danger font-caption text-caption font-bold">
+                          <span className="material-symbols-outlined text-sm">block</span>
+                          <span>Patron account is inactive or suspended. Circulation checkout is blocked.</span>
+                        </div>
+                      )}
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-text-secondary font-small text-small">
                         <span>
                           Department: <strong className="text-text-primary font-medium">{selectedPatron.department || 'General'}</strong>
@@ -1234,6 +1421,36 @@ export const CheckoutBorrow: FC = () => {
                   <span>{isStagingBook ? 'Staging...' : 'Stage Copy'}</span>
                 </button>
               </form>
+
+              {/* Pre-Staged Book Banner awaiting patron selection */}
+              {pendingBookToStage && (
+                <div className="p-4 rounded-xl bg-soft-blue/70 border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-primary animate-in fade-in">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="material-symbols-outlined text-2xl shrink-0 text-primary animate-pulse">
+                      bookmark_added
+                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-caption text-caption font-bold uppercase tracking-wider text-text-secondary">
+                        Pre-Staged Book Awaiting Patron
+                      </span>
+                      <span className="font-body-medium text-body-medium font-bold text-text-primary truncate">
+                        {pendingBookToStage.title}
+                      </span>
+                      <span className="font-caption text-caption text-text-secondary">
+                        ISBN: {pendingBookToStage.isbn || pendingBookToStage.isbnBarcode || 'N/A'} • {pendingBookToStage.availableCopies} available copies. Select or scan a patron above to automatically stage into cart.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setPendingBookToStage(null)}
+                    className="p-1.5 rounded-lg hover:bg-surface-container text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0"
+                    type="button"
+                    title="Dismiss pre-staged book"
+                  >
+                    <span className="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+              )}
 
               {/* Staged Books Area: Both Table and Card views retained in DOM */}
               {stagedBooks.length === 0 ? (
@@ -1430,71 +1647,71 @@ export const CheckoutBorrow: FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <label
                   onClick={() => {
-                    setLoanDays(7);
+                    setLoanDays(tier1Days);
                     setIsCustomDuration(false);
                   }}
                   className={`cursor-pointer p-4 rounded-xl transition-all flex flex-col justify-between gap-2 border ${
-                    !isCustomDuration && loanDays === 7
+                    !isCustomDuration && loanDays === tier1Days
                       ? 'bg-soft-blue border-primary/30 text-primary shadow-sm'
                       : 'bg-surface-container-low border-transparent hover:bg-surface-container text-text-primary'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-body-medium text-body-medium font-bold">7 Days</span>
+                    <span className="font-body-medium text-body-medium font-bold">{tier1Days} Days</span>
                     <input
-                      checked={!isCustomDuration && loanDays === 7}
+                      checked={!isCustomDuration && loanDays === tier1Days}
                       onChange={() => {}}
                       type="radio"
                       className="accent-primary w-4 h-4"
                     />
                   </div>
-                  <span className="font-caption text-caption text-text-secondary">Short Loan • Reserve copy</span>
+                  <span className="font-caption text-caption text-text-secondary">Standard Undergrad (Tier 1)</span>
                 </label>
 
                 <label
                   onClick={() => {
-                    setLoanDays(14);
+                    setLoanDays(tier2Days);
                     setIsCustomDuration(false);
                   }}
                   className={`cursor-pointer p-4 rounded-xl transition-all flex flex-col justify-between gap-2 border ${
-                    !isCustomDuration && loanDays === 14
+                    !isCustomDuration && loanDays === tier2Days
                       ? 'bg-soft-blue border-primary/30 text-primary shadow-sm'
                       : 'bg-surface-container-low border-transparent hover:bg-surface-container text-text-primary'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-body-medium text-body-medium font-bold">14 Days</span>
+                    <span className="font-body-medium text-body-medium font-bold">{tier2Days} Days</span>
                     <input
-                      checked={!isCustomDuration && loanDays === 14}
+                      checked={!isCustomDuration && loanDays === tier2Days}
                       onChange={() => {}}
                       type="radio"
                       className="accent-primary w-4 h-4"
                     />
                   </div>
-                  <span className="font-caption text-caption text-primary font-semibold">Standard Academic (Recommended)</span>
+                  <span className="font-caption text-caption text-text-secondary">Scholar / Graduate (Tier 2)</span>
                 </label>
 
                 <label
                   onClick={() => {
-                    setLoanDays(21);
+                    setLoanDays(tier3Days);
                     setIsCustomDuration(false);
                   }}
                   className={`cursor-pointer p-4 rounded-xl transition-all flex flex-col justify-between gap-2 border ${
-                    !isCustomDuration && loanDays === 21
+                    !isCustomDuration && loanDays === tier3Days
                       ? 'bg-soft-blue border-primary/30 text-primary shadow-sm'
                       : 'bg-surface-container-low border-transparent hover:bg-surface-container text-text-primary'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-body-medium text-body-medium font-bold">21 Days</span>
+                    <span className="font-body-medium text-body-medium font-bold">{tier3Days} Days</span>
                     <input
-                      checked={!isCustomDuration && loanDays === 21}
+                      checked={!isCustomDuration && loanDays === tier3Days}
                       onChange={() => {}}
                       type="radio"
                       className="accent-primary w-4 h-4"
                     />
                   </div>
-                  <span className="font-caption text-caption text-text-secondary">Scholar Special (Thesis &amp; Grad)</span>
+                  <span className="font-caption text-caption text-text-secondary">Faculty / Fellow (Tier 3)</span>
                 </label>
 
                 <label
@@ -1603,11 +1820,32 @@ export const CheckoutBorrow: FC = () => {
                 </div>
               </div>
 
+              {/* Validation Warning Alerts */}
+              {selectedPatron && (!selectedPatron.isActive || selectedPatron.status === 'suspended') && (
+                <div className="p-3 rounded-xl bg-status-danger/10 border border-status-danger/30 flex items-center gap-2 text-status-danger font-caption text-caption font-bold">
+                  <span className="material-symbols-outlined text-lg shrink-0">block</span>
+                  <span>Patron account is inactive / suspended. Checkout blocked.</span>
+                </div>
+              )}
+              {stagedBooks.some((b) => (b.availableCopies ?? 0) <= 0) && (
+                <div className="p-3 rounded-xl bg-status-danger/10 border border-status-danger/30 flex items-center gap-2 text-status-danger font-caption text-caption font-bold">
+                  <span className="material-symbols-outlined text-lg shrink-0">warning</span>
+                  <span>One or more staged titles have 0 copies available in stacks. Checkout blocked.</span>
+                </div>
+              )}
+
               {/* Complete Checkout Button */}
               <div className="pt-3">
                 <button
                   onClick={handleCompleteCheckout}
-                  disabled={isSubmitting || !selectedPatron || stagedBooks.length === 0}
+                  disabled={
+                    isSubmitting ||
+                    !selectedPatron ||
+                    !selectedPatron.isActive ||
+                    selectedPatron.status === 'suspended' ||
+                    stagedBooks.length === 0 ||
+                    stagedBooks.some((b) => (b.availableCopies ?? 0) <= 0)
+                  }
                   className="w-full py-3.5 px-4 bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   type="button"
                 >

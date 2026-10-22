@@ -8,6 +8,7 @@ import { FC, useState, useEffect, useRef } from 'react';
 import { getStoredUser, updateStoredUser, fetchCurrentProfile, uploadProfilePicture, updateUserProfile, changePasswordApi, AuthUser } from '../../../../../Endpoints/authApi';
 import { getAuthMonitorStream, UserLoginAudit } from '../../../../../Endpoints/Admin/auditLogApi';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
+import { useToasts } from '../../../../../Hooks/useToasts';
 
 const DEFAULT_ADMIN_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ';
 
@@ -16,7 +17,7 @@ const Profile: FC = () => {
   const [authSessions, setAuthSessions] = useState<UserLoginAudit[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { toasts, addToast, removeToast } = useToasts();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit Profile Modal State
@@ -56,10 +57,7 @@ const Profile: FC = () => {
     setAvatarImgError(false);
   }, [currentUser?.profilePictureUrl]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+
 
   const openEditProfileModal = () => {
     if (currentUser) {
@@ -93,9 +91,9 @@ const Profile: FC = () => {
         const updated = updateStoredUser({ profilePictureUrl: res.profilePictureUrl });
         setCurrentUser(updated || ((prev) => (prev ? { ...prev, profilePictureUrl: res.profilePictureUrl } : null)));
         window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
-        showToast('Admin profile picture updated successfully!');
+        addToast('Admin profile picture updated successfully!', 'success');
       } else {
-        showToast(res.message || 'Failed to update picture.');
+        addToast(res.message || 'Failed to update picture.', 'error');
       }
     };
     reader.readAsDataURL(file);
@@ -144,7 +142,7 @@ const Profile: FC = () => {
         setCurrentUser(updated || null);
         window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
         setIsEditProfileOpen(false);
-        showToast('Administrator profile updated successfully!');
+        addToast('Administrator profile updated successfully!', 'success');
       } else {
         setEditError(res.message || 'Failed to update profile.');
       }
@@ -178,7 +176,7 @@ const Profile: FC = () => {
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
-        showToast('Password rotated successfully!');
+        addToast('Password rotated successfully!', 'success');
       } else {
         setPasswordError(res.message || 'Failed to change password.');
       }
@@ -190,12 +188,12 @@ const Profile: FC = () => {
 
   const handleTerminateSessions = () => {
     setAuthSessions([]);
-    showToast('All secondary sessions terminated immediately.');
+    addToast('All secondary sessions terminated immediately.', 'success');
   };
 
   const handleRevokeSingleSession = (id: string, username: string) => {
     setAuthSessions((prev) => prev.filter((s) => s.id !== id));
-    showToast(`Revoked terminal session for ${username}`);
+    addToast(`Revoked terminal session for ${username}`, 'info');
   };
 
   const displayName = currentUser?.fullName || currentUser?.username || 'JM Suico';
@@ -213,10 +211,32 @@ const Profile: FC = () => {
 
   return (
     <div className="w-full">
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-full bg-text-primary text-white shadow-2xl flex items-center gap-2 font-body-medium text-small animate-fade-in border border-white/20">
-          <span className="material-symbols-outlined text-action-green text-[20px]">check_circle</span>
-          <span>{toastMessage}</span>
+      {/* Global Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto px-4 py-3 rounded-lg shadow-lg flex items-center justify-between gap-3 text-white text-small font-medium transition-all ${
+                toast.type === 'success'
+                  ? 'bg-action-green text-on-surface'
+                  : toast.type === 'error'
+                  ? 'bg-status-danger'
+                  : toast.type === 'warning'
+                  ? 'bg-status-pending text-on-surface'
+                  : 'bg-primary'
+              }`}
+            >
+              <span>{toast.message}</span>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                className="opacity-70 hover:opacity-100 material-symbols-outlined text-[16px]"
+              >
+                close
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -391,7 +411,7 @@ const Profile: FC = () => {
                       <span className="material-symbols-outlined text-status-available text-[24px]">verified</span>
                     </div>
                     <button
-                      onClick={() => showToast('Two-factor token manager opened.')}
+                      onClick={() => addToast('Two-factor token manager opened.', 'info')}
                       className="w-full text-center py-1.5 px-space-sm rounded bg-surface-container-lowest hover:bg-secondary-container hover:text-on-secondary-container text-primary font-body-medium text-caption font-semibold transition-colors cursor-pointer border border-outline-variant/15"
                       type="button"
                     >
@@ -535,6 +555,7 @@ const Profile: FC = () => {
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
         title="Edit Administrator Profile"
+        subtitle="Update personal and terminal credentials stored in university authentication directory (Edit Mode Active)"
         maxWidth="max-w-2xl"
         footer={
           <div className="flex items-center justify-end gap-space-sm w-full">

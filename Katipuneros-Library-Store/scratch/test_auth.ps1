@@ -1,5 +1,5 @@
 $loginBody = @{
-    email = "admin@katipuneros.edu.ph"
+    identifier = "customadmin1@katipuneros.edu.ph"
     password = "Admin@2026!"
 } | ConvertTo-Json
 
@@ -14,7 +14,9 @@ try {
 
     $inquiries = Invoke-RestMethod -Uri "http://localhost:5000/api/contact/inquiries" -Method Get -Headers $headers
     Write-Host "Inquiries Count:" $inquiries.data.Count
-    Write-Host "Latest Inquiry Subject:" $inquiries.data[0].subject
+    if ($inquiries.data.Count -gt 0) {
+        Write-Host "Latest Inquiry Subject:" $inquiries.data[0].subject
+    }
 
     $auditLogs = Invoke-RestMethod -Uri "http://localhost:5000/api/audit/logs" -Method Get -Headers $headers
     Write-Host "Audit Logs Count:" $auditLogs.data.Count
@@ -25,7 +27,11 @@ try {
     $users = Invoke-RestMethod -Uri "http://localhost:5000/api/users" -Method Get -Headers $headers
     Write-Host "Registered Users Count:" $users.data.Count
 } catch {
-    $stream = $_.Exception.Response.GetResponseStream()
-    $reader = New-Object System.IO.StreamReader($stream)
-    Write-Host "Error:" $reader.ReadToEnd()
+    if ($_.Exception.Response) {
+        $stream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($stream)
+        Write-Host "Error:" $reader.ReadToEnd()
+    } else {
+        Write-Host "Error:" $_.Exception.Message
+    }
 }

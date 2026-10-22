@@ -68,6 +68,14 @@ public class SecurityGovernanceResponse
     public string HmacKeyStatus { get; set; } = "Rotated (3d ago)";
 }
 
+public class PublicSettingsResponse
+{
+    public CirculationPolicyResponse Circulation { get; set; } = new();
+    public FineTariffsResponse Fines { get; set; } = new();
+    public ReservationSetupsResponse Reservations { get; set; } = new();
+    public SecurityGovernanceResponse Security { get; set; } = new();
+}
+
 public class SystemSettingsResponse
 {
     public CirculationPolicyResponse Circulation { get; set; } = new();
