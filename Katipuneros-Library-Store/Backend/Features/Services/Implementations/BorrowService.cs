@@ -429,10 +429,32 @@ public class BorrowService : IBorrowService
             if (activeLoan == null && Guid.TryParse(cleanBarcode, out var transactionId))
             {
                 var loanById = await _borrowRepository.GetByIdAsync(transactionId);
-                if (loanById != null && loanById.Status == TransactionStatus.Active)
+                if (loanById != null && (loanById.Status == TransactionStatus.Active || loanById.Status == TransactionStatus.Overdue))
                 {
                     activeLoan = loanById;
                 }
+            }
+
+            // d2. Return ExpressCode (RET-BAY-XXXXXX) or Return Reference (RET-TXN-XXXXXXXX)
+            if (activeLoan == null && (cleanBarcode.StartsWith("RET-BAY-", StringComparison.OrdinalIgnoreCase) || cleanBarcode.StartsWith("RET-TXN-", StringComparison.OrdinalIgnoreCase)))
+            {
+                var retId = cleanBarcode.StartsWith("RET-BAY-", StringComparison.OrdinalIgnoreCase)
+                    ? cleanBarcode.Substring("RET-BAY-".Length).Trim()
+                    : cleanBarcode.Substring("RET-TXN-".Length).Trim();
+                var allActiveLoans = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+                activeLoan = allActiveLoans.FirstOrDefault(l =>
+                    l.Id.ToString().Replace("-", "").StartsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                    l.Id.ToString().Replace("-", "").EndsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                    l.Id.ToString().StartsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                    l.Id.ToString().EndsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(l.GatePassCode) && l.GatePassCode.Contains(retId, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            // d3. 4-Digit Return PIN (e.g. 4612)
+            if (activeLoan == null && cleanBarcode.Length == 4 && cleanBarcode.All(char.IsDigit))
+            {
+                var allActiveLoans = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+                activeLoan = allActiveLoans.FirstOrDefault(l => BookCopyService.ComputeReturnPin(l.Id) == cleanBarcode);
             }
 
             // e. ExpressCode format (SCAN-BAY-XXXXXX)
@@ -682,6 +704,7 @@ public class BorrowService : IBorrowService
         await ExecuteAsync<List<BorrowingDetailResponse>>(async () =>
         {
             var loans = await _borrowRepository.GetAllWithDetailsAsync(status, query);
+            var allReservations = await _reservationRepository.GetAllWithDetailsAsync();
             var now = DateTime.UtcNow;
 
             var fineTariffs = await GetFineTariffsAsync();
@@ -712,6 +735,16 @@ public class BorrowService : IBorrowService
 
                 string roleLabel = b.Patron?.EmploymentStatus ?? (b.Patron?.Role == UserRole.Customer ? "Undergrad" : b.Patron?.Role.ToString() ?? "Patron");
 
+                var matchedReservation = allReservations
+                    .OrderByDescending(r => r.FulfilledDate ?? r.ReservationDate)
+                    .FirstOrDefault(r => r.PatronId == b.PatronId && r.BookId == b.BookId)
+                    ?? allReservations
+                        .OrderByDescending(r => r.FulfilledDate ?? r.ReservationDate)
+                        .FirstOrDefault(r => r.BookId == b.BookId);
+                var reservationExpressCode = matchedReservation != null
+                    ? $"SCAN-BAY-{matchedReservation.Id.ToString()[..6].ToUpperInvariant()}"
+                    : null;
+
                 return new BorrowingDetailResponse
                 {
                     Id = b.Id,
@@ -733,7 +766,9 @@ public class BorrowService : IBorrowService
                     MaxRenewals = 2,
                     Status = isOverdue ? "Overdue" : b.Status.ToString(),
                     AssessedFine = fine,
-                    Notes = b.ConditionNotes
+                    Notes = b.ConditionNotes,
+                    ReservationExpressCode = reservationExpressCode,
+                    ReservationId = matchedReservation?.Id
                 };
             }).ToList();
         });

@@ -12,6 +12,10 @@ import {
   removeCustomerFavorite,
   getReadingLists,
   createReadingList,
+  addBookToReadingList,
+  removeBookFromReadingList,
+  getBooksInReadingList,
+  getBookReadingLists,
 } from '../../../../../Endpoints/Customer/favoriteApi';
 import {
   getCustomerReservations,
@@ -26,24 +30,161 @@ const MAX_RESERVE_QUOTA = 5;
 type SortOption = 'recent' | 'availability' | 'title' | 'dewey';
 type ViewMode = 'grid' | 'list';
 
+interface ReadingListPopoverProps {
+  book: BackendBook;
+  bookLists: string[];
+  assignableLists: string[];
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  onClose: () => void;
+  onToggleBookInList: (listName: string, book: BackendBook, isCurrentlyInList: boolean) => void;
+  onOpenCreateList: () => void;
+}
+
+const ReadingListPopover: FC<ReadingListPopoverProps> = ({
+  book,
+  bookLists,
+  assignableLists,
+  isOpen,
+  onToggleOpen,
+  onClose,
+  onToggleBookInList,
+  onOpenCreateList,
+}) => {
+  return (
+    <div className="relative reading-list-popover-container">
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className={`h-9 px-3 rounded-lg font-small text-small font-medium transition-all flex items-center gap-1 cursor-pointer border ${
+          isOpen
+            ? 'bg-primary text-on-primary border-primary shadow-xs'
+            : 'bg-surface-container-lowest hover:bg-surface-container text-text-primary border-outline-variant/30'
+        }`}
+        title="Assign to reading list"
+      >
+        <span className="material-symbols-outlined text-base">playlist_add</span>
+        <span>Add to List</span>
+        <span className="material-symbols-outlined text-sm">
+          {isOpen ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 bottom-full mb-2 w-64 bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 p-space-sm z-30 animate-fade-in text-left">
+          <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20 mb-2 px-1">
+            <span className="font-caption text-caption font-bold text-text-primary uppercase tracking-wider">
+              Reading Lists
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-text-secondary hover:text-text-primary p-0.5 rounded cursor-pointer"
+              aria-label="Close popover"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+            {assignableLists.length === 0 ? (
+              <p className="font-caption text-caption text-text-secondary px-2 py-1">
+                No custom lists created yet.
+              </p>
+            ) : (
+              assignableLists.map((listName) => {
+                const isAssigned = bookLists.includes(listName);
+                return (
+                  <button
+                    key={listName}
+                    type="button"
+                    onClick={() => onToggleBookInList(listName, book, isAssigned)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-small font-small transition-colors text-left cursor-pointer ${
+                      isAssigned
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'hover:bg-surface-container text-text-primary'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="material-symbols-outlined text-base">
+                        {isAssigned ? 'check_box' : 'check_box_outline_blank'}
+                      </span>
+                      <span className="truncate">{listName}</span>
+                    </div>
+                    {isAssigned && (
+                      <span className="text-caption font-medium px-1.5 py-0.5 rounded bg-primary/20 text-primary shrink-0">
+                        Added
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="pt-2 mt-2 border-t border-outline-variant/20">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenCreateList();
+              }}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-caption font-caption font-bold text-primary hover:bg-soft-blue transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+              <span>+ Create New Reading List</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const FavoritesPage: FC = () => {
   const navigate = useNavigate();
   const { toasts, addToast, removeToast } = useToasts();
 
   // Primary State
   const [favorites, setFavorites] = useState<BackendBook[]>([]);
-  const [readingLists, setReadingLists] = useState<string[]>(['All Saved']);
-  const [selectedList, setSelectedList] = useState<string>('All Saved');
+  const [readingLists, setReadingLists] = useState<string[]>(['All Favorites', 'Academic Thesis', 'Weekend Reads']);
+  const [selectedList, setSelectedList] = useState<string>('All Favorites');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [assignmentsVersion, setAssignmentsVersion] = useState<number>(0);
+  const [activeDropdownBookId, setActiveDropdownBookId] = useState<string | null>(null);
 
   // Modal State
   const [isCreateListOpen, setIsCreateListOpen] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>('');
   const [isReservingAll, setIsReservingAll] = useState<boolean>(false);
   const [reservingBookId, setReservingBookId] = useState<string | null>(null);
+
+  // Helper to distinguish "all" lists from user-defined lists
+  const isAllList = (list: string) => list === 'All Favorites' || list === 'All Saved';
+
+  const assignableLists = useMemo(
+    () => readingLists.filter((l) => !isAllList(l)),
+    [readingLists]
+  );
+
+  // Click-away listener to dismiss active reading list dropdown popover
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest('.reading-list-popover-container')) {
+        setActiveDropdownBookId(null);
+      }
+    };
+    if (activeDropdownBookId) {
+      document.addEventListener('mousedown', handleDocumentClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick);
+    };
+  }, [activeDropdownBookId]);
 
   // Load Saved Favorites and Lists
   const loadFavoritesData = useCallback(async () => {
@@ -54,14 +195,18 @@ export const FavoritesPage: FC = () => {
         getReadingLists(),
       ]);
       setFavorites(favs);
-      setReadingLists(lists.length ? lists : ['All Saved']);
+      const initialLists = lists.length ? lists : ['All Favorites', 'Academic Thesis', 'Weekend Reads'];
+      setReadingLists(initialLists);
+      if (!initialLists.includes(selectedList) && !isAllList(selectedList)) {
+        setSelectedList('All Favorites');
+      }
     } catch (err: unknown) {
       console.error('Failed to load favorites data:', err);
       addToast('Error loading your saved books collection.', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, selectedList]);
 
   useEffect(() => {
     loadFavoritesData();
@@ -85,6 +230,12 @@ export const FavoritesPage: FC = () => {
   // Filtered & Sorted Books
   const filteredBooks = useMemo(() => {
     let result = [...favorites];
+
+    // Filter by Selected Reading List (All Favorites / All Saved shows all)
+    if (!isAllList(selectedList)) {
+      const allowedBookIds = new Set(getBooksInReadingList(selectedList).map(String));
+      result = result.filter((b) => allowedBookIds.has(String(b.id)));
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -113,13 +264,26 @@ export const FavoritesPage: FC = () => {
     });
 
     return result;
-  }, [favorites, searchQuery, sortBy]);
+  }, [favorites, selectedList, searchQuery, sortBy, assignmentsVersion]);
+
+  // Assign / Unassign a book to/from a reading list
+  const handleToggleBookInList = (listName: string, book: BackendBook, isCurrentlyInList: boolean) => {
+    if (isCurrentlyInList) {
+      removeBookFromReadingList(listName, book.id);
+      addToast(`Removed "${book.title}" from "${listName}".`, 'info');
+    } else {
+      addBookToReadingList(listName, book.id);
+      addToast(`Added "${book.title}" to "${listName}".`, 'success');
+    }
+    setAssignmentsVersion((prev) => prev + 1);
+  };
 
   // Remove Book from Favorites
   const handleRemoveFavorite = async (bookId: string, title: string) => {
     const success = await removeCustomerFavorite(bookId);
     if (success) {
       setFavorites((prev) => prev.filter((b) => b.id !== bookId));
+      setAssignmentsVersion((prev) => prev + 1);
       addToast(`Removed "${title}" from your saved stacks.`, 'info');
     } else {
       addToast('Failed to remove book from saved list.', 'error');
@@ -238,6 +402,7 @@ export const FavoritesPage: FC = () => {
       setSelectedList(clean);
       setNewListName('');
       setIsCreateListOpen(false);
+      setAssignmentsVersion((prev) => prev + 1);
       addToast(`Reading list "${clean}" created successfully.`, 'success');
     } else {
       addToast('Failed to create reading list.', 'error');
@@ -487,6 +652,11 @@ export const FavoritesPage: FC = () => {
         <div className="flex items-center gap-space-xs overflow-x-auto pb-1 max-w-xl">
           {readingLists.map((list) => {
             const isSelected = selectedList === list;
+            const isAll = isAllList(list);
+            const listCount = isAll
+              ? totalSaved
+              : favorites.filter((b) => getBooksInReadingList(list).map(String).includes(String(b.id))).length;
+
             return (
               <button
                 key={list}
@@ -499,15 +669,13 @@ export const FavoritesPage: FC = () => {
                 }`}
               >
                 <span>{list}</span>
-                {list === 'All Saved' && (
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-caption font-bold ${
-                      isSelected ? 'bg-surface-container-lowest/20' : 'bg-surface-container text-text-secondary'
-                    }`}
-                  >
-                    {totalSaved}
-                  </span>
-                )}
+                <span
+                  className={`min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center text-caption font-bold ${
+                    isSelected ? 'bg-surface-container-lowest/20 text-on-primary' : 'bg-surface-container text-text-secondary'
+                  }`}
+                >
+                  {listCount}
+                </span>
               </button>
             );
           })}
@@ -582,6 +750,29 @@ export const FavoritesPage: FC = () => {
 
       {/* Saved Books Grid / List */}
       <section className="w-full py-space-md">
+        {/* Active Reading List Indicator Bar */}
+        {!isAllList(selectedList) && (
+          <div className="flex items-center justify-between bg-surface-container-low/80 border border-outline-variant/20 rounded-xl px-4 py-2.5 mb-space-md">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-lg">collections_bookmark</span>
+              <span className="font-small text-small font-semibold text-text-primary">
+                Filtered by Reading List: <span className="text-primary font-bold">{selectedList}</span>
+              </span>
+              <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {filteredBooks.length} {filteredBooks.length === 1 ? 'Title' : 'Titles'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedList('All Favorites')}
+              className="text-caption font-semibold text-text-secondary hover:text-primary transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <span>Show All Favorites</span>
+              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3">
             <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
@@ -590,15 +781,27 @@ export const FavoritesPage: FC = () => {
         ) : filteredBooks.length === 0 ? (
           <div className="py-16 px-space-lg rounded-2xl bg-surface-container-lowest/60 border border-outline-variant/15 text-center flex flex-col items-center justify-center gap-space-md">
             <div className="w-16 h-16 rounded-full bg-soft-blue flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-3xl">bookmarks</span>
+              <span className="material-symbols-outlined text-3xl">
+                {favorites.length === 0
+                  ? 'bookmarks'
+                  : !isAllList(selectedList) && getBooksInReadingList(selectedList).length === 0
+                  ? 'playlist_add'
+                  : 'search_off'}
+              </span>
             </div>
             <div className="max-w-md">
               <h3 className="font-headline-3 text-headline-3 text-text-primary font-bold">
-                {favorites.length === 0 ? 'Your Academic Wishlist is Empty' : 'No Matching Titles Found'}
+                {favorites.length === 0
+                  ? 'Your Academic Wishlist is Empty'
+                  : !isAllList(selectedList) && getBooksInReadingList(selectedList).length === 0
+                  ? 'No books in this reading list yet'
+                  : 'No Matching Titles Found'}
               </h3>
               <p className="font-body-medium text-body-medium text-text-secondary mt-1">
                 {favorites.length === 0
                   ? 'Explore the campus catalog to save monographs, monitor physical shelf availability, and place rapid counter holds.'
+                  : !isAllList(selectedList) && getBooksInReadingList(selectedList).length === 0
+                  ? "No books in this reading list yet. Add books using the 'Add to List' button on your favorites."
                   : 'Try adjusting your search keywords or switching reading list categories.'}
               </p>
             </div>
@@ -610,6 +813,15 @@ export const FavoritesPage: FC = () => {
                 <span className="material-symbols-outlined text-lg">menu_book</span>
                 <span>+ Explore Campus Catalog</span>
               </Link>
+            ) : !isAllList(selectedList) && getBooksInReadingList(selectedList).length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setSelectedList('All Favorites')}
+                className="h-11 px-space-lg rounded-full bg-primary text-on-primary font-small text-small font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-space-xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">collections_bookmark</span>
+                <span>View All Favorites ({totalSaved})</span>
+              </button>
             ) : (
               <button
                 type="button"
@@ -625,6 +837,7 @@ export const FavoritesPage: FC = () => {
             {filteredBooks.map((book) => {
               const isAvailable = (book.availableCopies ?? 0) > 0;
               const isReserving = reservingBookId === book.id;
+              const bookLists = getBookReadingLists(book.id).filter((l) => !isAllList(l));
 
               return (
                 <div
@@ -681,6 +894,33 @@ export const FavoritesPage: FC = () => {
                         </span>
                       </div>
 
+                      {/* Reading List Badges */}
+                      {bookLists.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {bookLists.map((listName) => (
+                            <span
+                              key={listName}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-caption text-caption font-medium bg-primary/10 text-primary border border-primary/20"
+                            >
+                              <span className="material-symbols-outlined text-xs">label</span>
+                              <span>{listName}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleBookInList(listName, book, true);
+                                }}
+                                className="hover:text-status-danger p-0.5 rounded-full cursor-pointer"
+                                title={`Remove from ${listName}`}
+                                aria-label={`Remove from ${listName}`}
+                              >
+                                <span className="material-symbols-outlined text-xs">close</span>
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Stock Status Badge */}
                       <div className="mt-auto pt-space-xs">
                         {isAvailable ? (
@@ -704,17 +944,32 @@ export const FavoritesPage: FC = () => {
                       Published: {book.publishedYear || 2026}
                     </span>
 
-                    <button
-                      type="button"
-                      onClick={() => handleReserveBook(book)}
-                      disabled={!isAvailable || isReserving}
-                      className="h-9 px-space-md rounded-lg bg-action-green hover:bg-action-green-hover disabled:opacity-40 disabled:cursor-not-allowed text-text-primary font-small text-small font-semibold shadow-sm transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-base">
-                        {isReserving ? 'progress_activity' : 'bookmark_add'}
-                      </span>
-                      <span>{isReserving ? 'Reserving...' : isAvailable ? 'Reserve' : 'Unavailable'}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <ReadingListPopover
+                        book={book}
+                        bookLists={bookLists}
+                        assignableLists={assignableLists}
+                        isOpen={activeDropdownBookId === book.id}
+                        onToggleOpen={() =>
+                          setActiveDropdownBookId(activeDropdownBookId === book.id ? null : book.id)
+                        }
+                        onClose={() => setActiveDropdownBookId(null)}
+                        onToggleBookInList={handleToggleBookInList}
+                        onOpenCreateList={() => setIsCreateListOpen(true)}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleReserveBook(book)}
+                        disabled={!isAvailable || isReserving}
+                        className="h-9 px-space-md rounded-lg bg-action-green hover:bg-action-green-hover disabled:opacity-40 disabled:cursor-not-allowed text-text-primary font-small text-small font-semibold shadow-sm transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          {isReserving ? 'progress_activity' : 'bookmark_add'}
+                        </span>
+                        <span>{isReserving ? 'Reserving...' : isAvailable ? 'Reserve' : 'Unavailable'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -726,6 +981,7 @@ export const FavoritesPage: FC = () => {
             {filteredBooks.map((book) => {
               const isAvailable = (book.availableCopies ?? 0) > 0;
               const isReserving = reservingBookId === book.id;
+              const bookLists = getBookReadingLists(book.id).filter((l) => !isAllList(l));
 
               return (
                 <div
@@ -749,6 +1005,33 @@ export const FavoritesPage: FC = () => {
                         <span>•</span>
                         <span>{book.isbn}</span>
                       </div>
+
+                      {/* Reading List Badges */}
+                      {bookLists.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {bookLists.map((listName) => (
+                            <span
+                              key={listName}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-caption text-caption font-medium bg-primary/10 text-primary border border-primary/20"
+                            >
+                              <span className="material-symbols-outlined text-xs">label</span>
+                              <span>{listName}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleBookInList(listName, book, true);
+                                }}
+                                className="hover:text-status-danger p-0.5 rounded-full cursor-pointer"
+                                title={`Remove from ${listName}`}
+                                aria-label={`Remove from ${listName}`}
+                              >
+                                <span className="material-symbols-outlined text-xs">close</span>
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -764,6 +1047,19 @@ export const FavoritesPage: FC = () => {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      <ReadingListPopover
+                        book={book}
+                        bookLists={bookLists}
+                        assignableLists={assignableLists}
+                        isOpen={activeDropdownBookId === book.id}
+                        onToggleOpen={() =>
+                          setActiveDropdownBookId(activeDropdownBookId === book.id ? null : book.id)
+                        }
+                        onClose={() => setActiveDropdownBookId(null)}
+                        onToggleBookInList={handleToggleBookInList}
+                        onOpenCreateList={() => setIsCreateListOpen(true)}
+                      />
+
                       <button
                         type="button"
                         onClick={() => handleReserveBook(book)}

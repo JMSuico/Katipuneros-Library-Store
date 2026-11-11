@@ -121,6 +121,10 @@ export const Transactions: FC = () => {
       }...`,
       'success'
     );
+    // Allow state/toast update before browser print dialog triggers
+    setTimeout(() => {
+      window.print();
+    }, 250);
   };
 
   // Metric Breakdowns from Live Data
@@ -197,6 +201,11 @@ export const Transactions: FC = () => {
     });
   }, [transactions, sortBy]);
 
+  // Total Inflow for the currently filtered/displayed transactions in print slip
+  const filteredInflowTotal = useMemo(() => {
+    return sortedTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
+  }, [sortedTransactions]);
+
   // Initials helper
   const getInitials = (name?: string) => {
     if (!name) return 'PT';
@@ -211,9 +220,155 @@ export const Transactions: FC = () => {
 
   return (
     <div className="w-full">
+      {/* Thermal Receipt Print Styles */}
+      <style>{`
+        @media screen {
+          .thermal-receipt-print-only {
+            display: none !important;
+          }
+        }
+        @media print {
+          @page {
+            size: auto;
+            margin: 4mm;
+          }
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          /* Hide all screen UI, headers, navigation bars, and modals */
+          header, nav, aside, footer, #sidebar, .screen-only-ui {
+            display: none !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .thermal-receipt-print-only,
+          .thermal-receipt-print-only * {
+            visibility: visible !important;
+          }
+          .thermal-receipt-print-only {
+            display: block !important;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 4mm 2mm;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+        }
+      `}</style>
+
+      {/* Printable Thermal Receipt / Daily Register Audit Slip */}
+      <div id="thermal-register-print-area" className="thermal-receipt-print-only">
+        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            KATIPUNEROS LIBRARY STORE - DAILY REGISTER AUDIT
+          </div>
+          <div style={{ fontSize: '10px', marginTop: '3px' }}>
+            {shiftSummary?.stationName || 'TERMINAL BAY 01'} • SHIFT REGISTER AUDIT
+          </div>
+          <div style={{ fontSize: '10px' }}>
+            Cashier: {shiftSummary?.activeCashierName || 'Circulation Desk'}
+          </div>
+          <div style={{ fontSize: '10px', marginTop: '2px' }}>
+            Printed: {new Date().toLocaleString()}
+          </div>
+        </div>
+
+        <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
+
+        {/* Audit Metrics & Inflow Summary */}
+        <div style={{ fontSize: '10px', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Active Filter:</span>
+            <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{activeTab}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total Transactions:</span>
+            <span style={{ fontWeight: 'bold' }}>{sortedTransactions.length} of {shiftVolumeCount}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total Inflow Amount:</span>
+            <span style={{ fontWeight: 'bold' }}>₱{filteredInflowTotal.toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Gross Shift Collections:</span>
+            <span>₱{grossCollections.toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Cash / Digital Split:</span>
+            <span>₱{cashAmount.toFixed(2)} / ₱{qrAmount.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div style={{ borderTop: '2px dashed #000', margin: '6px 0' }} />
+
+        {/* Tabular List of Filtered Transactions */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #000' }}>
+              <th style={{ padding: '3px 2px', textAlign: 'left' }}>RECEIPT ID</th>
+              <th style={{ padding: '3px 2px', textAlign: 'left' }}>PATRON</th>
+              <th style={{ padding: '3px 2px', textAlign: 'left' }}>TYPE</th>
+              <th style={{ padding: '3px 2px', textAlign: 'right' }}>AMOUNT</th>
+              <th style={{ padding: '3px 2px', textAlign: 'right' }}>STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTransactions.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '10px 2px', fontStyle: 'italic' }}>
+                  No transactions recorded for the selected filter.
+                </td>
+              </tr>
+            ) : (
+              sortedTransactions.map((tx) => (
+                <tr key={tx.id || tx.transactionReference} style={{ borderBottom: '1px dotted #ccc' }}>
+                  <td style={{ padding: '3px 2px', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                    {tx.transactionReference}
+                  </td>
+                  <td style={{ padding: '3px 2px', maxWidth: '75px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {tx.patronName}
+                  </td>
+                  <td style={{ padding: '3px 2px' }}>
+                    {tx.transactionType}
+                  </td>
+                  <td style={{ padding: '3px 2px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    ₱{(tx.amount || 0).toFixed(2)}
+                  </td>
+                  <td style={{ padding: '3px 2px', textAlign: 'right' }}>
+                    {tx.status || 'OK'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        <div style={{ borderTop: '2px dashed #000', margin: '8px 0 4px 0' }} />
+
+        {/* Slip Verification Footer */}
+        <div style={{ textAlign: 'center', fontSize: '9px', marginTop: '6px' }}>
+          <div style={{ fontWeight: 'bold' }}>*** END OF REGISTER AUDIT ***</div>
+          <div style={{ marginTop: '2px', color: '#333' }}>
+            Katipuneros Academic Library Store System
+          </div>
+          <div>Authorized Circulation Register Record</div>
+        </div>
+      </div>
+
       {/* Toast Notification Container */}
       {toasts.length > 0 && (
-        <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2">
+        <div className="screen-only-ui fixed bottom-5 right-5 z-50 flex flex-col gap-2">
           {toasts.map((toast) => (
             <div
               key={toast.id}
@@ -248,7 +403,7 @@ export const Transactions: FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col w-full pb-space-3xl">
+      <div className="screen-only-ui flex flex-col w-full pb-space-3xl">
         {/* Breadcrumb & Top Bar Header Area */}
         <div className="flex flex-col gap-4 mb-space-lg">
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -16,7 +16,7 @@ const Footer: React.FC = () => {
 
         {/* Copyright */}
         <p className="font-small text-small text-white/70">
-          © 2024 Katipuneros Library Store. Academic Excellence and Digital Discovery.
+          © {new Date().getFullYear()} Katipuneros Library Store. Academic Excellence and Digital Discovery.
         </p>
 
         {/* Footer Nav Links */}

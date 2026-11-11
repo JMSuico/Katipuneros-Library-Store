@@ -210,10 +210,10 @@ export async function generateUserSlipPng(
   ctx.fillText('KATIPUNEROS HISTORICAL ARCHIVE & BOOK STORE', width / 2, 82);
 
   // Official badge pill
-  drawRoundedRect(ctx, (width - 340) / 2, 98, 340, 26, 13, '#00658A');
+  drawRoundedRect(ctx, (width - 420) / 2, 98, 420, 26, 13, '#00658A');
   ctx.font = 'bold 11px Inter, sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('OFFICIAL HOLD PICKUP & VERIFICATION SLIP', width / 2, 115);
+  ctx.fillText('OFFICIAL BORROWING CLAIM & PHYSICAL HANDOVER SLIP', width / 2, 115);
 
   // Meta timestamp line
   ctx.font = '10px Inter, sans-serif';
@@ -389,7 +389,7 @@ export async function generateUserSlipPng(
   const qrCanvas = document.createElement('canvas');
   await QRCode.toCanvas(qrCanvas, expressCode, {
     width: qrSize,
-    margin: 1,
+    margin: 4,
     color: {
       dark: '#0A192F',
       light: '#FFFFFF',
@@ -411,9 +411,9 @@ export async function generateUserSlipPng(
   ctx.fillStyle = '#18323D';
   ctx.fillText(expressCode, width / 2, codeBoxY + 25);
 
-  ctx.font = '10px Inter, sans-serif';
-  ctx.fillStyle = '#647982';
-  ctx.fillText('Scan QR code at the circulation kiosk or provide Express Code at the desk', width / 2, s3Y + 252);
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.fillStyle = '#00658A';
+  ctx.fillText('FOR COUNTER PICKUP & HANDOVER ONLY • A SEPARATE RETURN SLIP IS ISSUED AFTER CHECKOUT', width / 2, s3Y + 252);
 
   // ---------------------------------------------------------------------------
   // 6. SECTION: 48-HOUR RETENTION WINDOW & RETURN INSTRUCTIONS

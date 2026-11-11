@@ -24,6 +24,7 @@ export interface CustomerLoanRecord {
   renewalCount: number;
   gatePassCode: string;
   conditionNotes?: string;
+  reservationExpressCode?: string;
 }
 
 export interface CustomerBorrowRequest {

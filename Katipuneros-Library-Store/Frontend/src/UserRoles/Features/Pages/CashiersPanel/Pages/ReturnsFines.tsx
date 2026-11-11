@@ -65,6 +65,7 @@ export const ReturnsFines: FC = () => {
   const [manualSlipInput, setManualSlipInput] = useState<string>('');
   const [inputError, setInputError] = useState<string | null>(null);
   const [inputErrorCode, setInputErrorCode] = useState<string | null>(null);
+  const [pickupMistakeLoan, setPickupMistakeLoan] = useState<{ loan: BackendBorrowing; scannedCode: string } | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
 
   const manualInputRef = useRef<HTMLInputElement | null>(null);
@@ -169,7 +170,7 @@ export const ReturnsFines: FC = () => {
       try {
         const parsed = JSON.parse(code);
         const innerCode =
-          parsed.expressCode || parsed.code || parsed.loanCode || parsed.barcode || parsed.reference || parsed.id;
+          parsed.returnCode || parsed.expressCode || parsed.code || parsed.loanCode || parsed.gatePassCode || parsed.barcode || parsed.reference || parsed.id || parsed.loanId;
         if (innerCode && typeof innerCode === 'string') {
           const innerMatch = findLoanMatch(loans, innerCode);
           if (innerMatch) return innerMatch;
@@ -179,11 +180,25 @@ export const ReturnsFines: FC = () => {
       }
     }
 
+    const retId = lower.startsWith('ret-bay-') ? lower.replace('ret-bay-', '').trim() : '';
+    const retTxnId = lower.startsWith('ret-txn-') ? lower.replace('ret-txn-', '').trim() : '';
     const expressId = lower.startsWith('scan-bay-') ? lower.replace('scan-bay-', '').trim() : '';
     const kpTxnId = lower.startsWith('kp-txn-') ? lower.replace('kp-txn-', '').trim() : '';
     const passId = lower.startsWith('pass-') ? lower.replace('pass-', '').trim() : '';
     const lnId = lower.startsWith('ln-') ? lower.replace('ln-', '').trim() : '';
     const gpId = lower.startsWith('gp-') ? lower.replace('gp-', '').trim() : '';
+    const cleanAlpha = lower.replace(/[^a-z0-9]/g, '');
+    const isShortHex = cleanAlpha.length >= 6 && cleanAlpha.length <= 12;
+
+    // Direct 4-Digit Return PIN lookup
+    if (/^\d{4}$/.test(code)) {
+      const matchByPin = loans.find((l) => {
+        const idHex = (l.id || '').replace(/[^0-9a-f]/gi, '').slice(-4);
+        const pin = String((parseInt(idHex || '1a2b', 16) % 9000) + 1000);
+        return pin === code;
+      });
+      if (matchByPin) return matchByPin;
+    }
 
     return loans.find((l) => {
       const lIdLower = (l.id || '').toLowerCase();
@@ -193,16 +208,43 @@ export const ReturnsFines: FC = () => {
       const lPatronIdLower = (l.patronLibraryId || '').toLowerCase();
       const lPatronNameLower = (l.patronName || '').toLowerCase();
       const lTitleLower = (l.bookTitle || '').toLowerCase();
+      const lResExpressLower = (l.reservationExpressCode || '').toLowerCase();
+      const lResIdLower = (l.reservationId || '').toLowerCase();
+      const lResIdCompact = lResIdLower.replace(/-/g, '');
 
       // Direct exact matches
       if (lBarcodeLower === lower || lCodeLower === lower || lIdLower === lower) return true;
       if (lIdCompact === lower) return true;
       if (lPatronIdLower === lower) return true;
+      if (lResExpressLower === lower || lResIdLower === lower || lResIdCompact === lower) return true;
 
-      // ExpressCode / SCAN-BAY-XXXXXX matches
+      // Return ExpressCode / RET-BAY-XXXXXX matches (Official Return Slip)
+      if (retId) {
+        if (lIdCompact.startsWith(retId) || lIdLower.startsWith(retId) || lIdCompact.includes(retId)) return true;
+        if (lCodeLower.includes(retId)) return true;
+        if (lResIdCompact.startsWith(retId) || lResExpressLower.includes(retId)) return true;
+      }
+
+      // Return Reference / RET-TXN-XXXXXXXX matches
+      if (retTxnId) {
+        if (lIdCompact.startsWith(retTxnId) || lIdLower.startsWith(retTxnId)) return true;
+      }
+
+      // Handover ExpressCode / SCAN-BAY-XXXXXX matches (Mistake recovery function)
       if (expressId) {
-        if (lIdCompact.includes(expressId) || lIdLower.includes(expressId)) return true;
+        if (lResExpressLower.includes(expressId)) return true;
+        if (lResIdCompact.startsWith(expressId) || lResIdCompact.includes(expressId)) return true;
+        if (lResIdLower.startsWith(expressId) || lResIdLower.includes(expressId)) return true;
+        if (lIdCompact.startsWith(expressId) || lIdCompact.includes(expressId)) return true;
         if (lCodeLower.includes(expressId)) return true;
+      }
+
+      // Compact hex without prefix (e.g. 1D6D71 or loan GUID prefix)
+      if (isShortHex) {
+        if (lIdCompact.startsWith(cleanAlpha) || lIdLower.startsWith(cleanAlpha)) return true;
+        if (lResIdCompact.startsWith(cleanAlpha) || lResIdLower.startsWith(cleanAlpha)) return true;
+        if (lResExpressLower.includes(cleanAlpha)) return true;
+        if (lCodeLower.includes(cleanAlpha)) return true;
       }
 
       // KP-TXN-XXXXXXXX matches
@@ -237,89 +279,107 @@ export const ReturnsFines: FC = () => {
       setInputError(null);
       setInputErrorCode(null);
 
-      try {
-        const res = await scanBookCopy(code);
-        if (res.success && res.data) {
-          const copy = res.data.copy;
-          setScannedCopy(copy);
-
-          if (res.data.activeLoan) {
-            const loanDto = res.data.activeLoan;
-            const existing = activeLoans.find((l) => l.id === loanDto.transactionId);
-            if (existing) {
-              setSelectedLoan(existing);
-            } else {
-              setSelectedLoan({
-                id: loanDto.transactionId,
-                loanCode: loanDto.gatePassCode || `LN-${loanDto.transactionId.slice(0, 6).toUpperCase()}`,
-                patronId: loanDto.patronId,
-                patronName: loanDto.patronName,
-                patronLibraryId: loanDto.patronLibraryId,
-                patronRole: 'Patron',
-                patronAvatar: loanDto.patronAvatar,
-                bookId: copy.bookId,
-                bookTitle: copy.bookTitle,
-                bookBarcode: copy.accessionNumber,
-                bookCallNumber: copy.deweyCode,
-                bookCoverImage: copy.coverImage,
-                borrowDate: loanDto.borrowDate,
-                dueDate: loanDto.dueDate,
-                daysRemaining: -loanDto.overdueDays,
-                renewalCount: 0,
-                maxRenewals: 2,
-                status: loanDto.isOverdue ? 'Overdue' : 'Active',
-                assessedFine: loanDto.estimatedOverdueFine,
-                notes: copy.conditionNotes,
-              });
-            }
-            playChimeSound();
-            addToast(`Scanned Copy ${copy.accessionNumber}: Active loan loaded for "${copy.bookTitle}".`, 'success');
-            document.getElementById('return-inspection-section')?.scrollIntoView({ behavior: 'smooth' });
-            return true;
-          } else {
-            setSelectedLoan(null);
-            addToast(
-              `Physical copy ${copy.accessionNumber} verified (${copy.status}). No active circulation loan pending.`,
-              'info'
-            );
-            return true;
-          }
-        }
-      } catch {
-        // Fallback to activeLoans search
-      } finally {
-        setIsProcessing(false);
-      }
-
+      // Step 1: Immediate local lookup against activeLoans
       let matched = findLoanMatch(activeLoans, code);
 
+      // Step 2: Query backend scanBookCopy if not matched locally
+      if (!matched) {
+        try {
+          const res = await scanBookCopy(code);
+          if (res.success && res.data) {
+            const copy = res.data.copy;
+            setScannedCopy(copy);
+
+            if (res.data.activeLoan) {
+              const loanDto = res.data.activeLoan;
+              const existing = activeLoans.find((l) => l.id === loanDto.transactionId);
+              if (existing) {
+                matched = existing;
+              } else {
+                matched = {
+                  id: loanDto.transactionId,
+                  loanCode: loanDto.gatePassCode || `LN-${loanDto.transactionId.slice(0, 6).toUpperCase()}`,
+                  patronId: loanDto.patronId,
+                  patronName: loanDto.patronName,
+                  patronLibraryId: loanDto.patronLibraryId,
+                  patronRole: 'Patron',
+                  patronAvatar: loanDto.patronAvatar,
+                  bookId: copy.bookId,
+                  bookTitle: copy.bookTitle,
+                  bookBarcode: copy.accessionNumber,
+                  bookCallNumber: copy.deweyCode,
+                  bookCoverImage: copy.coverImage,
+                  borrowDate: loanDto.borrowDate,
+                  dueDate: loanDto.dueDate,
+                  daysRemaining: -loanDto.overdueDays,
+                  renewalCount: 0,
+                  maxRenewals: 2,
+                  status: loanDto.isOverdue ? 'Overdue' : 'Active',
+                  assessedFine: loanDto.estimatedOverdueFine,
+                  notes: copy.conditionNotes,
+                };
+              }
+            } else if (copy) {
+              // If activeLoan is null in scan payload, check active loans by bookId
+              const matchedByBook = activeLoans.find(
+                (l) => l.bookId === copy.bookId || (copy.accessionNumber && l.bookBarcode === copy.accessionNumber)
+              );
+              if (matchedByBook) {
+                matched = matchedByBook;
+              }
+            }
+          }
+        } catch {
+          // Ignore network fallback error
+        }
+      }
+
+      // Step 3: Refresh activeLoans from backend ledger if still unassigned
       if (!matched) {
         try {
           const refreshed = await getAdminBorrowings('Active');
           setActiveLoans(refreshed);
           matched = findLoanMatch(refreshed, code);
+          if (!matched && scannedCopy) {
+            matched = refreshed.find(
+              (l) => l.bookId === scannedCopy.bookId || (scannedCopy.accessionNumber && l.bookBarcode === scannedCopy.accessionNumber)
+            );
+          }
         } catch {
           // Ignore refresh error
         }
       }
 
+      setIsProcessing(false);
+
       if (matched) {
+        if (code.toUpperCase().startsWith('SCAN-BAY-')) {
+          setPickupMistakeLoan({ loan: matched, scannedCode: code });
+          setIsProcessing(false);
+          addToast(
+            `Notice: "${code}" is an Official Pickup Claim Slip. Returns scanner requires a Return Slip (RET-BAY-XXXXXX).`,
+            'warning'
+          );
+          return false;
+        }
+
+        setPickupMistakeLoan(null);
         setSelectedLoan(matched);
         setScannedCopy(null);
         playChimeSound();
-        addToast(`Loan record loaded for "${matched.bookTitle}".`, 'success');
+        addToast(`Circulation loan resolved for "${matched.bookTitle}".`, 'success');
         document.getElementById('return-inspection-section')?.scrollIntoView({ behavior: 'smooth' });
         return true;
       } else {
         setInputError(
-          'Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.'
+          'Identifier not found in active circulation records. Please verify what is printed on the Return Slip (e.g. RET-BAY-XXXXXX, KP-TXN-..., or SCAN-BAY-XXXXXX) and ensure the book was checked out.'
         );
         setInputErrorCode(code);
         addToast(`No active borrowing record or physical book copy found matching "${code}".`, 'warning');
         return false;
       }
     },
-    [activeLoans, addToast]
+    [activeLoans, addToast, scannedCopy]
   );
 
   // Option 3: Decode User Slip PNG using jsQR on offscreen canvas
@@ -356,14 +416,22 @@ export const ReturnsFines: FC = () => {
               addToast(`Slip QR code decoded: "${qrCode.data}". Resolving loan...`, 'success');
               handleCodeLookup(qrCode.data.trim());
             } else {
-              setInputError(
-                'Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.'
-              );
-              setInputErrorCode(file.name);
-              addToast(
-                'No readable QR code found in uploaded slip image. Please verify slip image or use Option 2.',
-                'warning'
-              );
+              // Metadata / Filename fallback check (e.g. Katipuneros_OFFICIAL_RETURN_PASS_1D6D71.png)
+              const filenameMatch = file.name.match(/(?:RET-BAY-|SCAN-BAY-|KP-TXN-)?([A-F0-9]{6,8})/i);
+              if (filenameMatch && filenameMatch[0]) {
+                const extracted = filenameMatch[0].toUpperCase();
+                addToast(`Resolved circulation identifier "${extracted}" from file name.`, 'info');
+                handleCodeLookup(extracted);
+              } else {
+                setInputError(
+                  'Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. RET-BAY-XXXXXX, SCAN-BAY-XXXXXX, or KP-TXN-...) and try again.'
+                );
+                setInputErrorCode(file.name);
+                addToast(
+                  'No readable QR code found in uploaded slip image. Please verify slip image or use Option 2.',
+                  'warning'
+                );
+              }
             }
           } catch (decodeErr: any) {
             addToast(decodeErr?.message || 'Error decoding QR from image.', 'error');
@@ -533,6 +601,19 @@ export const ReturnsFines: FC = () => {
             },
           })
         );
+
+        // Notify other tabs / portals via BroadcastChannel
+        try {
+          const syncChannel = new BroadcastChannel('katipuneros-circulation-sync');
+          syncChannel.postMessage({
+            type: 'return_confirmed',
+            reference: res.transaction?.gatePassCode || res.transaction?.id,
+            timestamp: Date.now(),
+          });
+          syncChannel.close();
+        } catch {
+          // BroadcastChannel optional fallback
+        }
 
         // Broadcast notification across multi-portal notification bus
         dispatchCirculationNotification({
@@ -812,6 +893,57 @@ export const ReturnsFines: FC = () => {
             </div>
           </div>
 
+          {/* Pickup Handover Slip Detected Warning & Mistake Recovery Override */}
+          {pickupMistakeLoan && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-950 dark:text-amber-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-200 shadow-md">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="material-symbols-outlined text-2xl">wrong_location</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-small uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      Pickup Handover Slip Detected at Return Desk
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                      {pickupMistakeLoan.scannedCode}
+                    </span>
+                  </div>
+                  <p className="text-caption text-text-secondary mt-1">
+                    This scanner is designated <strong>strictly for returning books</strong> (accepts <span className="font-mono font-bold text-primary">RET-BAY-XXXXXX</span>, Return QR, or 4-Digit Return PIN). The customer presented their Pickup Claim Slip (<span className="font-mono">{pickupMistakeLoan.scannedCode}</span>).
+                  </p>
+                  <p className="text-caption mt-0.5 font-medium text-text-primary">
+                    Matched Active Volume: <strong>"{pickupMistakeLoan.loan.bookTitle}"</strong> • Patron: {pickupMistakeLoan.loan.patronName} ({pickupMistakeLoan.loan.patronLibraryId})
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLoan(pickupMistakeLoan.loan);
+                    setPickupMistakeLoan(null);
+                    setScannedCopy(null);
+                    playChimeSound();
+                    addToast(`Mistake recovery applied for "${pickupMistakeLoan.loan.bookTitle}". Proceeding with return audit.`, 'success');
+                    document.getElementById('return-inspection-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="flex-1 md:flex-none px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-caption text-caption font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">check_circle</span>
+                  <span>Mistake Recovery: Accept Return</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickupMistakeLoan(null)}
+                  className="px-3 py-2.5 bg-surface-container hover:bg-surface-container-high text-text-secondary font-caption text-caption font-semibold rounded-xl transition-all cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 3-Option Navigation Tabs */}
           <div className="flex flex-wrap items-center gap-2 p-1.5 bg-surface-container-low rounded-xl">
             <button
@@ -880,7 +1012,7 @@ export const ReturnsFines: FC = () => {
                     </span>
                   </div>
                   <p className="font-caption text-caption text-text-secondary mt-0.5">
-                    Align User Slip QR Code (<span className="font-mono font-bold text-primary">SCAN-BAY-XXXXXX</span>), ExpressCode, transaction code (<span className="font-mono font-bold text-primary">KP-TXN-...</span>), or book barcode in front of the lens.
+                    Align Return Slip QR Code (<span className="font-mono font-bold text-primary">RET-BAY-XXXXXX</span>), Return Ref (<span className="font-mono font-bold text-primary">RET-TXN-...</span>), or book barcode in front of the lens. (Handover slips <span className="font-mono text-amber-600">SCAN-BAY-XXXXXX</span> prompt mistake recovery).
                   </p>
                 </div>
               </div>
@@ -923,7 +1055,7 @@ export const ReturnsFines: FC = () => {
                       setManualSlipInput(e.target.value);
                       if (inputError) setInputError(null);
                     }}
-                    placeholder="Type ExpressCode (SCAN-BAY-XXXXXX), KP-TXN-..., PIN, or Accession #"
+                    placeholder="Type Return Code (RET-BAY-XXXXXX), 4-Digit Return PIN, RET-TXN-..., or Accession #"
                     className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-lowest text-text-primary font-mono text-small outline-none border border-outline/20 focus:border-primary shadow-inner"
                   />
                 </div>
@@ -961,7 +1093,7 @@ export const ReturnsFines: FC = () => {
                     <span className="material-symbols-outlined text-xl flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400">warning</span>
                     <div className="text-caption font-medium">
                       <p className="font-bold">Return Resolution Failed</p>
-                      <p>Identifier not found in active circulation records. Please verify what is printed on the User Slip (e.g. SCAN-BAY-XXXXXX or KP-TXN-...) and try again.</p>
+                      <p>Identifier not found in active circulation records. Please verify what is printed on the Return Slip (e.g. RET-BAY-XXXXXX or KP-TXN-...) or Handover Slip (SCAN-BAY-XXXXXX) and try again.</p>
                       {inputErrorCode && (
                         <p className="font-mono text-[11px] mt-1 opacity-80">Searched code: "{inputErrorCode}"</p>
                       )}
@@ -996,7 +1128,7 @@ export const ReturnsFines: FC = () => {
                   </span>
                 </div>
                 <p className="font-caption text-caption text-text-secondary mt-0.5">
-                  Upload User Slip PNG (<span className="font-mono font-bold text-primary">Katipuneros_Pickup_Slip_*.png</span>) or customer photo to auto-decode QR via jsQR, or pick directly from the circulating loans table.
+                  Upload Return Slip PNG (<span className="font-mono font-bold text-primary">Katipuneros_OFFICIAL_RETURN_PASS_*.png</span>), Handover Slip (<span className="font-mono font-bold text-primary">Katipuneros_Pickup_Slip_*.png</span>), or pick directly from the active roster below.
                 </p>
               </div>
 
@@ -1031,15 +1163,78 @@ export const ReturnsFines: FC = () => {
                   }}
                 />
                 <div className="w-12 h-12 rounded-full bg-soft-blue text-primary flex items-center justify-center mb-2">
-                  <span className="material-symbols-outlined text-2xl">receipt</span>
+                  <span className="material-symbols-outlined text-2xl">receipt_long</span>
                 </div>
                 <span className="font-body-medium text-body-medium font-bold text-text-primary">
-                  Drop Pickup Slip PNG here or click to browse
+                  Drop Return Slip or Handover Slip PNG here or click to browse
                 </span>
                 <span className="font-caption text-caption text-text-secondary mt-1 max-w-sm">
-                  Decodes QR code from Katipuneros_Pickup_Slip_*.png or receipt images instantly on an offscreen canvas via jsQR.
+                  Decodes QR code from Katipuneros_Return_Slip_*.png, Katipuneros_Pickup_Slip_*.png, or receipt images instantly on an offscreen canvas via jsQR.
                 </span>
               </div>
+
+              {/* Active Loans Quick-Select Roster */}
+              {activeLoans.length > 0 && (
+                <div className="mt-2 space-y-2.5 pt-3 border-t border-outline/10">
+                  <div className="flex items-center justify-between">
+                    <span className="font-caption text-caption font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm text-primary">format_list_bulleted</span>
+                      <span>Active Loans Quick-Select Roster ({activeLoans.length})</span>
+                    </span>
+                    <span className="font-caption text-[11px] text-text-secondary">
+                      Click any circulating loan below to resolve return immediately
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto p-1">
+                    {activeLoans.map((loan) => (
+                      <div
+                        key={loan.id}
+                        onClick={() => {
+                          setSelectedLoan(loan);
+                          setScannedCopy(null);
+                          playChimeSound();
+                          addToast(`Loaded active loan for "${loan.bookTitle}".`, 'success');
+                          document.getElementById('return-inspection-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="p-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container border border-outline/15 hover:border-primary/40 transition-all cursor-pointer shadow-xs flex flex-col justify-between gap-2 group"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          {loan.bookCoverImage ? (
+                            <img src={loan.bookCoverImage} alt="" className="w-9 h-12 rounded object-cover flex-shrink-0 shadow-xs" />
+                          ) : (
+                            <div className="w-9 h-12 rounded bg-surface-container-high flex items-center justify-center flex-shrink-0 text-text-secondary">
+                              <span className="material-symbols-outlined text-sm">book</span>
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="font-small text-small font-bold text-text-primary group-hover:text-primary transition-colors line-clamp-1 block">
+                              {loan.bookTitle}
+                            </span>
+                            <span className="font-caption text-caption text-text-secondary block truncate">
+                              {loan.patronName} • {loan.patronLibraryId}
+                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="font-mono text-[11px] font-bold text-primary block">
+                                RET-BAY-{loan.id.slice(0, 6).toUpperCase()}
+                              </span>
+                              <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-status-available/15 text-action-green block">
+                                PIN: {String((parseInt(loan.id.replace(/[^0-9a-f]/gi, '').slice(-4) || '1a2b', 16) % 9000) + 1000)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-outline/10 text-[11px] text-text-secondary">
+                          <span>Due: {new Date(loan.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                          <span className="font-bold text-primary flex items-center gap-0.5">
+                            Select <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Inline Mistake Alert if image decoding failed */}
               {inputError && (
@@ -2071,7 +2266,7 @@ export const ReturnsFines: FC = () => {
           handleCodeLookup(code);
         }}
         title="Circulation Returns Optical Scanner"
-        subtitle="Align User Slip QR (SCAN-BAY-XXXXXX), ExpressCode, KP-TXN-... gate pass, or book barcode inside the viewfinder."
+        subtitle="Align Return Slip QR (RET-BAY-XXXXXX), Handover Slip QR (SCAN-BAY-XXXXXX), KP-TXN-... gate pass, or book barcode inside the viewfinder."
         reticleLabel="Position QR Code or Barcode in reticle"
       />
 

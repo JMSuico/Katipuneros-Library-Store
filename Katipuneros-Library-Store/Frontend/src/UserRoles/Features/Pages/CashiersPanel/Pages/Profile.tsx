@@ -14,10 +14,12 @@ import {
   AuthUser,
 } from '../../../../../Endpoints/authApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { useAccountTheme, ThemeMode, FontSizeMultiplier, FontFamilyPreference } from '../../../../../Hooks/useAccountTheme';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 
 export const CashierProfile: React.FC = () => {
   const { toasts, addToast, removeToast } = useToasts();
+  const themeHook = useAccountTheme();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser());
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [avatarError, setAvatarError] = useState<boolean>(false);
@@ -742,6 +744,129 @@ export const CashierProfile: React.FC = () => {
                   <span className="material-symbols-outlined text-[18px]">verified_user</span>
                   <span>Verify Status</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Terminal Appearance & Theme Customization */}
+            <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-sm border border-outline-variant/30 flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-2 border-b border-surface-container-high">
+                <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">palette</span>
+                  <span>Terminal Theme</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    themeHook.resetTheme();
+                    addToast('Terminal appearance reset to defaults.', 'info');
+                  }}
+                  className="text-text-secondary hover:text-text-primary p-1 rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
+                  title="Reset Appearance"
+                >
+                  <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+                </button>
+              </div>
+
+              {/* Theme Mode Grid */}
+              <div className="flex flex-col gap-1.5">
+                <span className="font-caption text-caption font-semibold text-text-secondary">Display Mode</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'light', label: 'Light Academic', icon: 'light_mode' },
+                    { id: 'oled', label: 'OLED Contrast', icon: 'contrast' },
+                    { id: 'dark', label: 'Dark Slate', icon: 'dark_mode' },
+                    { id: 'system', label: 'System Auto', icon: 'settings_brightness' },
+                  ].map((m) => {
+                    const isSelected = themeHook.themeMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => themeHook.setThemeMode(m.id as ThemeMode)}
+                        className={`p-2 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-primary ring-2 ring-primary/20 bg-surface-container-low font-bold shadow-sm'
+                            : 'border-surface-container bg-surface-container-lowest hover:border-primary/40'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-primary">{m.icon}</span>
+                        <span className="font-body text-small text-text-primary truncate">{m.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Typeface Selection */}
+              <div className="flex flex-col gap-1.5">
+                <span className="font-caption text-caption font-semibold text-text-secondary">Terminal Typeface</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {themeHook.fontFamilyOptions.map((f) => {
+                    const isSelected = themeHook.fontFamily === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => themeHook.setFontFamily(f.id as FontFamilyPreference)}
+                        className={`p-2 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-primary ring-2 ring-primary/20 bg-surface-container-low font-bold shadow-sm'
+                            : 'border-surface-container bg-surface-container-lowest hover:border-primary/40'
+                        }`}
+                      >
+                        <span className="font-caption text-[10px] font-bold uppercase text-primary">{f.id}</span>
+                        <span className="font-body text-small text-text-primary truncate mt-0.5" style={{ fontFamily: f.fontFamilyCss }}>
+                          {f.name.split(' (')[0]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Font Size Multiplier */}
+              <div className="flex flex-col gap-1.5">
+                <span className="font-caption text-caption font-semibold text-text-secondary">Font Size Scale</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['90%', '100%', '110%', '125%'] as FontSizeMultiplier[]).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => themeHook.setFontSizeMultiplier(f)}
+                      className={`py-1.5 px-1 rounded-xl border text-center transition-all cursor-pointer font-small text-small ${
+                        themeHook.fontSizeMultiplier === f
+                          ? 'border-primary bg-primary text-on-primary font-bold shadow-sm'
+                          : 'border-surface-container bg-surface-container-lowest hover:border-primary/40 text-text-secondary'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Brand Accent Color */}
+              <div className="flex flex-col gap-1.5">
+                <span className="font-caption text-caption font-semibold text-text-secondary">Brand Accent</span>
+                <div className="flex flex-wrap gap-2">
+                  {themeHook.accentColorOptions.map((opt) => {
+                    const isSelected = themeHook.accentColor.toLowerCase() === opt.hex.toLowerCase();
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => themeHook.setAccentColor(opt.hex)}
+                        title={opt.name}
+                        className={`w-7 h-7 rounded-full border flex items-center justify-center text-white transition-all cursor-pointer ${
+                          isSelected ? 'ring-2 ring-primary ring-offset-2 scale-110 shadow-sm' : 'border-black/10 hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: opt.hex }}
+                      >
+                        {isSelected && <span className="material-symbols-outlined text-[14px]">check</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

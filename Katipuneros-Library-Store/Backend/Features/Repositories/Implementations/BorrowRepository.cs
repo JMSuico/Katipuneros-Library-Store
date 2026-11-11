@@ -28,7 +28,7 @@ public class BorrowRepository : IBorrowRepository
     public async Task<List<BorrowTransaction>> GetActiveByPatronIdAsync(Guid patronId) =>
         await _context.BorrowTransactions
             .Include(b => b.Book)
-            .Where(b => b.PatronId == patronId && b.Status == TransactionStatus.Active)
+            .Where(b => b.PatronId == patronId && (b.Status == TransactionStatus.Active || b.Status == TransactionStatus.Overdue))
             .OrderBy(b => b.DueDate)
             .ToListAsync();
 
@@ -52,7 +52,10 @@ public class BorrowRepository : IBorrowRepository
             .Include(b => b.Book)
             .Include(b => b.Patron)
             .Include(b => b.Cashier)
-            .Where(b => !status.HasValue || b.Status == status.Value)
+            .Where(b => !status.HasValue ||
+                        (status.Value == TransactionStatus.Active
+                            ? (b.Status == TransactionStatus.Active || b.Status == TransactionStatus.Overdue)
+                            : b.Status == status.Value))
             .OrderByDescending(b => b.BorrowDate)
             .ToListAsync();
 
@@ -68,8 +71,19 @@ public class BorrowRepository : IBorrowRepository
             .Include(b => b.Cashier)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<TransactionStatus>(status, true, out var parsedStatus))
-            q = q.Where(b => b.Status == parsedStatus);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (status.Equals("Active", StringComparison.OrdinalIgnoreCase) ||
+                status.Equals("unreturned", StringComparison.OrdinalIgnoreCase) ||
+                status.Equals("circulation", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(b => b.Status == TransactionStatus.Active || b.Status == TransactionStatus.Overdue);
+            }
+            else if (Enum.TryParse<TransactionStatus>(status, true, out var parsedStatus))
+            {
+                q = q.Where(b => b.Status == parsedStatus);
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(query))
         {

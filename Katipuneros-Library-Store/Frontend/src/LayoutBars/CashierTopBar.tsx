@@ -24,6 +24,29 @@ const getInitials = (name?: string): string => {
   return parts[0].slice(0, 2).toUpperCase();
 };
 
+/**
+ * Detects whether a query string looks like an ISBN, barcode, or numeric ID.
+ */
+const isIsbnOrBarcodeOrNumeric = (query: string): boolean => {
+  const clean = query.trim();
+  if (!clean) return false;
+
+  // Pure digits or digits with hyphens/spaces (e.g., 978-0-123456-47-2, 1234567890, 42)
+  const digitsOnly = clean.replace(/[-\s]/g, '');
+  if (/^\d+$/.test(digitsOnly)) return true;
+
+  // ISBN-10 with check digit 'X' / 'x'
+  if (/^\d{9}[\dXx]$/.test(digitsOnly)) return true;
+
+  // Explicit barcode or ISBN prefix tags (e.g. ISBN..., BC-..., BAR-..., BARCODE...)
+  if (/^(isbn|bc|bar|barcode)[\s:-]?/i.test(clean)) return true;
+
+  // Dewey decimal or shelf location format
+  if (/^\d{3}\.\d+/.test(clean)) return true;
+
+  return false;
+};
+
 const CashierTopBar: React.FC<CashierTopBarProps> = ({
   sidebarOpen = true,
   onToggleSidebar,
@@ -55,12 +78,38 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
 
   const [searchVal, setSearchVal] = useState('');
   const debouncedSearch = useDebounce(searchVal, 350);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (debouncedSearch.trim()) {
       console.log('[CashierTopBar] Scan / search query:', debouncedSearch);
     }
   }, [debouncedSearch]);
+
+  // Global ⌘K / Ctrl+K shortcut listener
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = searchVal.trim();
+    if (!query) return;
+
+    if (isIsbnOrBarcodeOrNumeric(query)) {
+      navigate(`/cashier/inventory?q=${encodeURIComponent(query)}`);
+    } else {
+      navigate(`/cashier/customers?q=${encodeURIComponent(query)}`);
+    }
+  };
 
   const syncUser = () => {
     const stored = getStoredUser();
@@ -153,13 +202,20 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
             Front Desk Bay 01 • Live Sync
           </span>
         </div>
-        <div className="flex-1 max-w-xl">
+        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl">
           <div className="relative flex items-center">
-            <span className="material-symbols-outlined absolute left-3 text-text-secondary text-lg">search</span>
+            <span className="material-symbols-outlined absolute left-3 text-text-secondary text-lg select-none pointer-events-none">search</span>
             <input
+              ref={searchInputRef}
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-surface-container-highest/60 focus:bg-surface-container-lowest text-on-surface placeholder:text-text-secondary font-small text-small rounded-full outline-none transition-colors"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearchSubmit();
+                }
+              }}
+              className="w-full pl-9 pr-10 py-2 bg-surface-container-highest/60 focus:bg-surface-container-lowest text-on-surface placeholder:text-text-secondary font-small text-small rounded-full outline-none transition-colors"
               placeholder="Scan barcode, ISBN, Customer ID, or Hold Code (Press ⌘K)..."
               type="text"
             />
@@ -167,13 +223,15 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchVal('')}
-                className="absolute right-3 text-text-secondary hover:text-text-primary"
+                className="absolute right-3 text-text-secondary hover:text-text-primary p-0.5 rounded-full transition-colors cursor-pointer"
+                title="Clear search"
+                aria-label="Clear search input"
               >
                 <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
             )}
           </div>
-        </div>
+        </form>
       </div>
 
       <div className="flex items-center gap-space-md">

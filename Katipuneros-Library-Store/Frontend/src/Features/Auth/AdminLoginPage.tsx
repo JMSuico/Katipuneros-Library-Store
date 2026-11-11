@@ -78,9 +78,33 @@ export const AdminLoginPage: React.FC = () => {
 
         {/* Error Notification */}
         {errorMessage && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-red-500/15 border border-red-500/40 text-red-300 text-small flex items-start gap-2.5 animate-fade-in">
-            <span className="material-symbols-outlined text-[20px] shrink-0 text-red-400 mt-0.5">warning</span>
-            <span>{errorMessage}</span>
+          <div className="mb-5 p-4 rounded-2xl bg-red-500/15 border border-red-500/40 text-red-300 text-small flex flex-col gap-2 animate-fade-in">
+            <div className="flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-[20px] shrink-0 text-red-400 mt-0.5">warning</span>
+              <span className="flex-1">{errorMessage}</span>
+            </div>
+            {(errorMessage.toLowerCase().includes('customer') || errorMessage.toLowerCase().includes('patron')) && (
+              <div className="mt-1 pl-7">
+                <a
+                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5173/login`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
+                >
+                  <span>Go to Patron Portal (Port 5173)</span>
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+              </div>
+            )}
+            {errorMessage.toLowerCase().includes('cashier') && (
+              <div className="mt-1 pl-7">
+                <a
+                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5175/cashier/login`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-action-green text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
+                >
+                  <span>Go to Cashier Terminal (Port 5175)</span>
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+              </div>
+            )}
           </div>
         )}
 

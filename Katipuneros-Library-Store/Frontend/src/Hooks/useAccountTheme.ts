@@ -9,6 +9,46 @@ import { getStoredUser } from '../Endpoints/authApi';
 export type ThemeMode = 'light' | 'oled' | 'dark' | 'system';
 export type DisplayDensity = 'compact' | 'comfortable' | 'relaxed';
 export type FontSizeMultiplier = '90%' | '100%' | '110%' | '125%';
+export type FontFamilyPreference = 'sans' | 'serif' | 'mono' | 'system';
+
+export interface FontFamilyOption {
+  id: FontFamilyPreference;
+  name: string;
+  sub: string;
+  previewClass: string;
+  fontFamilyCss: string;
+}
+
+export const FONT_FAMILY_OPTIONS: FontFamilyOption[] = [
+  {
+    id: 'sans',
+    name: 'Academic Sans (Inter)',
+    sub: 'Clean Modern Interface',
+    previewClass: 'font-sans',
+    fontFamilyCss: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  },
+  {
+    id: 'serif',
+    name: 'Scholarly Serif (Merriweather)',
+    sub: 'Classic Library Editorial',
+    previewClass: 'font-serif',
+    fontFamilyCss: "'Merriweather', Georgia, Cambria, 'Times New Roman', serif",
+  },
+  {
+    id: 'mono',
+    name: 'Technical Mono (JetBrains)',
+    sub: 'Barcodes & Accession Registry',
+    previewClass: 'font-mono',
+    fontFamilyCss: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  },
+  {
+    id: 'system',
+    name: 'System Native',
+    sub: 'OS Standard Fallback',
+    previewClass: 'font-sans',
+    fontFamilyCss: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  },
+];
 
 export interface AccentColorOption {
   id: string;
@@ -30,6 +70,7 @@ export interface UserThemePreferences {
   accentColor: string;
   displayDensity: DisplayDensity;
   fontSizeMultiplier: FontSizeMultiplier;
+  fontFamily: FontFamilyPreference;
 }
 
 const DEFAULT_PREFERENCES: UserThemePreferences = {
@@ -37,6 +78,7 @@ const DEFAULT_PREFERENCES: UserThemePreferences = {
   accentColor: '#287EA7',
   displayDensity: 'comfortable',
   fontSizeMultiplier: '100%',
+  fontFamily: 'sans',
 };
 
 const GLOBAL_THEME_KEY = 'katipuneros_global_theme_preferences';
@@ -166,6 +208,10 @@ export function useAccountTheme() {
     root.style.setProperty('--color-primary', accentColor);
     root.style.setProperty('--color-primary-container', accentColor);
 
+    // Font Family CSS property
+    const activeFont = FONT_FAMILY_OPTIONS.find((f) => f.id === preferences.fontFamily) ?? FONT_FAMILY_OPTIONS[0];
+    root.style.setProperty('--font-family-primary', activeFont.fontFamilyCss);
+
     // Font size multiplier
     const fontMultiplierValue = {
       '90%': '0.9',
@@ -270,6 +316,7 @@ export function useAccountTheme() {
   const setAccentColor = useCallback((accentColor: string) => updatePreferences({ accentColor }), [updatePreferences]);
   const setDisplayDensity = useCallback((displayDensity: DisplayDensity) => updatePreferences({ displayDensity }), [updatePreferences]);
   const setFontSizeMultiplier = useCallback((fontSizeMultiplier: FontSizeMultiplier) => updatePreferences({ fontSizeMultiplier }), [updatePreferences]);
+  const setFontFamily = useCallback((fontFamily: FontFamilyPreference) => updatePreferences({ fontFamily }), [updatePreferences]);
 
   const resetTheme = useCallback(() => {
     setPreferences(DEFAULT_PREFERENCES);
@@ -291,12 +338,15 @@ export function useAccountTheme() {
     accentColor: preferences.accentColor,
     displayDensity: preferences.displayDensity,
     fontSizeMultiplier: preferences.fontSizeMultiplier,
+    fontFamily: preferences.fontFamily || 'sans',
     setThemeMode,
     setAccentColor,
     setDisplayDensity,
     setFontSizeMultiplier,
+    setFontFamily,
     resetTheme,
     accentColorOptions: ACCENT_COLOR_OPTIONS,
+    fontFamilyOptions: FONT_FAMILY_OPTIONS,
   };
 }
 

@@ -6,7 +6,7 @@
 // DO NOT put business logic or API calls here.
 
 import React, { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { logoutUser } from '../Endpoints/authApi';
 import { getCashierDashboardKpis } from '../Endpoints/Cashier/cashierApi';
 import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
@@ -82,10 +82,36 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({
     return null;
   };
 
+  const navigate = useNavigate();
+
   const handleLinkClick = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       onClose?.();
     }
+  };
+
+  const getPublicLandingUrl = (): string => {
+    if (typeof window !== 'undefined') {
+      const port = window.location.port;
+      if (port === '5174' || port === '5175') {
+        return `${window.location.protocol}//${window.location.hostname}:5173/`;
+      }
+    }
+    return '/';
+  };
+
+  const handleExitToPublic = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    handleLinkClick();
+    if (typeof window !== 'undefined') {
+      const port = window.location.port;
+      if (port === '5174' || port === '5175') {
+        e.preventDefault();
+        window.location.href = `${window.location.protocol}//${window.location.hostname}:5173/`;
+        return;
+      }
+    }
+    e.preventDefault();
+    navigate('/');
   };
 
   return (
@@ -230,17 +256,18 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({
               </span>
               {isOpen && <span className="font-small text-small truncate">Profile</span>}
             </NavLink>
-            <NavLink
-              to="/"
-              onClick={handleLinkClick}
-              title={!isOpen ? 'Exit to Public' : undefined}
+            <a
+              href={getPublicLandingUrl()}
+              onClick={handleExitToPublic}
+              title="Exit to Public Catalog & Store"
+              aria-label="Exit to Public Catalog & Store"
               className={`group flex items-center rounded-xl text-[#D9EEF5] hover:bg-white/10 hover:text-white transition-all duration-200 cursor-pointer ${
                 isOpen ? 'gap-3.5 px-3.5 py-2.5' : 'justify-center w-10 h-10 mx-auto'
               }`}
             >
               <span className="material-symbols-outlined text-[20px] flex-shrink-0">public</span>
               {isOpen && <span className="font-small text-small font-medium truncate">Exit to Public</span>}
-            </NavLink>
+            </a>
             <button
               type="button"
               onClick={() => {

@@ -18,6 +18,7 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 // ==========================================
 // 0. Secret Gate -- fail fast before any wiring is built.
@@ -245,7 +246,7 @@ app.MapScalarApiReference();                     // /scalar/v1
 // ==========================================
 // 8.5 Admin & User CLI Creation / Management
 // ==========================================
-if (args.Length >= 1 && args[0].Equals("listcliusers", StringComparison.OrdinalIgnoreCase))
+if (args.Length >= 1 && (args[0].Equals("listcliusers", StringComparison.OrdinalIgnoreCase) || args[0].Equals("listusers", StringComparison.OrdinalIgnoreCase)))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -273,19 +274,36 @@ if (args.Length >= 1 && args[0].Equals("listcliusers", StringComparison.OrdinalI
 
 if (args.Length >= 3 && args[0].Equals("resetpassword", StringComparison.OrdinalIgnoreCase))
 {
-    var identifier = args[1];
-    var newPassword = args[2];
+    var identifier = args[1]?.Trim() ?? string.Empty;
+    var newPassword = args[2]?.Trim() ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(newPassword))
+    {
+        Console.WriteLine("[!] Error: Identifier and new password cannot be empty.");
+        return;
+    }
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == identifier || u.Email == identifier || u.LibraryCardNumber == identifier);
+    var clean = identifier.ToLower();
+    var user = await dbContext.Users.FirstOrDefaultAsync(u => 
+        (u.Username != null && u.Username.ToLower() == clean) || 
+        u.Email.ToLower() == clean || 
+        u.FullName.ToLower() == clean || 
+        u.LibraryCardNumber.ToLower() == clean);
     if (user == null)
     {
-        Console.WriteLine($"[!] User '{identifier}' not found.");
+        Console.WriteLine($"[!] User '{identifier}' not found in database.");
         return;
     }
     user.PasswordHash = Backend.Features.Helpers.Infrastructure.PasswordHelper.HashPassword(newPassword);
+    user.IsActive = true;
     await dbContext.SaveChangesAsync();
-    Console.WriteLine($"[OK] Password for '{identifier}' successfully reset.");
+    var loginPortal = user.Role switch
+    {
+        Backend.Features.Data.Enums.UserRole.Admin => "http://127.0.0.1:5174/admin/login [PORT 5174 ONLY]",
+        Backend.Features.Data.Enums.UserRole.Cashier => "http://127.0.0.1:5175/cashier/login [PORT 5175 ONLY]",
+        _ => "http://127.0.0.1:5173/login [PORT 5173 ONLY]"
+    };
+    Console.WriteLine($"[OK] Password for '{user.Username}' ({user.Email}) successfully reset. Target login portal: {loginPortal}");
     return;
 }
 
@@ -459,20 +477,19 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
                          args[0].Equals("createcustomsuperadmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("createcashiersuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("createcustomersuperuseradmin", StringComparison.OrdinalIgnoreCase) ||
+                         args[0].Equals("createaccount", StringComparison.OrdinalIgnoreCase) ||
+                         args[0].Equals("createuser", StringComparison.OrdinalIgnoreCase) ||
+                         args[0].Equals("register", StringComparison.OrdinalIgnoreCase) ||
                          args[0].Equals("adduser", StringComparison.OrdinalIgnoreCase)))
 {
     var cmd = args[0].ToLowerInvariant();
-    var username = args[1];
-    var password = args[2];
-    var email = args[3];
+    var username = args[1]?.Trim() ?? string.Empty;
+    var password = args[2]?.Trim() ?? string.Empty;
+    var email = args[3]?.Trim() ?? string.Empty;
 
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    
-    var existingUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == username || u.Email == email);
-    if (existingUser != null)
+    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(email))
     {
-        Console.WriteLine($"[!] User with username '{username}' or email '{email}' already exists.");
+        Console.WriteLine("[!] Error: Username, Password, and Email cannot be empty.");
         return;
     }
 
@@ -502,7 +519,7 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
         department = args.Length >= 7 ? args[6] : "Academic Research & Governance";
         role = Backend.Features.Data.Enums.UserRole.Customer;
     }
-    else if (cmd == "adduser")
+    else if (cmd == "adduser" || cmd == "createaccount" || cmd == "createuser" || cmd == "register")
     {
         var roleStr = args.Length >= 5 ? args[4] : "Customer";
         if (Enum.TryParse<Backend.Features.Data.Enums.UserRole>(roleStr, true, out var parsedRole))
@@ -516,6 +533,39 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
         firstName = args.Length >= 6 ? args[5] : "New";
         lastName = args.Length >= 7 ? args[6] : "User";
         department = args.Length >= 8 ? args[7] : (role == Backend.Features.Data.Enums.UserRole.Admin ? "System Administration" : "General Department");
+    }
+
+    var targetPortal = role switch
+    {
+        Backend.Features.Data.Enums.UserRole.Admin => "http://127.0.0.1:5174/admin/login [PORT 5174 ONLY]",
+        Backend.Features.Data.Enums.UserRole.Cashier => "http://127.0.0.1:5175/cashier/login [PORT 5175 ONLY]",
+        _ => "http://127.0.0.1:5173/login [PORT 5173 ONLY]"
+    };
+
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    
+    var cleanUsername = username.ToLower();
+    var cleanEmail = email.ToLower();
+    var existingUser = await dbContext.Users.FirstOrDefaultAsync(u => 
+        (u.Username != null && u.Username.ToLower() == cleanUsername) || 
+        u.Email.ToLower() == cleanEmail);
+
+    if (existingUser != null)
+    {
+        existingUser.PasswordHash = Backend.Features.Helpers.Infrastructure.PasswordHelper.HashPassword(password);
+        existingUser.Role = role;
+        existingUser.IsActive = true;
+        existingUser.IsProtected = true;
+        if (!string.IsNullOrWhiteSpace(firstName)) existingUser.FirstName = firstName;
+        if (!string.IsNullOrWhiteSpace(lastName)) existingUser.LastName = lastName;
+        existingUser.FullName = $"{existingUser.FirstName} {existingUser.LastName}".Trim();
+        if (!string.IsNullOrWhiteSpace(department)) existingUser.Department = department;
+
+        await dbContext.SaveChangesAsync();
+        Console.WriteLine($"[OK] {role} '{existingUser.Username}' ({existingUser.Email}) ALREADY EXISTED -- Password and role successfully UPDATED [PROTECTED CLI ROOT].");
+        Console.WriteLine($"[!] Target Login Portal: {targetPortal}");
+        return;
     }
 
     var prefix = role switch
@@ -541,9 +591,17 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
         IsProtected = true // All users created via CLI are immune from Web UI deletion and suspension
     };
 
-    dbContext.Users.Add(newUser);
-    await dbContext.SaveChangesAsync();
-    Console.WriteLine($"[OK] {role} '{username}' ({email}) successfully created with ID {newUser.LibraryCardNumber} [PROTECTED CLI ROOT].");
+    try
+    {
+        dbContext.Users.Add(newUser);
+        await dbContext.SaveChangesAsync();
+        Console.WriteLine($"[OK] {role} '{username}' ({email}) successfully created with ID {newUser.LibraryCardNumber} [PROTECTED CLI ROOT].");
+        Console.WriteLine($"[!] Target Login Portal: {targetPortal}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[!] Error creating user: {ex.GetBaseException().Message}");
+    }
     return;
 }
 

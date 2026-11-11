@@ -97,4 +97,6 @@ public class BorrowingDetailResponse
     public string Status { get; set; } = "Active";
     public decimal AssessedFine { get; set; }
     public string? Notes { get; set; }
+    public string? ReservationExpressCode { get; set; }
+    public Guid? ReservationId { get; set; }
 }

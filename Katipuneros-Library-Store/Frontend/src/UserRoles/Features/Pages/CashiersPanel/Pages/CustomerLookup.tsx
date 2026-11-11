@@ -5,7 +5,7 @@
 // Universal lambda syntax (=>), zero browser alert().
 
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { getAdminUsersList, AdminUserRecord } from '../../../../../Endpoints/Admin/userApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
@@ -15,12 +15,20 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const CustomerLookup: FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toasts, addToast, removeToast } = useToasts();
 
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get('q') || '');
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'restricted' | 'faculty'>('all');
   const [sortBy, setSortBy] = useState<'az' | 'za' | 'newest' | 'oldest'>('az');
 

@@ -7,7 +7,7 @@
 // DO NOT put business logic or API calls here.
 
 import { FC } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
 
 export interface AdminSidebarProps {
@@ -43,10 +43,36 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 
 // Note: the single open/close toggle lives in AdminTopBar (onToggle kept in props for API compatibility).
 const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = true, onClose }) => {
+  const navigate = useNavigate();
+
   const handleLinkClick = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       onClose?.();
     }
+  };
+
+  const getPublicLandingUrl = (): string => {
+    if (typeof window !== 'undefined') {
+      const port = window.location.port;
+      if (port === '5174' || port === '5175') {
+        return `${window.location.protocol}//${window.location.hostname}:5173/`;
+      }
+    }
+    return '/';
+  };
+
+  const handleExitToPublic = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    handleLinkClick();
+    if (typeof window !== 'undefined') {
+      const port = window.location.port;
+      if (port === '5174' || port === '5175') {
+        e.preventDefault();
+        window.location.href = `${window.location.protocol}//${window.location.hostname}:5173/`;
+        return;
+      }
+    }
+    e.preventDefault();
+    navigate('/');
   };
 
   return (
@@ -171,11 +197,12 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = true, onClose }) => {
             !isOpen && 'flex justify-center'
           }`}
         >
-          <NavLink
-            to="/"
-            onClick={handleLinkClick}
-            title={!isOpen ? 'Exit to Public' : undefined}
-            className={`flex items-center rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors ${
+          <a
+            href={getPublicLandingUrl()}
+            onClick={handleExitToPublic}
+            title="Exit to Public Catalog & Store"
+            aria-label="Exit to Public Catalog & Store"
+            className={`flex items-center rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors cursor-pointer ${
               isOpen
                 ? 'gap-3 px-3.5 py-space-sm w-full'
                 : 'justify-center w-10 h-10'
@@ -185,7 +212,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = true, onClose }) => {
             {isOpen && (
               <span className="font-small text-small font-semibold truncate">Exit to Public</span>
             )}
-          </NavLink>
+          </a>
         </div>
       </aside>
     </>

@@ -27,6 +27,8 @@ export interface BackendBorrowing {
   status: 'Active' | 'Overdue' | 'Returned' | 'Renewed' | string;
   assessedFine: number;
   notes?: string;
+  reservationExpressCode?: string;
+  reservationId?: string;
 }
 
 export interface BorrowingMetrics {

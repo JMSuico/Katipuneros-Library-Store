@@ -26,6 +26,7 @@ public class BookCopyService : IBookCopyService
     private readonly IBookCopyRepository _bookCopyRepository;
     private readonly IBookRepository _bookRepository;
     private readonly IBorrowRepository _borrowRepository;
+    private readonly IReservationRepository _reservationRepository;
     private readonly ISettingsRepository _settingsRepository;
     private readonly IConfiguration _configuration;
 
@@ -33,10 +34,11 @@ public class BookCopyService : IBookCopyService
         IBookCopyRepository bookCopyRepository,
         IBookRepository bookRepository,
         IBorrowRepository borrowRepository,
+        IReservationRepository reservationRepository,
         ISettingsRepository settingsRepository,
         IConfiguration configuration) =>
-        (_bookCopyRepository, _bookRepository, _borrowRepository, _settingsRepository, _configuration) =
-        (bookCopyRepository, bookRepository, borrowRepository, settingsRepository, configuration);
+        (_bookCopyRepository, _bookRepository, _borrowRepository, _reservationRepository, _settingsRepository, _configuration) =
+        (bookCopyRepository, bookRepository, borrowRepository, reservationRepository, settingsRepository, configuration);
 
     private async Task<FineTariffsResponse> GetFineTariffsAsync()
     {
@@ -276,11 +278,213 @@ public class BookCopyService : IBookCopyService
         if (string.IsNullOrWhiteSpace(code))
             return (false, null, "Scan code or accession input is required.");
 
-        var copy = await _bookCopyRepository.FindByCodeAsync(code);
-        if (copy == null)
-            return (false, null, $"No physical copy or catalog volume matched '{code}'.");
+        var clean = code.Trim();
 
-        var activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, copy.BookId);
+        // 0. If code is a JSON payload (e.g. from generated slip QR code)
+        if (clean.StartsWith("{") && clean.EndsWith("}"))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(clean);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("returnCode", out var rcProp) && !string.IsNullOrWhiteSpace(rcProp.GetString()))
+                    clean = rcProp.GetString()!.Trim();
+                else if (root.TryGetProperty("expressCode", out var expProp) && !string.IsNullOrWhiteSpace(expProp.GetString()))
+                    clean = expProp.GetString()!.Trim();
+                else if (root.TryGetProperty("loanCode", out var lcProp) && !string.IsNullOrWhiteSpace(lcProp.GetString()))
+                    clean = lcProp.GetString()!.Trim();
+                else if (root.TryGetProperty("gatePassCode", out var gpcProp) && !string.IsNullOrWhiteSpace(gpcProp.GetString()))
+                    clean = gpcProp.GetString()!.Trim();
+                else if (root.TryGetProperty("barcode", out var bcProp) && !string.IsNullOrWhiteSpace(bcProp.GetString()))
+                    clean = bcProp.GetString()!.Trim();
+                else if (root.TryGetProperty("loanId", out var lidProp) && !string.IsNullOrWhiteSpace(lidProp.GetString()))
+                    clean = lidProp.GetString()!.Trim();
+            }
+            catch
+            {
+                // Fallback to raw string
+            }
+        }
+
+        // 1. Direct copy lookup by accession #, QR payload, or Copy ID
+        var copy = await _bookCopyRepository.FindByCodeAsync(clean);
+        BorrowTransaction? activeLoan = null;
+
+        // 2. If not matched on copy, resolve via Reservation / Handover Slip (SCAN-BAY-XXXXXX - Mistake Recovery)
+        if (copy == null && clean.StartsWith("SCAN-BAY-", StringComparison.OrdinalIgnoreCase))
+        {
+            var expressId = clean.Substring("SCAN-BAY-".Length).Trim();
+            var allReservations = await _reservationRepository.GetAllWithDetailsAsync();
+            var matchedReservation = allReservations.FirstOrDefault(r =>
+                r.Id.ToString().Replace("-", "").StartsWith(expressId, StringComparison.OrdinalIgnoreCase) ||
+                r.Id.ToString().StartsWith(expressId, StringComparison.OrdinalIgnoreCase));
+
+            if (matchedReservation != null)
+            {
+                var patronLoans = await _borrowRepository.GetActiveByPatronIdAsync(matchedReservation.PatronId);
+                activeLoan = patronLoans.FirstOrDefault(l => l.BookId == matchedReservation.BookId);
+
+                // Fallback: If not found under patron's direct loans, search all unreturned circulation loans
+                if (activeLoan == null)
+                {
+                    var allActive = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+                    activeLoan = allActive.FirstOrDefault(l =>
+                        l.BookId == matchedReservation.BookId &&
+                        (l.Status == TransactionStatus.Active || l.Status == TransactionStatus.Overdue));
+                }
+
+                if (activeLoan != null && activeLoan.BookCopyId.HasValue)
+                {
+                    copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+                }
+                if (copy == null)
+                {
+                    copy = await _bookCopyRepository.GetAvailableCopyAsync(matchedReservation.BookId);
+                }
+            }
+        }
+
+        // 3. Resolve via Return ExpressCode (RET-BAY-XXXXXX) or Return Reference (RET-TXN-XXXXXXXX)
+        if (copy == null && (clean.StartsWith("RET-BAY-", StringComparison.OrdinalIgnoreCase) || clean.StartsWith("RET-TXN-", StringComparison.OrdinalIgnoreCase)))
+        {
+            var retId = clean.StartsWith("RET-BAY-", StringComparison.OrdinalIgnoreCase)
+                ? clean.Substring("RET-BAY-".Length).Trim()
+                : clean.Substring("RET-TXN-".Length).Trim();
+            var allActive = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+            activeLoan = allActive.FirstOrDefault(l =>
+                l.Id.ToString().Replace("-", "").StartsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                l.Id.ToString().Replace("-", "").EndsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                l.Id.ToString().StartsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                l.Id.ToString().EndsWith(retId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(l.GatePassCode) && l.GatePassCode.Contains(retId, StringComparison.OrdinalIgnoreCase)));
+
+            if (activeLoan != null && activeLoan.BookCopyId.HasValue)
+            {
+                copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+            }
+        }
+
+        // 3b. Resolve via 4-Digit Return PIN (e.g. 4612)
+        if (copy == null && activeLoan == null && clean.Length == 4 && clean.All(char.IsDigit))
+        {
+            var allActive = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+            activeLoan = allActive.FirstOrDefault(l => ComputeReturnPin(l.Id) == clean);
+
+            if (activeLoan != null && activeLoan.BookCopyId.HasValue)
+            {
+                copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+            }
+        }
+
+        // 4. Resolve via GatePassCode (e.g. KP-TXN-YYYYMMDD-XXXXXX or LN-XXXXXX)
+        if (copy == null && (clean.StartsWith("KP-TXN-", StringComparison.OrdinalIgnoreCase) || clean.StartsWith("LN-", StringComparison.OrdinalIgnoreCase)))
+        {
+            var allActive = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+            activeLoan = allActive.FirstOrDefault(l =>
+                (!string.IsNullOrWhiteSpace(l.GatePassCode) && l.GatePassCode.Equals(clean, StringComparison.OrdinalIgnoreCase)) ||
+                l.Id.ToString().Replace("-", "").StartsWith(clean, StringComparison.OrdinalIgnoreCase));
+
+            if (activeLoan != null && activeLoan.BookCopyId.HasValue)
+            {
+                copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+            }
+        }
+
+        // 5. Resolve via Loan Guid or compact 6-8 char alphanumeric hex (e.g. 1D6D71)
+        if (copy == null && activeLoan == null)
+        {
+            if (Guid.TryParse(clean, out var parsedGuid))
+            {
+                var loanById = await _borrowRepository.GetByIdAsync(parsedGuid);
+                if (loanById != null && (loanById.Status == TransactionStatus.Active || loanById.Status == TransactionStatus.Overdue))
+                {
+                    activeLoan = loanById;
+                    if (activeLoan.BookCopyId.HasValue)
+                    {
+                        copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+                    }
+                }
+            }
+            else if (clean.Length >= 6 && clean.Length <= 8 && clean.All(char.IsLetterOrDigit))
+            {
+                var allActive = await _borrowRepository.GetAllLedgerAsync(TransactionStatus.Active);
+                activeLoan = allActive.FirstOrDefault(l =>
+                    l.Id.ToString().Replace("-", "").StartsWith(clean, StringComparison.OrdinalIgnoreCase) ||
+                    l.Id.ToString().StartsWith(clean, StringComparison.OrdinalIgnoreCase));
+
+                if (activeLoan == null)
+                {
+                    var allReservations = await _reservationRepository.GetAllWithDetailsAsync();
+                    var matchedRes = allReservations.FirstOrDefault(r =>
+                        r.Id.ToString().Replace("-", "").StartsWith(clean, StringComparison.OrdinalIgnoreCase) ||
+                        r.Id.ToString().StartsWith(clean, StringComparison.OrdinalIgnoreCase));
+                    if (matchedRes != null)
+                    {
+                        activeLoan = allActive.FirstOrDefault(l => l.BookId == matchedRes.BookId);
+                    }
+                }
+
+                if (activeLoan != null && activeLoan.BookCopyId.HasValue)
+                {
+                    copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+                }
+            }
+        }
+
+        // 6. Resolve via Book ISBN / Barcode
+        if (copy == null && activeLoan == null)
+        {
+            var book = await _bookRepository.GetByBarcodeAsync(clean);
+            if (book != null)
+            {
+                activeLoan = await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(null, book.Id);
+                if (activeLoan != null && activeLoan.BookCopyId.HasValue)
+                {
+                    copy = await _bookCopyRepository.GetByIdAsync(activeLoan.BookCopyId.Value);
+                }
+                copy ??= await _bookCopyRepository.GetAvailableCopyAsync(book.Id);
+            }
+        }
+
+        if (copy == null && activeLoan != null)
+        {
+            copy = await _bookCopyRepository.GetAvailableCopyAsync(activeLoan.BookId);
+            if (copy == null)
+            {
+                var book = activeLoan.Book ?? await _bookRepository.GetByIdAsync(activeLoan.BookId);
+                if (book != null)
+                {
+                    await EnsureCopiesForBookAsync(book.Id, 1);
+                    var copies = await _bookCopyRepository.GetByBookIdAsync(book.Id);
+                    copy = copies.FirstOrDefault();
+                    if (copy == null)
+                    {
+                        copy = new BookCopy
+                        {
+                            Id = activeLoan.BookCopyId ?? Guid.NewGuid(),
+                            BookId = book.Id,
+                            Book = book,
+                            CopyNumber = 1,
+                            AccessionNumber = book.IsbnBarcode ?? book.Isbn ?? $"KLS-{book.Id.ToString()[..6].ToUpperInvariant()}-C1",
+                            Status = CopyStatus.Borrowed,
+                            Condition = "Good",
+                            BayLocation = book.BayLocation ?? "Circulation Stacks",
+                            AcquiredDate = DateTime.UtcNow
+                        };
+                    }
+                }
+            }
+        }
+
+        if (copy == null)
+            return (false, null, $"No physical copy, active loan, or reservation matched '{code}'.");
+
+        if (copy.Book == null)
+        {
+            copy.Book = activeLoan?.Book ?? await _bookRepository.GetByIdAsync(copy.BookId);
+        }
+
+        activeLoan ??= await _borrowRepository.GetActiveByCopyIdOrBookIdAsync(copy.Id, copy.BookId);
 
         var fineTariffs = await GetFineTariffsAsync();
 
@@ -306,6 +510,14 @@ public class BookCopyService : IBookCopyService
         };
 
         return (true, result, null);
+    }
+
+    public static string ComputeReturnPin(Guid loanId)
+    {
+        var hex = loanId.ToString("N");
+        var sub = hex.Length >= 4 ? hex[^4..] : "1a2b";
+        int val = int.TryParse(sub, System.Globalization.NumberStyles.HexNumber, null, out int v) ? v : 1234;
+        return (val % 9000 + 1000).ToString();
     }
 
     private static (string AccessionNumber, string QrCodeData) GenerateIdentifiers(Book book, int copyNumber)

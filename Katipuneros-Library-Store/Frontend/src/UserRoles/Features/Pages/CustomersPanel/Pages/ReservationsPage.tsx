@@ -555,7 +555,7 @@ const ReservationsPage: FC = () => {
                         type="button"
                       >
                         <span className="material-symbols-outlined text-base">download</span>
-                        <span>Download User Slip</span>
+                        <span>Download Handover Slip</span>
                       </button>
                       <button
                         className="px-space-lg py-space-xs bg-action-green text-text-primary hover:bg-action-green-hover rounded-full shadow-sm font-small text-small font-medium transition-transform active:scale-95 flex items-center gap-1 cursor-pointer"
@@ -1130,7 +1130,7 @@ const ReservationsPage: FC = () => {
                     type="button"
                   >
                     <span className="material-symbols-outlined text-base">download</span>
-                    <span>Download User Slip</span>
+                    <span>Download Handover Slip</span>
                   </button>
                 )}
                 <button
