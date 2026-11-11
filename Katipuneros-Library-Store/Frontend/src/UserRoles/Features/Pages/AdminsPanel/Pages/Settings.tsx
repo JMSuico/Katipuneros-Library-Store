@@ -20,7 +20,7 @@ import {
 import { Dropdown, DropdownItem } from '../../../../../Shared/Dropdown';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 import { AdminSwitch } from '../Shared/AdminSwitch';
-import { useAccountTheme, ThemeMode, DisplayDensity, FontSizeMultiplier } from '../../../../../Hooks/useAccountTheme';
+import { useAccountTheme, ThemeMode, DisplayDensity, FontSizeMultiplier, FontFamilyPreference } from '../../../../../Hooks/useAccountTheme';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { useFluidResposiveness, DEVICE_PRESETS } from '../../../../../Hooks/useFluidResposiveness';
 import { useToasts } from '../../../../../Hooks/useToasts';
@@ -1241,6 +1241,51 @@ const Settings: FC = () => {
               </div>
             </div>
 
+            {/* Typography & Font Family Selection */}
+            <div className="mb-6">
+              <label className="font-body text-small font-bold text-text-primary block mb-3">
+                Typography &amp; Font Family Selection
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {themeHook.fontFamilyOptions.map((f) => {
+                  const isSelected = themeHook.fontFamily === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => themeHook.setFontFamily(f.id as FontFamilyPreference)}
+                      className={`p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-primary ring-2 ring-primary/20 bg-surface-container-low shadow-sm'
+                          : 'border-surface-container bg-surface-container-lowest hover:border-primary/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-caption text-[11px] font-bold uppercase tracking-wider text-primary">
+                          {f.id}
+                        </span>
+                        {isSelected && (
+                          <span className="w-2 h-2 rounded-full bg-action-green"></span>
+                        )}
+                      </div>
+                      <div className="mb-2">
+                        <span
+                          className="font-headline-4 text-headline-4 text-text-primary block truncate"
+                          style={{ fontFamily: f.fontFamilyCss }}
+                        >
+                          Aa Bb Gg 123
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-body text-small font-bold text-text-primary block">{f.name}</span>
+                        <span className="font-caption text-[11px] text-text-secondary">{f.sub}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Display Density & Font Multiplier */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               {/* Display Density */}
@@ -1338,7 +1383,8 @@ const Settings: FC = () => {
                 </div>
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-lg text-white font-bold text-small shadow-sm"
+                  onClick={() => toast.success(`Sample preview action triggered with accent: ${themeHook.accentColor}`)}
+                  className="px-4 py-2 rounded-lg text-white font-bold text-small shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer"
                   style={{ backgroundColor: themeHook.accentColor }}
                 >
                   Interactive Action

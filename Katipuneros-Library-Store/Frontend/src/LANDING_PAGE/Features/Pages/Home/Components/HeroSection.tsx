@@ -8,11 +8,12 @@ import { BookDetailData } from './BookDetailModal';
 import { getCatalogMetrics, getCategories } from '../../../../../Endpoints/booksApi';
 
 interface HeroSectionProps {
-  onOpenReserve: (book: BookDetailData) => void;
+  onOpenReserve?: (book: BookDetailData) => void;
   onSearch: (query: string) => void;
 }
 
 const spotlightBook: BookDetailData = {
+  id: 'spotlight-gatsby',
   title: 'The Great Gatsby',
   author: 'F. Scott Fitzgerald',
   category: 'Literature & Classics',
@@ -201,7 +202,14 @@ export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) =
               </div>
               <button
                 className="mt-3 w-full py-2 px-3 rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-small font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                onClick={() => onOpenReserve(spotlightBook)}
+                onClick={() => {
+                  if (onOpenReserve) {
+                    onOpenReserve(spotlightBook);
+                  } else {
+                    const catalogEl = document.getElementById('products');
+                    if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
               >
                 <span className="material-symbols-outlined text-[18px]">bookmark_add</span>
                 <span>Reserve Book</span>

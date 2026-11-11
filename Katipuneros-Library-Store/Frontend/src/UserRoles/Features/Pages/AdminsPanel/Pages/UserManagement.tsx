@@ -6,6 +6,7 @@
 // Expresses all sync and async routines via clean lambda expressions.
 
 import { FC, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   getAdminUsersList,
   toggleUserStatus,
@@ -249,7 +250,15 @@ const UserManagement: FC = () => {
   usePagesGlobalRefresh(loadUsers);
 
   // 2. Filter & Search states
-  const [rawSearch, setRawSearch] = useState<string>('');
+  const [searchParams] = useSearchParams();
+  const [rawSearch, setRawSearch] = useState<string>(() => searchParams.get('q') || '');
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+      setRawSearch(q);
+    }
+  }, [searchParams]);
   const debouncedSearch = useDebounce<string>(rawSearch, 300);
   const [roleScope, setRoleScope] = useState<'All' | 'Customer' | 'Cashier' | 'Admin'>('All');
   const [accountState, setAccountState] = useState<'All' | 'Active' | 'Inactive' | 'Suspended'>('All');

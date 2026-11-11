@@ -22,19 +22,24 @@ public class UserRepository : IUserRepository
         await _context.Users.FindAsync(id);
 
     public async Task<User?> GetByEmailAsync(string email) =>
-        await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+        string.IsNullOrWhiteSpace(email) ? null : await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.Trim().ToLower());
 
     public async Task<User?> GetByUsernameAsync(string username) =>
-        await _context.Users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == username.ToLower());
+        string.IsNullOrWhiteSpace(username) ? null : await _context.Users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == username.Trim().ToLower());
 
-    public async Task<User?> GetByIdentifierAsync(string identifier) =>
-        await _context.Users.FirstOrDefaultAsync(u => 
-            u.Email.ToLower() == identifier.ToLower() || 
-            (u.Username != null && u.Username.ToLower() == identifier.ToLower()) ||
-            u.LibraryCardNumber == identifier);
+    public async Task<User?> GetByIdentifierAsync(string identifier)
+    {
+        if (string.IsNullOrWhiteSpace(identifier)) return null;
+        var clean = identifier.Trim().ToLower();
+        return await _context.Users.FirstOrDefaultAsync(u => 
+            u.Email.ToLower() == clean || 
+            (u.Username != null && u.Username.ToLower() == clean) ||
+            u.FullName.ToLower() == clean ||
+            u.LibraryCardNumber.ToLower() == clean);
+    }
 
     public async Task<User?> GetByCardNumberAsync(string cardNumber) =>
-        await _context.Users.FirstOrDefaultAsync(u => u.LibraryCardNumber == cardNumber);
+        string.IsNullOrWhiteSpace(cardNumber) ? null : await _context.Users.FirstOrDefaultAsync(u => u.LibraryCardNumber.ToLower() == cardNumber.Trim().ToLower());
 
     public async Task<List<User>> GetAllAsync(UserRole? role = null, bool? isActive = null) =>
         await _context.Users

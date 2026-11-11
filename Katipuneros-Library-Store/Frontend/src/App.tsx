@@ -163,6 +163,7 @@ function App() {
               <Route path="/cashier/returns" element={<ReturnsFines />} />
               <Route path="/cashier/customers" element={<CustomerLookup />} />
               <Route path="/cashier/book-availability" element={<BookAvailability />} />
+              <Route path="/cashier/inventory" element={<BookAvailability />} />
               <Route path="/cashier/schedules" element={<Schedules />} />
               <Route path="/cashier/overdue-fines" element={<OverdueFines />} />
               <Route path="/cashier/transactions" element={<CashierTransactions />} />

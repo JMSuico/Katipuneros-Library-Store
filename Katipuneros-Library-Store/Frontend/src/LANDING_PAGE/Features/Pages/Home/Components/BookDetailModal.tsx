@@ -4,7 +4,7 @@
 import { FC } from 'react';
 
 export interface BookDetailData {
-  id?: string;
+  id?: string | number;
   title: string;
   author: string;
   category: string;
@@ -13,6 +13,8 @@ export interface BookDetailData {
   synopsis: string;
   coverImage?: string;
 }
+
+export type CatalogBook = BookDetailData;
 
 interface BookDetailModalProps {
   isOpen: boolean;

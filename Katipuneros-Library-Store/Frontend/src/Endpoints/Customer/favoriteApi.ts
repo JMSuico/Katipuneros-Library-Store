@@ -72,18 +72,41 @@ export const removeCustomerFavorite = async (bookId: string): Promise<boolean> =
     const savedIds: string[] = raw ? JSON.parse(raw) : [];
     const updated = savedIds.filter((id) => id !== bookId);
     localStorage.setItem(getFavoritesStorageKey(), JSON.stringify(updated));
+
+    // Also remove book from any assigned reading lists
+    const assignments = getStoredReadingListAssignments();
+    let modified = false;
+    for (const key of Object.keys(assignments)) {
+      if (assignments[key]?.some((id) => String(id) === String(bookId))) {
+        assignments[key] = assignments[key].filter((id) => String(id) !== String(bookId));
+        modified = true;
+      }
+    }
+    if (modified) {
+      saveStoredReadingListAssignments(assignments);
+    }
+
     return true;
   } catch {
     return false;
   }
 };
 
+const DEFAULT_READING_LISTS = ['All Favorites', 'Academic Thesis', 'Weekend Reads'];
+
 export const getReadingLists = async (): Promise<string[]> => {
   try {
     const raw = localStorage.getItem(getReadingListsStorageKey());
-    return raw ? JSON.parse(raw) : ['All Saved'];
+    if (!raw) return DEFAULT_READING_LISTS;
+    let lists: string[] = JSON.parse(raw);
+    if (!Array.isArray(lists) || !lists.length) return DEFAULT_READING_LISTS;
+    lists = lists.map((l) => (l === 'All Saved' ? 'All Favorites' : l));
+    if (!lists.includes('All Favorites')) {
+      lists.unshift('All Favorites');
+    }
+    return lists;
   } catch {
-    return ['All Saved'];
+    return DEFAULT_READING_LISTS;
   }
 };
 
@@ -92,7 +115,7 @@ export const createReadingList = async (name: string): Promise<boolean> => {
     const cleanName = name.trim();
     if (!cleanName) return false;
     const raw = localStorage.getItem(getReadingListsStorageKey());
-    const lists: string[] = raw ? JSON.parse(raw) : ['All Saved'];
+    const lists: string[] = raw ? JSON.parse(raw) : [...DEFAULT_READING_LISTS];
     if (!lists.includes(cleanName)) {
       lists.push(cleanName);
       localStorage.setItem(getReadingListsStorageKey(), JSON.stringify(lists));
@@ -101,4 +124,72 @@ export const createReadingList = async (name: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+// ==========================================
+// Reading List Book Assignments & Filtering
+// Storage Key: patron_reading_list_assignments
+// ==========================================
+
+export const READING_LIST_ASSIGNMENTS_STORAGE_KEY = 'patron_reading_list_assignments';
+
+export const getStoredReadingListAssignments = (): Record<string, (string | number)[]> => {
+  try {
+    const raw = localStorage.getItem(READING_LIST_ASSIGNMENTS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const saveStoredReadingListAssignments = (
+  assignments: Record<string, (string | number)[]>
+): void => {
+  try {
+    localStorage.setItem(READING_LIST_ASSIGNMENTS_STORAGE_KEY, JSON.stringify(assignments));
+  } catch {
+    // Ignore storage quota errors
+  }
+};
+
+export const addBookToReadingList = (listName: string, bookId: string | number): void => {
+  const cleanList = listName.trim();
+  if (!cleanList) return;
+  const assignments = getStoredReadingListAssignments();
+  const currentList = assignments[cleanList] || [];
+  const exists = currentList.some((id) => String(id) === String(bookId));
+  if (!exists) {
+    currentList.push(bookId);
+    assignments[cleanList] = currentList;
+    saveStoredReadingListAssignments(assignments);
+  }
+};
+
+export const removeBookFromReadingList = (listName: string, bookId: string | number): void => {
+  const cleanList = listName.trim();
+  if (!cleanList) return;
+  const assignments = getStoredReadingListAssignments();
+  if (!assignments[cleanList]) return;
+  assignments[cleanList] = assignments[cleanList].filter((id) => String(id) !== String(bookId));
+  saveStoredReadingListAssignments(assignments);
+};
+
+export function getBooksInReadingList<T extends string | number = string | number>(
+  listName: string
+): T[] {
+  const cleanList = listName.trim();
+  if (!cleanList) return [];
+  const assignments = getStoredReadingListAssignments();
+  return (assignments[cleanList] || []) as T[];
+}
+
+export const getBookReadingLists = (bookId: string | number): string[] => {
+  const assignments = getStoredReadingListAssignments();
+  const matchedLists: string[] = [];
+  for (const [listName, bookIds] of Object.entries(assignments)) {
+    if (Array.isArray(bookIds) && bookIds.some((id) => String(id) === String(bookId))) {
+      matchedLists.push(listName);
+    }
+  }
+  return matchedLists;
 };

@@ -1,6 +1,6 @@
 // [Layer: LANDING_PAGE/Features/Pages/Home]
 // Home.tsx -- Main landing page route entry.
-// Composes HeroSection, ServicesSection, Product/Catalog, LibraryMapSection, ContactForm, and dialogs.
+// Composes HeroSection, ServicesSection, Product/Catalog, LibraryMapSection, and ContactForm.
 // DO NOT put business logic or direct API calls here.
 import { FC, useState } from 'react';
 import HeroSection from './Components/HeroSection';
@@ -9,21 +9,14 @@ import ServicesSection from '../Services/Components/ServicesSection';
 import Product from '../Products/Product';
 import LibraryMapSection from './Components/LibraryMapSection';
 import ContactForm from '../ContactMe/Components/ContactForm';
-import { BookDetailModal, BookDetailData } from './Components/BookDetailModal';
-import { ReservationModal } from './Components/ReservationModal';
 
 const Home: FC = () => {
-  const [selectedDetailBook, setSelectedDetailBook] = useState<BookDetailData | null>(null);
-  const [selectedReserveBook, setSelectedReserveBook] = useState<BookDetailData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <div className="w-full">
       {/* Hero Section with 3D Canvas */}
-      <HeroSection
-        onOpenReserve={(book) => setSelectedReserveBook(book)}
-        onSearch={(q) => setSearchQuery(q)}
-      />
+      <HeroSection onSearch={(q) => setSearchQuery(q)} />
 
       {/* Institutional Heritage & About Section */}
       <AboutSection />
@@ -39,20 +32,6 @@ const Home: FC = () => {
 
       {/* Contact Section */}
       <ContactForm />
-
-      {/* Modals */}
-      <BookDetailModal
-        isOpen={Boolean(selectedDetailBook)}
-        onClose={() => setSelectedDetailBook(null)}
-        book={selectedDetailBook}
-        onReserve={(book) => setSelectedReserveBook(book)}
-      />
-
-      <ReservationModal
-        isOpen={Boolean(selectedReserveBook)}
-        onClose={() => setSelectedReserveBook(null)}
-        book={selectedReserveBook}
-      />
     </div>
   );
 };

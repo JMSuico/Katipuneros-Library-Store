@@ -13,6 +13,8 @@ export interface SearchBarProps {
   className?: string;
   shortcutKey?: string;
   autoFocus?: boolean;
+  onSubmit?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export const SearchBar: FC<SearchBarProps> = ({
@@ -23,6 +25,8 @@ export const SearchBar: FC<SearchBarProps> = ({
   className = '',
   shortcutKey = '⌘K',
   autoFocus = false,
+  onSubmit,
+  onKeyDown,
 }) => {
   const handleClear = () => {
     onChange('');
@@ -39,6 +43,12 @@ export const SearchBar: FC<SearchBarProps> = ({
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          onKeyDown?.(e);
+          if (e.key === 'Enter') {
+            onSubmit?.();
+          }
+        }}
         placeholder={placeholder}
         className="w-full bg-surface-container-low pl-11 pr-14 py-2.5 rounded-full font-small text-small text-text-primary placeholder:text-text-secondary focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 transition-all shadow-inner border border-outline-variant/15"
       />

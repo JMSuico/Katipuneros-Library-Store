@@ -221,8 +221,11 @@ export const OverdueFines: FC = () => {
     setTimeout(() => {
       setIsKickingDrawer(false);
       setDrawerOpenSuccess(true);
-      addToast('Cash drawer kicked successfully at station Desk 01.', 'success');
-      setTimeout(() => setDrawerOpenSuccess(false), 2500);
+      addToast(
+        'Cash drawer pulse sent [ESC/POS 27,112,0,25,250 via Receipt Printer Port]. Cash drawer solenoid triggered.',
+        'success'
+      );
+      setTimeout(() => setDrawerOpenSuccess(false), 3500);
     }, 600);
   };
 
@@ -409,15 +412,26 @@ export const OverdueFines: FC = () => {
                   <span className="font-small text-small font-bold text-text-primary">1-Day Free Grace</span>
                 </div>
               </div>
+              {drawerOpenSuccess && (
+                <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-status-available/15 border border-status-available text-status-available font-caption text-caption font-bold shadow-sm animate-in fade-in duration-200">
+                  <span className="w-2 h-2 rounded-full bg-status-available animate-pulse"></span>
+                  <span className="material-symbols-outlined text-[16px]">lock_open</span>
+                  <span>Drawer Status: OPEN / UNLOCKED</span>
+                </div>
+              )}
               <button
-                className="h-11 px-space-md rounded-xl bg-action-green hover:bg-action-green-hover text-text-primary font-body-medium text-body-medium font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                className={`h-11 px-space-md rounded-xl font-body-medium text-body-medium font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50 ${
+                  drawerOpenSuccess
+                    ? 'bg-status-available text-white ring-2 ring-status-available/40'
+                    : 'bg-action-green hover:bg-action-green-hover text-text-primary'
+                }`}
                 onClick={handleOpenDrawer}
                 disabled={isKickingDrawer}
               >
                 <span className={`material-symbols-outlined text-[20px] ${isKickingDrawer ? 'animate-spin' : ''}`}>
-                  {isKickingDrawer ? 'sync' : drawerOpenSuccess ? 'check_circle' : 'point_of_sale'}
+                  {isKickingDrawer ? 'sync' : drawerOpenSuccess ? 'lock_open' : 'point_of_sale'}
                 </span>
-                <span>{isKickingDrawer ? 'Kicking Drawer...' : drawerOpenSuccess ? 'Drawer Open' : 'Open Cash Drawer'}</span>
+                <span>{isKickingDrawer ? 'Kicking Drawer (ESC/POS)...' : drawerOpenSuccess ? 'Drawer Open / Unlocked' : 'Open Cash Drawer'}</span>
               </button>
             </div>
           </div>

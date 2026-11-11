@@ -3,8 +3,10 @@
 // Extracted from LandingPage/code.html lines 482-691.
 // Connects to Endpoints/booksApi.ts for catalog data via expression lambdas.
 import { FC, useState, useEffect } from 'react';
-import { BookDetailData } from '../../Home/Components/BookDetailModal';
+import { BookDetailData, CatalogBook } from '../../Home/Components/BookDetailModal';
 import { getPublicBooks, getCategories } from '../../../../../Endpoints/booksApi';
+
+export type { CatalogBook };
 
 interface NewlyAcquiredBooksProps {
   onOpenDetail: (book: BookDetailData) => void;
@@ -14,6 +16,7 @@ interface NewlyAcquiredBooksProps {
 
 export const CATALOG_BOOKS: BookDetailData[] = [
   {
+    id: 'static-cat-1',
     title: 'Introduction to Algorithms (4th Edition)',
     author: 'Thomas H. Cormen, Charles E. Leiserson',
     category: 'Technology',
@@ -23,6 +26,7 @@ export const CATALOG_BOOKS: BookDetailData[] = [
     coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCQf-XWzD_o5lE50r6j0s7_qZ4y2n-K4gTqZ5F5jL0cI9Q_Y8f-1u2w3e4r5t6y7u8i9o0p=w400',
   },
   {
+    id: 'static-cat-2',
     title: 'The Feynman Lectures on Physics',
     author: 'Richard Feynman, Robert Leighton',
     category: 'Science',
@@ -32,6 +36,7 @@ export const CATALOG_BOOKS: BookDetailData[] = [
     coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAcIeS2Woom5vrHVaF2Q1MlJ9H7qDaaLnIjiAKAIRfoQZz2__2lPUogwfJp2qUvBuIhMipDBa0GugWXUNhqh8it0yVHxVNCXHTlVxXgEFadBM2ki7MogVWhYIFX_Ku0OSjCUYUJBF8a8t3CyTUD0DeAKHHhRL_JBkLOkRMYna1S3f9k9BBvyMba4i8WgcY2rpm6BubN6ZT51-P217OBXL3Xuf4oPIFynbo3IJVPgjg5EM8u4cp6Kd8P',
   },
   {
+    id: 'static-cat-3',
     title: 'Noli Me Tangere',
     author: 'Dr. Jose P. Rizal',
     category: 'History',
@@ -41,6 +46,7 @@ export const CATALOG_BOOKS: BookDetailData[] = [
     coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA0s7qB5_v_c2w1r3t4y5u6i7o8p9a0s1d2f3g4h5j6k7l8z9x0c1v2b3n4m5=w400',
   },
   {
+    id: 'static-cat-4',
     title: 'Artificial Intelligence: A Modern Approach',
     author: 'Stuart Russell, Peter Norvig',
     category: 'Technology',
@@ -50,6 +56,7 @@ export const CATALOG_BOOKS: BookDetailData[] = [
     coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9e8r7t6y5u4i3o2p1a0s9d8f7g6h5j4k3l2z1x0c9v8b7n6m5=w400',
   },
   {
+    id: 'static-cat-5',
     title: 'Meditations',
     author: 'Marcus Aurelius',
     category: 'History',
@@ -59,6 +66,7 @@ export const CATALOG_BOOKS: BookDetailData[] = [
     coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuE1w2e3r4t5y6u7i8o9p0a1s2d3f4g5h6j7k8l9z0x1c2v3b4n5=w400',
   },
   {
+    id: 'static-cat-6',
     title: 'The Design of Everyday Things',
     author: 'Don Norman',
     category: 'Science',
@@ -92,17 +100,17 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
         }
 
         if (liveBooks && liveBooks.length > 0) {
-          setBooks(
-            liveBooks.map((b) => ({
-              title: b.title,
-              author: b.author,
-              category: b.category,
-              stock: `${b.availableCopies} Available`,
-              isbn: b.isbn,
-              synopsis: b.summary || 'Curated volume from university archives.',
-              coverImage: b.coverImage || CATALOG_BOOKS[0].coverImage,
-            }))
-          );
+          const liveAsCatalogBooks: CatalogBook[] = liveBooks.map((b, idx) => ({
+            id: b.id || b.isbn || String(idx),
+            title: b.title,
+            author: b.author,
+            category: b.category,
+            stock: `${b.availableCopies} Available`,
+            isbn: b.isbn,
+            synopsis: b.summary || 'Curated volume from university archives.',
+            coverImage: b.coverImage || CATALOG_BOOKS[0].coverImage,
+          }));
+          setBooks(liveAsCatalogBooks);
         }
       } catch {
         // Graceful fallback to static catalog
@@ -180,7 +188,7 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
         ) : (
           filteredBooks.map((book, idx) => (
             <div
-              key={book.isbn || `${book.title}-${idx}`}
+              key={book.id || book.isbn || `${book.title}-${idx}`}
               className="group p-space-lg rounded-3xl bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
             >
               <div>

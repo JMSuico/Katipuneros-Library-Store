@@ -3,8 +3,9 @@
 // Connects to Endpoints/Customer/borrowApi.ts for live circulation data and renewals.
 // Dispatches async operations via clean expression-bodied lambda patterns with zero mock metrics.
 
-import { FC, useState, useEffect, useMemo } from 'react';
+import { FC, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import QRCode from 'qrcode';
 import {
   CustomerLoanRecord,
   CustomerFinesResponse,
@@ -16,6 +17,7 @@ import {
 import { getPublicSystemSettings, SystemSettingsResponse } from '../../../../../Endpoints/settingsApi';
 import { getStoredUser, AuthUser } from '../../../../../Endpoints/authApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { generateReturnSlipPng } from '../../../../../Shared/Utils/generateReturnSlipPng';
 
 type HistoryFilter = 'all' | 'ontime' | 'renewals' | 'fines';
 
@@ -28,14 +30,55 @@ const BorrowingsPage: FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [renewingId, setRenewingId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
+  const selectedLoanIdRef = useRef<string | null>(null);
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [finesData, setFinesData] = useState<CustomerFinesResponse>({ balance: 0, fines: [], paidFines: 0 });
   const [systemSettings, setSystemSettings] = useState<SystemSettingsResponse | null>(null);
 
-  const loadData = async () => {
+  // Synchronous selection helper to prevent race conditions
+  const handleSelectLoan = (id: string) => {
+    selectedLoanIdRef.current = id;
+    setSelectedLoanId(id);
+  };
+
+  // Official Return Slip Modal State
+  const [returnModalLoan, setReturnModalLoan] = useState<CustomerLoanRecord | null>(null);
+  const [returnQrDataUrl, setReturnQrDataUrl] = useState<string>('');
+  const [isGeneratingSlip, setIsGeneratingSlip] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (returnModalLoan) {
+      const expressReturnCode = `RET-BAY-${returnModalLoan.id.slice(0, 6).toUpperCase()}`;
+      QRCode.toDataURL(expressReturnCode, {
+        width: 220,
+        margin: 4,
+        color: { dark: '#0A192F', light: '#FFFFFF' },
+        errorCorrectionLevel: 'H',
+      })
+        .then(setReturnQrDataUrl)
+        .catch(() => setReturnQrDataUrl(''));
+    } else {
+      setReturnQrDataUrl('');
+    }
+  }, [returnModalLoan]);
+
+  const handleDownloadReturnSlip = async (loan: CustomerLoanRecord) => {
     try {
-      setLoading(true);
+      setIsGeneratingSlip(true);
+      await generateReturnSlipPng(loan);
+      addToast(`Official Return Slip downloaded for "${loan.book?.title || 'Volume'}".`, 'success');
+    } catch (err) {
+      console.error('Failed to generate return slip:', err);
+      addToast('Failed to generate official return slip PNG.', 'error');
+    } finally {
+      setIsGeneratingSlip(false);
+    }
+  };
+
+  const loadData = useCallback(async (silent: boolean = false) => {
+    try {
+      if (!silent) setLoading(true);
       const [actives, history, fines, settings] = await Promise.all([
         getCustomerActiveLoans(),
         getCustomerLoanHistory(),
@@ -46,26 +89,188 @@ const BorrowingsPage: FC = () => {
       setLoanHistory(history);
       if (fines) setFinesData(fines);
       if (settings) setSystemSettings(settings);
-      if (actives.length > 0 && !selectedLoanId) {
-        setSelectedLoanId(actives[0].id);
-      }
+
+      setSelectedLoanId((prevId) => {
+        const candidateId = prevId || selectedLoanIdRef.current;
+        if (candidateId) {
+          const lowerId = candidateId.toLowerCase();
+          const existsInActive = actives.some((l) => l.id?.toLowerCase() === lowerId);
+          const existsInHistory = history.some((l) => l.id?.toLowerCase() === lowerId);
+          if (existsInActive || existsInHistory) {
+            selectedLoanIdRef.current = candidateId;
+            return candidateId;
+          }
+        }
+        const defaultId = actives[0]?.id || history[0]?.id || null;
+        selectedLoanIdRef.current = defaultId;
+        return defaultId;
+      });
     } catch (err) {
-      console.error('Failed to load customer circulation records:', err);
-      addToast('Unable to synchronize circulation records. Please retry.', 'error');
+      if (!silent) {
+        console.error('Failed to load customer circulation records:', err);
+        addToast('Unable to synchronize circulation records. Please retry.', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(false);
 
-  // Selected loan for lifecycle tracker
+    // Auto-poll every 3.5 seconds so return scan from cashier reflects live without manual refresh
+    const pollTimer = setInterval(() => {
+      loadData(true);
+    }, 3500);
+
+    const handleFocus = () => loadData(true);
+    const handleCirculationUpdate = () => loadData(true);
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('katipuneros-circulation-updated', handleCirculationUpdate);
+    window.addEventListener('circulation-return-confirmed', handleCirculationUpdate);
+    window.addEventListener('storage', handleCirculationUpdate);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('katipuneros-circulation-sync');
+      channel.onmessage = () => {
+        loadData(true);
+      };
+    } catch {
+      // BroadcastChannel optional fallback
+    }
+
+    return () => {
+      clearInterval(pollTimer);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('katipuneros-circulation-updated', handleCirculationUpdate);
+      window.removeEventListener('circulation-return-confirmed', handleCirculationUpdate);
+      window.removeEventListener('storage', handleCirculationUpdate);
+      if (channel) {
+        channel.close();
+      }
+    };
+  }, [loadData]);
+
+  // Selected loan for lifecycle tracker (checks active first, then history so returning automatically transitions state)
   const selectedLoan = useMemo(() => {
-    if (activeLoans.length === 0) return null;
-    return activeLoans.find((l) => l.id === selectedLoanId) || activeLoans[0];
-  }, [activeLoans, selectedLoanId]);
+    if (selectedLoanId) {
+      const lowerId = selectedLoanId.toLowerCase();
+      const active = activeLoans.find((l) => l.id?.toLowerCase() === lowerId);
+      if (active) return active;
+      const historical = loanHistory.find((l) => l.id?.toLowerCase() === lowerId);
+      if (historical) return historical;
+    }
+    return activeLoans[0] || loanHistory[0] || null;
+  }, [activeLoans, loanHistory, selectedLoanId]);
+
+  // Dynamic Trajectory Calculations for Stages 1 through 6
+  const {
+    currentStage,
+    stageStatusBadge,
+    stageBadgeColor,
+    progressWidth,
+    isReturned,
+    isOverdue,
+    isDueToday,
+    wasReturnedLate,
+    daysDiff,
+  } = useMemo(() => {
+    if (!selectedLoan) {
+      return {
+        currentStage: 0,
+        stageStatusBadge: 'Awaiting Active Loan',
+        stageBadgeColor: 'bg-surface-container text-text-secondary',
+        progressWidth: '0%',
+        isReturned: false,
+        isOverdue: false,
+        isDueToday: false,
+        wasReturnedLate: false,
+        daysDiff: 0,
+      };
+    }
+
+    const returned = Boolean(
+      selectedLoan.returnDate ||
+      selectedLoan.status?.toLowerCase() === 'returned' ||
+      selectedLoan.status?.toLowerCase() === 'completed'
+    );
+
+    const now = new Date();
+    const todayMidnightUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Calendar day diff calculation
+    const getCalendarDaysUntilDue = (dueDateStr?: string) => {
+      if (!dueDateStr) return 0;
+      const d = new Date(dueDateStr);
+      const dueMidnightUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+      return Math.round((dueMidnightUtc - todayMidnightUtc) / (1000 * 60 * 60 * 24));
+    };
+
+    const daysUntilDue = getCalendarDaysUntilDue(selectedLoan.dueDate);
+
+    // Was it returned late? (Compare return calendar date against due calendar date)
+    let returnedLate = false;
+    if (returned && selectedLoan.dueDate && selectedLoan.returnDate) {
+      const dDue = new Date(selectedLoan.dueDate);
+      const dRet = new Date(selectedLoan.returnDate);
+      const dueUtc = Date.UTC(dDue.getFullYear(), dDue.getMonth(), dDue.getDate());
+      const retUtc = Date.UTC(dRet.getFullYear(), dRet.getMonth(), dRet.getDate());
+      returnedLate = retUtc > dueUtc;
+    }
+
+    // If active: is it currently overdue or due today?
+    const overdue = !returned && (
+      selectedLoan.status?.toLowerCase() === 'overdue' ||
+      daysUntilDue < 0
+    );
+    const dueToday = !returned && !overdue && daysUntilDue === 0;
+
+    let stage = 4;
+    let badge = 'Stage 4 of 6 Active (In Hand)';
+    let badgeColor = 'bg-soft-blue text-primary border border-primary/20 font-semibold';
+    let width = '58%';
+
+    if (returned) {
+      stage = 6;
+      badge = returnedLate
+        ? 'Stage 6 of 6 Complete (Returned & Audited - Overdue Cleared)'
+        : 'Stage 6 of 6 Complete (Discharged & Audited Ahead of / On Time)';
+      badgeColor = 'bg-action-green/20 text-action-green border border-action-green/40 font-bold';
+      width = '100%';
+    } else if (overdue) {
+      stage = 5;
+      const daysLate = Math.max(1, Math.abs(daysUntilDue));
+      badge = `Stage 5 of 6 Overdue (${daysLate} Day${daysLate === 1 ? '' : 's'} Late - Return Required)`;
+      badgeColor = 'bg-status-danger/20 text-status-danger border border-status-danger/40 animate-pulse font-bold';
+      width = '75%';
+    } else if (dueToday) {
+      stage = 5;
+      badge = 'Stage 5 of 6 Due Today (Return or Renew by Counter Close)';
+      badgeColor = 'bg-status-pending/20 text-status-pending border border-status-pending/40 animate-pulse font-bold';
+      width = '75%';
+    } else {
+      stage = 4;
+      badge = 'Stage 4 of 6 Active (In Hand)';
+      badgeColor = 'bg-soft-blue text-primary border border-primary/20 font-semibold';
+      width = '58%';
+    }
+
+    return {
+      currentStage: stage,
+      stageStatusBadge: badge,
+      stageBadgeColor: badgeColor,
+      progressWidth: width,
+      isReturned: returned,
+      isOverdue: overdue,
+      isDueToday: dueToday,
+      wasReturnedLate: returnedLate,
+      daysDiff: daysUntilDue,
+    };
+  }, [selectedLoan]);
 
   // Renewal Handler
   const handleRenew = async (loanId: string, title?: string) => {
@@ -225,7 +430,7 @@ const BorrowingsPage: FC = () => {
               <div className="flex items-center gap-space-xs p-1.5 rounded-2xl bg-glass-surface backdrop-blur-md shadow-sm shrink-0">
                 <button
                   className="flex items-center gap-space-xs px-space-md py-space-xs rounded-xl bg-primary-container text-on-primary-container font-small text-small font-medium shadow-sm transition-all cursor-pointer hover:opacity-90"
-                  onClick={loadData}
+                  onClick={() => loadData(false)}
                   type="button"
                 >
                   <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>
@@ -690,11 +895,32 @@ const BorrowingsPage: FC = () => {
                                   ? 'bg-primary text-on-primary'
                                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-container-high'
                               }`}
-                              onClick={() => setSelectedLoanId(loan.id)}
+                              onClick={() => handleSelectLoan(loan.id)}
                               type="button"
                             >
                               <span className="material-symbols-outlined text-lg">timeline</span>
                               <span>{isSelected ? 'Viewing Timeline' : 'Track Timeline'}</span>
+                            </button>
+
+                            <button
+                              className="min-h-[44px] px-space-md py-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-on-primary font-small text-small font-semibold shadow-sm transition-all flex items-center gap-space-xs cursor-pointer active:scale-95 border border-primary/25"
+                              disabled={isGeneratingSlip}
+                              onClick={() => handleDownloadReturnSlip(loan)}
+                              type="button"
+                              title="Download Official Return Slip (PNG) for returning books"
+                            >
+                              <span className="material-symbols-outlined text-lg">receipt_long</span>
+                              <span>Download Return Slip</span>
+                            </button>
+
+                            <button
+                              className="min-h-[44px] px-space-md py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-primary font-small text-small font-medium transition-all flex items-center gap-space-xs cursor-pointer border border-surface-variant/40"
+                              onClick={() => setReturnModalLoan(loan)}
+                              type="button"
+                              title="View scannable Return Pass with QR Code and Return ExpressCode"
+                            >
+                              <span className="material-symbols-outlined text-lg">qr_code_2</span>
+                              <span>View Return Pass</span>
                             </button>
 
                             <div className="ml-auto hidden sm:flex items-center gap-1 font-caption text-caption text-text-secondary">
@@ -728,6 +954,11 @@ const BorrowingsPage: FC = () => {
                         ? `Loan #${selectedLoan.id.slice(0, 8).toUpperCase()}`
                         : 'No Active Loan Selected'}
                     </span>
+                    {isReturned && (
+                      <span className="px-2 py-0.5 rounded text-[11px] font-caption bg-action-green/20 text-action-green font-bold">
+                        RETURNED
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-headline-3 text-headline-3 text-text-primary mt-0.5">
                     Borrowing Lifecycle Milestone Tracker
@@ -739,8 +970,8 @@ const BorrowingsPage: FC = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-soft-blue text-primary font-caption text-caption font-semibold">
-                    {selectedLoan ? 'Stage 4 of 6 Active (In Hand)' : 'Awaiting Active Loan'}
+                  <span className={`px-3 py-1 rounded-full font-caption text-caption ${stageBadgeColor}`}>
+                    {stageStatusBadge}
                   </span>
                 </div>
               </div>
@@ -752,8 +983,10 @@ const BorrowingsPage: FC = () => {
                   <div className="absolute top-6 left-12 right-12 h-1 bg-surface-variant z-0"></div>
                   {/* Highlighted progress track line up to active stage */}
                   <div
-                    className="absolute top-6 left-12 h-1 bg-primary z-0 transition-all duration-700"
-                    style={{ width: selectedLoan ? '58%' : '0%' }}
+                    className={`absolute top-6 left-12 h-1 z-0 transition-all duration-700 ${
+                      isReturned ? 'bg-action-green' : isOverdue ? 'bg-status-danger' : 'bg-primary'
+                    }`}
+                    style={{ width: progressWidth }}
                   ></div>
 
                   {/* 6 Nodes */}
@@ -839,37 +1072,75 @@ const BorrowingsPage: FC = () => {
                       </span>
                     </div>
 
-                    {/* Milestone 4 (CURRENT STATE) */}
+                    {/* Milestone 4: Active Loan */}
                     <div className="flex flex-col items-center text-center">
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-4 ring-background ${
-                          selectedLoan
-                            ? 'bg-action-green text-text-primary animate-pulse'
-                            : 'bg-surface-container text-text-secondary'
+                          currentStage === 4
+                            ? 'bg-action-green text-text-primary animate-pulse ring-action-green/30'
+                            : currentStage > 4
+                              ? 'bg-primary text-on-primary'
+                              : 'bg-surface-container text-text-secondary'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-xl">menu_book</span>
+                        <span className="material-symbols-outlined text-xl">
+                          {currentStage > 4 ? 'check' : 'menu_book'}
+                        </span>
                       </div>
                       <span className="font-small text-small font-bold text-text-primary mt-space-sm">
                         4. Active Loan
                       </span>
                       <span className="font-caption text-caption text-status-pending font-semibold">
-                        {selectedLoan ? 'In Possession' : '—'}
+                        {currentStage === 4 ? 'In Possession' : currentStage > 4 ? 'Loan Term' : '—'}
                       </span>
-                      <span className="mt-1 px-2 py-0.5 rounded text-[11px] font-caption bg-action-green text-text-primary font-bold">
-                        In Hand
+                      <span
+                        className={`mt-1 px-2 py-0.5 rounded text-[11px] font-caption ${
+                          currentStage === 4
+                            ? 'bg-action-green text-text-primary font-bold'
+                            : currentStage > 4
+                              ? 'bg-status-available/20 text-status-available font-medium'
+                              : 'bg-surface-variant text-text-secondary'
+                        }`}
+                      >
+                        {currentStage === 4 ? 'In Hand' : currentStage > 4 ? 'Term Served' : 'Pending'}
                       </span>
                     </div>
 
-                    {/* Milestone 5 (UPCOMING) */}
+                    {/* Milestone 5: Due Date */}
                     <div className="flex flex-col items-center text-center">
-                      <div className="w-12 h-12 rounded-full bg-surface-container-high text-status-pending flex items-center justify-center ring-4 ring-background">
-                        <span className="material-symbols-outlined text-lg">event_upcoming</span>
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ring-4 ring-background shadow-md ${
+                          currentStage === 5
+                            ? isOverdue
+                              ? 'bg-status-danger text-white shadow-lg animate-pulse ring-status-danger/40'
+                              : 'bg-status-pending text-text-primary shadow-lg animate-pulse ring-status-pending/40'
+                            : currentStage === 6
+                              ? 'bg-primary text-on-primary'
+                              : 'bg-surface-container-high text-status-pending'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          {currentStage === 6
+                            ? 'check'
+                            : isOverdue
+                              ? 'warning'
+                              : isDueToday
+                                ? 'priority_high'
+                                : 'event_upcoming'}
+                        </span>
                       </div>
-                      <span className="font-small text-small font-medium text-text-secondary mt-space-sm">
+                      <span className="font-small text-small font-semibold text-text-primary mt-space-sm">
                         5. Due Date
                       </span>
-                      <span className="font-caption text-caption text-status-pending font-medium">
+                      <span
+                        className={`font-caption text-caption ${
+                          currentStage === 5 && isOverdue
+                            ? 'text-status-danger font-bold'
+                            : currentStage === 5 && isDueToday
+                              ? 'text-status-pending font-bold'
+                              : 'text-status-pending font-medium'
+                        }`}
+                      >
                         {selectedLoan?.dueDate
                           ? new Date(selectedLoan.dueDate).toLocaleDateString(undefined, {
                               month: 'short',
@@ -877,48 +1148,120 @@ const BorrowingsPage: FC = () => {
                             })
                           : '—'}
                       </span>
-                      <span className="mt-1 px-2 py-0.5 rounded text-[11px] font-caption bg-status-pending/20 text-text-primary font-medium">
-                        Scheduled
+                      <span
+                        className={`mt-1 px-2 py-0.5 rounded text-[11px] font-caption ${
+                          currentStage === 5 && isOverdue
+                            ? 'bg-status-danger text-white font-bold animate-pulse'
+                            : currentStage === 5 && isDueToday
+                              ? 'bg-status-pending text-text-primary font-bold'
+                              : currentStage === 6
+                                ? wasReturnedLate
+                                  ? 'bg-status-pending/20 text-text-secondary font-medium'
+                                  : 'bg-status-available/20 text-status-available font-medium'
+                                : 'bg-status-pending/20 text-text-primary font-medium'
+                        }`}
+                      >
+                        {currentStage === 5
+                          ? isOverdue
+                            ? `Overdue (${Math.max(1, Math.abs(daysDiff))}d)`
+                            : 'Due Today'
+                          : currentStage === 6
+                            ? wasReturnedLate
+                              ? 'Late Cleared'
+                              : 'Cleared On Time'
+                            : 'Scheduled'}
                       </span>
                     </div>
 
-                    {/* Milestone 6 (PENDING RETURN) */}
+                    {/* Milestone 6: Return & Audit */}
                     <div className="flex flex-col items-center text-center">
-                      <div className="w-12 h-12 rounded-full bg-surface-container-high text-text-secondary flex items-center justify-center ring-4 ring-background">
-                        <span className="material-symbols-outlined text-lg">assignment_turned_in</span>
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ring-4 ring-background ${
+                          currentStage === 6
+                            ? 'bg-action-green text-text-primary shadow-xl ring-action-green/50 animate-bounce-once'
+                            : 'bg-surface-container-high text-text-secondary'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          {currentStage === 6 ? 'task_alt' : 'assignment_turned_in'}
+                        </span>
                       </div>
-                      <span className="font-small text-small font-medium text-text-secondary mt-space-sm">
+                      <span className="font-small text-small font-semibold text-text-primary mt-space-sm">
                         6. Return &amp; Audit
                       </span>
-                      <span className="font-caption text-caption text-text-secondary">Expected Return</span>
-                      <span className="mt-1 px-2 py-0.5 rounded text-[11px] font-caption bg-surface-variant text-text-secondary font-medium">
-                        Pending
+                      <span className="font-caption text-caption text-text-secondary">
+                        {currentStage === 6 && selectedLoan?.returnDate
+                          ? new Date(selectedLoan.returnDate).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                            })
+                          : 'Expected Return'}
+                      </span>
+                      <span
+                        className={`mt-1 px-2 py-0.5 rounded text-[11px] font-caption ${
+                          currentStage === 6
+                            ? 'bg-action-green text-text-primary font-bold shadow-sm'
+                            : isOverdue
+                              ? 'bg-status-danger/10 text-status-danger font-medium'
+                              : 'bg-surface-variant text-text-secondary font-medium'
+                        }`}
+                      >
+                        {currentStage === 6
+                          ? wasReturnedLate
+                            ? 'Audited & Cleared'
+                            : 'Audited & Discharged'
+                          : isOverdue
+                            ? 'Awaiting Return'
+                            : 'Pending'}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Embedded Lifecycle Note Banner */}
-              <div className="mt-space-lg p-space-md rounded-2xl bg-surface-container-lowest/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
-                <div className="flex items-center gap-space-sm">
-                  <span className="material-symbols-outlined text-primary text-xl">qr_code_2</span>
-                  <div>
-                    <p className="font-small text-small font-medium text-text-primary">
-                      Returning books in person?
-                    </p>
-                    <p className="font-caption text-caption text-text-secondary">
-                      Show your Patron QR Pass or ExpressCode at Circulation Desk Level 1 or drop directly into Smart Drop Box 24/7.
-                    </p>
+              {/* Embedded Lifecycle Note Banner / Clearance Confirmation */}
+              {isReturned ? (
+                <div className="mt-space-lg p-space-md rounded-2xl bg-action-green/10 border border-action-green/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm animate-fade-in">
+                  <div className="flex items-center gap-space-sm">
+                    <span className="material-symbols-outlined text-action-green text-2xl shrink-0">
+                      verified
+                    </span>
+                    <div>
+                      <p className="font-small text-small font-bold text-text-primary">
+                        Circulation Return &amp; Counter Audit Completed
+                      </p>
+                      <p className="font-caption text-caption text-text-secondary">
+                        {wasReturnedLate
+                          ? 'This volume was returned past scheduled due date. Overdue has been resolved and custody discharged.'
+                          : 'This volume was returned on / ahead of schedule. Physical copy audited and custody discharged successfully.'}
+                      </p>
+                    </div>
                   </div>
+                  <span className="shrink-0 px-3 py-1.5 rounded-xl bg-action-green text-text-primary font-bold text-caption font-mono shadow-sm">
+                    AUDIT PASS #{selectedLoan?.id.slice(0, 8).toUpperCase()}
+                  </span>
                 </div>
-                <Link
-                  className="shrink-0 px-space-md py-1.5 rounded-xl bg-soft-blue hover:bg-secondary-fixed text-primary font-small text-small font-medium transition-all"
-                  to="/customer/profile"
-                >
-                  Show Patron QR Pass
-                </Link>
-              </div>
+              ) : (
+                <div className="mt-space-lg p-space-md rounded-2xl bg-surface-container-lowest/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
+                  <div className="flex items-center gap-space-sm">
+                    <span className="material-symbols-outlined text-primary text-xl">qr_code_2</span>
+                    <div>
+                      <p className="font-small text-small font-medium text-text-primary">
+                        Returning books in person?
+                      </p>
+                      <p className="font-caption text-caption text-text-secondary">
+                        Show your Patron QR Pass or Return Slip at Circulation Desk Level 1 or drop directly into Smart Drop Box 24/7.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    className="shrink-0 px-space-md py-1.5 rounded-xl bg-soft-blue hover:bg-secondary-fixed text-primary font-small text-small font-medium transition-all"
+                    to="/customer/profile"
+                  >
+                    Show Patron QR Pass
+                  </Link>
+                </div>
+              )}
             </div>
           </section>
 
@@ -1106,19 +1449,32 @@ const BorrowingsPage: FC = () => {
                               RCPT-{item.id.slice(0, 8).toUpperCase()}
                             </td>
                             <td className="py-space-md px-space-lg text-right">
-                              <button
-                                className="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors cursor-pointer"
-                                onClick={() =>
-                                  addToast(
-                                    `Audited Return Receipt #RCPT-${item.id.slice(0, 8).toUpperCase()} generated.`,
-                                    'info'
-                                  )
-                                }
-                                title="Download Audit Receipt"
-                                type="button"
-                              >
-                                <span className="material-symbols-outlined text-lg">receipt_long</span>
-                              </button>
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  className="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors cursor-pointer"
+                                  onClick={() => {
+                                    handleSelectLoan(item.id);
+                                    document.getElementById('lifecycle-timeline')?.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                  title="View Circulation Trajectory in Milestone Tracker"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-lg">timeline</span>
+                                </button>
+                                <button
+                                  className="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors cursor-pointer"
+                                  onClick={() =>
+                                    addToast(
+                                      `Audited Return Receipt #RCPT-${item.id.slice(0, 8).toUpperCase()} generated.`,
+                                      'info'
+                                    )
+                                  }
+                                  title="Download Audit Receipt"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-lg">receipt_long</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1246,6 +1602,121 @@ const BorrowingsPage: FC = () => {
             </div>
           </section>
         </div>
+
+        {/* Official Return Pass Modal */}
+        {returnModalLoan && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-surface-variant/40 relative animate-in fade-in zoom-in-95 duration-200">
+              {/* Close Button */}
+              <button
+                type="button"
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+                onClick={() => setReturnModalLoan(null)}
+                aria-label="Close Return Pass"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+
+              <div className="text-center mb-4">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary font-caption text-caption font-semibold uppercase tracking-wider mb-2">
+                  <span className="material-symbols-outlined text-sm">assignment_return</span>
+                  Return Clearance Pass
+                </span>
+                <h3 className="font-headline-3 text-headline-3 text-text-primary">
+                  Official Book Return Slip
+                </h3>
+                <p className="font-caption text-caption text-text-secondary mt-1">
+                  Use this credential <strong>only</strong> for returning your checked out volume.
+                </p>
+              </div>
+
+              {/* Scannable Optical QR Container */}
+              <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-inner flex flex-col items-center justify-center my-4">
+                {returnQrDataUrl ? (
+                  <img
+                    src={returnQrDataUrl}
+                    alt="Return QR Code"
+                    className="w-44 h-44 object-contain rounded-lg shadow-sm"
+                  />
+                ) : (
+                  <div className="w-44 h-44 flex items-center justify-center bg-stone-100 rounded-lg animate-pulse text-stone-400">
+                    <span className="material-symbols-outlined text-4xl">qr_code_2</span>
+                  </div>
+                )}
+                <div className="mt-3 grid grid-cols-2 gap-2 w-full text-center">
+                  <div className="px-3 py-1.5 rounded-lg bg-surface-container border border-primary/20">
+                    <span className="block font-caption text-[11px] text-text-secondary uppercase tracking-wider font-semibold">
+                      Return Code
+                    </span>
+                    <span className="font-mono text-sm font-bold text-primary tracking-wide">
+                      RET-BAY-{returnModalLoan.id.slice(0, 6).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-lg bg-status-available/10 border border-status-available/30">
+                    <span className="block font-caption text-[11px] text-action-green uppercase tracking-wider font-bold">
+                      Return PIN
+                    </span>
+                    <span className="font-mono text-base font-bold text-action-green tracking-widest">
+                      {String((parseInt(returnModalLoan.id.replace(/[^0-9a-f]/gi, '').slice(-4) || '1a2b', 16) % 9000) + 1000)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan & Book Metadata Details */}
+              <div className="space-y-2 p-3 rounded-xl bg-surface-container/50 border border-surface-variant/30 text-small font-small">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-text-secondary">Title:</span>
+                  <span className="font-semibold text-text-primary text-right line-clamp-1">
+                    {returnModalLoan.book?.title || 'Circulation Volume'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary">Return Reference:</span>
+                  <span className="font-mono text-text-primary font-bold">
+                    RET-TXN-{returnModalLoan.id.slice(0, 8).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary">Gate Pass / Loan:</span>
+                  <span className="font-mono text-text-primary">
+                    {returnModalLoan.gatePassCode || `#LN-${returnModalLoan.id.slice(0, 6).toUpperCase()}`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary">Return Due Date:</span>
+                  <span className="font-semibold text-primary">
+                    {new Date(returnModalLoan.dueDate).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  type="button"
+                  className="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-primary text-on-primary font-small text-small font-semibold shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => handleDownloadReturnSlip(returnModalLoan)}
+                  disabled={isGeneratingSlip}
+                >
+                  <span className="material-symbols-outlined text-lg">download</span>
+                  <span>{isGeneratingSlip ? 'Generating...' : 'Download PNG Slip'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-primary font-small text-small font-medium transition-all cursor-pointer"
+                  onClick={() => setReturnModalLoan(null)}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Reactive Toast Notifications */}
         {toasts.length > 0 && (

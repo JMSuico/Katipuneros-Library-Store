@@ -27,6 +27,7 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { updateCirculationPolicy } from '../../../../../Endpoints/Admin/settingsApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
 
 const Borrowings: FC = () => {
   // Data States
@@ -80,9 +81,25 @@ const Borrowings: FC = () => {
   // Form Sub-states: Batch Action
   const [batchActionType, setBatchActionType] = useState<'renew' | 'notify' | 'return'>('renew');
 
+  const { toasts, addToast, removeToast } = useToasts();
+  // Optical Camera / Barcode Scanner State
+  const [scannerOpen, setScannerOpen] = useState<boolean>(false);
+  const [scannerMode, setScannerMode] = useState<'patron' | 'barcode'>('patron');
+
+  const handleScannerResult = useCallback((scannedCode: string) => {
+    const code = scannedCode.trim();
+    if (scannerMode === 'patron') {
+      setOverridePatronId(code);
+      addToast(`Patron identifier detected: ${code}`, 'success');
+    } else {
+      setOverrideBarcode(code);
+      addToast(`Volume barcode scanned: ${code}`, 'success');
+    }
+    setScannerOpen(false);
+  }, [scannerMode, addToast]);
+
   // UI Feedback
   const [modalSubmitting, setModalSubmitting] = useState<boolean>(false);
-  const { toasts, addToast, removeToast } = useToasts();
 
   // Draggable Table Hook
   const { containerRef } = useTableDraggable();
@@ -1137,7 +1154,11 @@ const Borrowings: FC = () => {
                     />
                     <button
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-primary"
-                      title="Scan ID Card"
+                      title="Scan ID Card / QR Pass"
+                      onClick={() => {
+                        setScannerMode('patron');
+                        setScannerOpen(true);
+                      }}
                       type="button"
                     >
                       <span className="material-symbols-outlined text-[18px]">badge</span>
@@ -1159,7 +1180,11 @@ const Borrowings: FC = () => {
                     />
                     <button
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-primary"
-                      title="Trigger Laser Scanner"
+                      title="Trigger Laser / Camera Barcode Scanner"
+                      onClick={() => {
+                        setScannerMode('barcode');
+                        setScannerOpen(true);
+                      }}
                       type="button"
                     >
                       <span className="material-symbols-outlined text-[18px]">document_scanner</span>
@@ -1635,6 +1660,21 @@ const Borrowings: FC = () => {
               </div>
             </form>
           </AdminModalCard>
+        )}
+
+        {/* Modal 6: Optical Camera Scanner Modal for Fast-Lane Terminal */}
+        {scannerOpen && (
+          <OpticalCameraScanner
+            isOpen={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onScan={handleScannerResult}
+            title={scannerMode === 'patron' ? 'Scan Patron ID Card or QR Pass' : 'Scan Volume Barcode'}
+            subtitle={
+              scannerMode === 'patron'
+                ? 'Align Patron QR Pass, digital barcode, or University ID in front of camera lens.'
+                : 'Align book accession barcode or Dewey slip within the viewfinder frame.'
+            }
+          />
         )}
       </div>
     </div>

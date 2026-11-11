@@ -1660,9 +1660,12 @@ export const CheckoutBorrow: FC = () => {
                     <span className="font-body-medium text-body-medium font-bold">{tier1Days} Days</span>
                     <input
                       checked={!isCustomDuration && loanDays === tier1Days}
-                      onChange={() => {}}
+                      onChange={() => {
+                        setLoanDays(tier1Days);
+                        setIsCustomDuration(false);
+                      }}
                       type="radio"
-                      className="accent-primary w-4 h-4"
+                      className="accent-primary w-4 h-4 cursor-pointer"
                     />
                   </div>
                   <span className="font-caption text-caption text-text-secondary">Standard Undergrad (Tier 1)</span>
@@ -1683,9 +1686,12 @@ export const CheckoutBorrow: FC = () => {
                     <span className="font-body-medium text-body-medium font-bold">{tier2Days} Days</span>
                     <input
                       checked={!isCustomDuration && loanDays === tier2Days}
-                      onChange={() => {}}
+                      onChange={() => {
+                        setLoanDays(tier2Days);
+                        setIsCustomDuration(false);
+                      }}
                       type="radio"
-                      className="accent-primary w-4 h-4"
+                      className="accent-primary w-4 h-4 cursor-pointer"
                     />
                   </div>
                   <span className="font-caption text-caption text-text-secondary">Scholar / Graduate (Tier 2)</span>
@@ -1706,9 +1712,12 @@ export const CheckoutBorrow: FC = () => {
                     <span className="font-body-medium text-body-medium font-bold">{tier3Days} Days</span>
                     <input
                       checked={!isCustomDuration && loanDays === tier3Days}
-                      onChange={() => {}}
+                      onChange={() => {
+                        setLoanDays(tier3Days);
+                        setIsCustomDuration(false);
+                      }}
                       type="radio"
-                      className="accent-primary w-4 h-4"
+                      className="accent-primary w-4 h-4 cursor-pointer"
                     />
                   </div>
                   <span className="font-caption text-caption text-text-secondary">Faculty / Fellow (Tier 3)</span>
@@ -1726,9 +1735,9 @@ export const CheckoutBorrow: FC = () => {
                     <span className="font-body-medium text-body-medium font-bold">Custom</span>
                     <input
                       checked={isCustomDuration}
-                      onChange={() => {}}
+                      onChange={() => setIsCustomDuration(true)}
                       type="radio"
-                      className="accent-primary w-4 h-4"
+                      className="accent-primary w-4 h-4 cursor-pointer"
                     />
                   </div>
                   {isCustomDuration ? (

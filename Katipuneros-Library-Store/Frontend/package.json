@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5173",
-    "dev:customer": "vite --port 5173",
-    "dev:admin": "vite --port 5174",
-    "dev:cashier": "vite --port 5175",
+    "dev": "vite --port 5173 --host",
+    "dev:customer": "vite --port 5173 --host",
+    "dev:admin": "vite --port 5174 --host",
+    "dev:cashier": "vite --port 5175 --host",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"

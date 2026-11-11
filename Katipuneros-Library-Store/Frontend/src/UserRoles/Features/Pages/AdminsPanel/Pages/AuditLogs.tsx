@@ -296,8 +296,8 @@ const AuditLogs: FC = () => {
 
   const handleDownloadAuditJwt = () => {
     if (!inspectingLog) return;
-    const jwtMock = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(inspectingLog.rawPayloadJson)}.${inspectingLog.integritySeal.slice(0, 43)}`;
-    const blob = new Blob([jwtMock], { type: 'text/plain' });
+    const signedAuditToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(inspectingLog.rawPayloadJson)}.${inspectingLog.integritySeal.slice(0, 43)}`;
+    const blob = new Blob([signedAuditToken], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

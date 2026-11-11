@@ -21,16 +21,19 @@
 @layer base {
   html {
     font-size: calc(16px * var(--font-size-multiplier, 1));
+    font-family: var(--font-family-primary);
   }
 
   html,
   body {
     margin: 0;
     padding: 0;
+    font-family: var(--font-family-primary);
   }
 
   body {
     overscroll-behavior: none;
+    font-family: var(--font-family-primary);
   }
 
   main > :first-child {

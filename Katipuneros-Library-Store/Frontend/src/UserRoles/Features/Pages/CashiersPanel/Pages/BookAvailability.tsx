@@ -5,7 +5,7 @@
 // Universal lambda syntax (=>), zero browser alert().
 
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
 import { getCatalogBooks, BackendBook } from '../../../../../Endpoints/booksApi';
 import { RadioGroup } from '../../../../../Shared/RadioButton';
@@ -15,12 +15,20 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 
 export const BookAvailability: FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toasts, addToast, removeToast } = useToasts();
 
   const [books, setBooks] = useState<BackendBook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get('q') || '');
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'depleted'>('all');
   const [bayFilter, setBayFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'title-asc' | 'title-desc' | 'available-desc' | 'available-asc' | 'year-desc'>('title-asc');

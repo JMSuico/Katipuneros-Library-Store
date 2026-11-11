@@ -11,6 +11,7 @@ interface BookCarouselProps {
 }
 
 const curatorSpotlightBook: BookDetailData = {
+  id: 'curator-spotlight-1',
   title: 'Clean Code: A Handbook of Agile Software Craftsmanship',
   author: 'Robert C. Martin (Uncle Bob)',
   category: 'Technology',

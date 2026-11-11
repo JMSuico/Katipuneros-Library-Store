@@ -96,9 +96,33 @@ export const CashierLoginPage: React.FC = () => {
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-status-danger/20 border border-status-danger/40 text-red-200 text-small flex items-start gap-2.5">
-            <span className="material-symbols-outlined text-[20px] shrink-0 text-red-400 mt-0.5">error</span>
-            <span>{errorMessage}</span>
+          <div className="mb-5 p-4 rounded-2xl bg-status-danger/20 border border-status-danger/40 text-red-200 text-small flex flex-col gap-2">
+            <div className="flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-[20px] shrink-0 text-red-400 mt-0.5">error</span>
+              <span className="flex-1">{errorMessage}</span>
+            </div>
+            {(errorMessage.toLowerCase().includes('customer') || errorMessage.toLowerCase().includes('patron')) && (
+              <div className="mt-1 pl-7">
+                <a
+                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5173/login`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
+                >
+                  <span>Go to Patron Portal (Port 5173)</span>
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+              </div>
+            )}
+            {errorMessage.toLowerCase().includes('admin') && (
+              <div className="mt-1 pl-7">
+                <a
+                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5174/admin/login`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
+                >
+                  <span>Go to Administrator Console (Port 5174)</span>
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+              </div>
+            )}
           </div>
         )}
 

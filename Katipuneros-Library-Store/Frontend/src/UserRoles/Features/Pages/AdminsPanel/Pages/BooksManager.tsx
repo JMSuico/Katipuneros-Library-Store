@@ -7,6 +7,7 @@
 // Expresses all sync and async routines via clean lambda expressions.
 
 import { FC, useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   getCatalogBooks,
   getCatalogMetrics,
@@ -61,7 +62,15 @@ const BooksManager: FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // State: Filters & View
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+      setSearch(q);
+    }
+  }, [searchParams]);
   const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('active');
   const [sortFilter, setSortFilter] = useState<'recent' | 'title-asc' | 'copies-desc' | 'dewey'>('recent');

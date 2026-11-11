@@ -15,6 +15,42 @@ import { listenCirculationNotifications } from '../Shared/Utils/notificationBus'
 
 const DEFAULT_ADMIN_AVATAR = 'https://lh3.googleusercontent.com/aida/AEtjO1WAm680ewfRvusuK9JsOkwTwjiqbB7NGKnOPdZV6yddZxRRfxPtJ1zZaaQw4yemCAdrWsijXuvh6gfPEQxLgiEwI5dfikGPX5r-lcbU6y8Vqtuxt7VeJ8tlXzN2qpBwwyivnj9DaiDzPoYbB72wtjkq1IEe46Azv0y0lzaHKc34XUiKk9_iF6mWTKH_QMvSmtEidh96_0ART1sQb7Yrl1NlbsHQ0PN1tSCPQAdpGFuv5t1Jz5c0JQ4zBQ';
 
+/**
+ * Distinguishes between book-related queries (ISBN, book title, call number)
+ * versus user-related queries (patron name, email, patron ID, username, roles).
+ */
+const isBookOrTitleQuery = (q: string): boolean => {
+  const trimmed = q.trim();
+  if (!trimmed) return false;
+
+  // 1. Explicit User Indicators
+  if (trimmed.includes('@')) return false;
+  if (/^#?(kp|usr|user|id|stud|fac)[-_ ]?\d+/i.test(trimmed)) return false;
+  if (/^(patron|customer|student|faculty|cashier|admin|superadmin|librarian|active|restricted|suspended)$/i.test(trimmed)) {
+    return false;
+  }
+  if (/^(user|patron|u):/i.test(trimmed)) return false;
+
+  // 2. Explicit Book / Catalog Indicators
+  const digitsOnly = trimmed.replace(/[-\s]/g, '');
+  if (/^\d{9,13}[\dX]?$/i.test(digitsOnly)) return true;
+  if (/^\d+$/.test(digitsOnly)) return true;
+  if (/^\d{3}(\.\d+)?/i.test(trimmed)) return true;
+  if (/^(isbn|book|title|author|call|dewey|genre):/i.test(trimmed)) return true;
+  if (/\b(the|a|an|el|la|los|las|of|and|in|on|edition|volume|vol|vol\.|handbook|guide|manual|novel|principles|fundamentals|history|science|calculus|physics|programming|system|design|stories|literature|anthology|memoir)\b/i.test(trimmed)) {
+    return true;
+  }
+  if (trimmed.includes('"') || trimmed.includes(':') || trimmed.includes(';')) {
+    return true;
+  }
+  if (trimmed.split(/\s+/).length >= 3) {
+    return true;
+  }
+
+  // Default: treat 1-2 words without book indicators as user search (e.g. "JM Suico", "maria", "jdoe")
+  return false;
+};
+
 export interface AdminTopBarProps {
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
@@ -59,6 +95,18 @@ const AdminTopBar: React.FC<AdminTopBarProps> = ({
       console.log('[AdminTopBar] Standby global search query:', debouncedHeaderSearch);
     }
   }, [debouncedHeaderSearch]);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = headerSearch.trim();
+    if (!query) return;
+
+    if (isBookOrTitleQuery(query)) {
+      navigate(`/admin/books?q=${encodeURIComponent(query)}`);
+    } else {
+      navigate(`/admin/users?q=${encodeURIComponent(query)}`);
+    }
+  };
 
   useEffect(() => {
     fetchCurrentProfile().then((u) => {
@@ -162,14 +210,15 @@ const AdminTopBar: React.FC<AdminTopBarProps> = ({
       </div>
 
       <div className="flex items-center gap-space-lg">
-        <div className="hidden md:block w-72 lg:w-96">
+        <form onSubmit={handleSearchSubmit} className="hidden md:block w-72 lg:w-96">
           <SearchBar
             value={headerSearch}
             onChange={(val) => setHeaderSearch(val)}
+            onSubmit={handleSearchSubmit}
             placeholder="Search users, books, reservations..."
             shortcutKey="⌘K"
           />
-        </div>
+        </form>
         {/* Notification Bell Dropdown */}
         <div className="relative">
           <button
