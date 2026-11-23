@@ -82,6 +82,31 @@ export interface CreateCashierRequest {
   libraryCardNumber?: string;
 }
 
+export const getPortalUrl = (portal: 'customer' | 'admin' | 'cashier', path = ''): string => {
+  const normalizedPath = path && !path.startsWith('/') ? `/${path}` : path;
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const host = window.location.hostname;
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
+    if (isLocalHost) {
+      const port = portal === 'admin' ? '5174' : portal === 'cashier' ? '5175' : '5173';
+      return `${window.location.protocol}//${host}:${port}${normalizedPath}`;
+    }
+  }
+  const envUrl = portal === 'admin'
+    ? (import.meta.env?.VITE_ADMIN_PORTAL_URL as string | undefined)
+    : portal === 'cashier'
+      ? (import.meta.env?.VITE_CASHIER_PORTAL_URL as string | undefined)
+      : (import.meta.env?.VITE_CUSTOMER_PORTAL_URL as string | undefined);
+  const base = envUrl && envUrl.trim().length > 0
+    ? envUrl.trim().replace(/\/+$/, '')
+    : portal === 'admin'
+      ? 'https://katipuneros-admin.onrender.com'
+      : portal === 'cashier'
+        ? 'https://katipuneros-cashier.vercel.app'
+        : 'https://katipuneros-customer.vercel.app';
+  return `${base}${normalizedPath}`;
+};
+
 export const isCurrentPortAdmin = (): boolean => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname.toLowerCase();
@@ -92,8 +117,7 @@ export const isCurrentPortAdmin = (): boolean => {
     port === '5174' ||
     host.startsWith('admin.') ||
     host.includes('-admin.') ||
-    host.includes('admin') ||
-    window.location.pathname.startsWith('/admin')
+    host.includes('admin')
   );
 };
 
@@ -107,8 +131,7 @@ export const isCurrentPortCashier = (): boolean => {
     port === '5175' ||
     host.startsWith('cashier.') ||
     host.includes('-cashier.') ||
-    host.includes('cashier') ||
-    window.location.pathname.startsWith('/cashier')
+    host.includes('cashier')
   );
 };
 
@@ -204,7 +227,7 @@ export const loginUser = async (
       return {
         success: false,
         message:
-          'Admin access is restricted to the Administrator Console (http://127.0.0.1:5174/admin/login or https://katipuneros-admin.onrender.com). Public customer portal login is not permitted.',
+          `Admin access is restricted to the Administrator Console (${getPortalUrl('admin', '/admin/login')}). Public customer portal login is not permitted.`,
       };
     }
 
@@ -232,7 +255,7 @@ export const loginUser = async (
       clearAuthSession();
       return {
         success: false,
-        message: 'Cashier circulation desk staff must sign in at the dedicated Circulation Terminal (http://127.0.0.1:5175/cashier/login).',
+        message: `Cashier circulation desk staff must sign in at the dedicated Circulation Terminal (${getPortalUrl('cashier', '/cashier/login')}).`,
       };
     }
 

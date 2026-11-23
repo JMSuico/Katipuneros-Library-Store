@@ -1,11 +1,11 @@
 // [Layer: Features/Api/Controllers]
-// AltchaController.cs -- Self-hosted ALTCHA Proof-of-Work challenge generation.
-// Generates cryptographic PoW challenges for bot protection without external API calls.
-// Expresses all routines via clean lambda expressions (=>).
+// AltchaController.cs -- Thin REST endpoint handler for ALTCHA Proof-of-Work challenges.
+// Delegates challenge generation and verification to IAltchaService via clean lambda expressions (=>).
+// DO NOT put cryptographic logic, secrets, or business rules here.
 
-using System.Security.Cryptography;
-using System.Text;
-using Backend.Features.Helpers.Infrastructure;
+using Backend.Features.Api.DTOs.Requests;
+using Backend.Features.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Features.Api.Controllers;
@@ -14,101 +14,31 @@ namespace Backend.Features.Api.Controllers;
 [Route("api/[controller]")]
 public class AltchaController : ControllerBase
 {
-    private readonly string _hmacSecret;
+    private readonly IAltchaService _altchaService;
 
-    public AltchaController(IConfiguration configuration) =>
-        _hmacSecret = SecretConfiguration.RequireIfConfigured(configuration, "Altcha:HmacSecret") ?? "katipuneros-default-altcha-fallback-secret-2026";
+    public AltchaController(IAltchaService altchaService) =>
+        _altchaService = altchaService;
 
-    /// <summary>
-    /// GET /api/altcha/challenge
-    /// Generates a fresh Proof-of-Work challenge for the ALTCHA widget.
-    /// The widget solves the challenge in the user's browser automatically.
-    /// </summary>
+    /// <summary>Generates a fresh Proof-of-Work challenge for the ALTCHA widget.</summary>
     [HttpGet("challenge")]
-    public IActionResult GetChallenge()
-    {
-        var salt = GenerateRandomSalt();
-        var secretNumber = RandomNumberGenerator.GetInt32(2000, 25000);
-        var challenge = ComputeSha256Hash($"{salt}{secretNumber}");
-        var signature = ComputeHmacSha256(challenge, _hmacSecret);
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AltchaChallengeDto), StatusCodes.Status200OK)]
+    public IActionResult GetChallenge() =>
+        _altchaService.GenerateChallenge() is var c
+            ? Ok(new { algorithm = c.Algorithm, challenge = c.Challenge, maxnumber = c.MaxNumber, salt = c.Salt, signature = c.Signature })
+            : StatusCode(500);
 
-        return Ok(new
-        {
-            algorithm = "SHA-256",
-            challenge,
-            maxnumber = 50000,
-            salt,
-            signature
-        });
-    }
-
-    /// <summary>
-    /// POST /api/altcha/verify
-    /// Verifies the ALTCHA solution payload submitted by the widget.
-    /// </summary>
+    /// <summary>Verifies the ALTCHA solution payload submitted by the widget.</summary>
     [HttpPost("verify")]
-    public IActionResult VerifySolution([FromBody] AltchaVerifyRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Payload))
-            return BadRequest(new { success = false, message = "Missing ALTCHA payload." });
-
-        try
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult VerifySolution([FromBody] AltchaVerifyRequest request) =>
+        _altchaService.VerifySolution(request.Payload) switch
         {
-            // Decode the Base64 payload
-            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(request.Payload));
-            var parts = System.Text.Json.JsonSerializer.Deserialize<AltchaSolution>(decoded);
-
-            if (parts == null || string.IsNullOrEmpty(parts.challenge) || string.IsNullOrEmpty(parts.salt))
-                return BadRequest(new { success = false, message = "Invalid ALTCHA solution format." });
-
-            // Recompute: hash(salt + number) should equal the challenge
-            var expectedChallenge = ComputeSha256Hash($"{parts.salt}{parts.number}");
-            if (expectedChallenge != parts.challenge)
-                return Ok(new { success = false, message = "Challenge mismatch. Verification failed." });
-
-            // Verify HMAC signature
-            var expectedSignature = ComputeHmacSha256(parts.challenge, _hmacSecret);
-            if (expectedSignature != parts.signature)
-                return Ok(new { success = false, message = "Signature mismatch. Verification failed." });
-
-            return Ok(new { success = true, message = "Human verification passed." });
-        }
-        catch
-        {
-            return BadRequest(new { success = false, message = "Failed to decode ALTCHA payload." });
-        }
-    }
-
-    private static string GenerateRandomSalt()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(12);
-        return Convert.ToHexStringLower(bytes);
-    }
-
-    private static string ComputeSha256Hash(string input)
-    {
-        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexStringLower(hashBytes);
-    }
-
-    private static string ComputeHmacSha256(string data, string key)
-    {
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key));
-        var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-        return Convert.ToHexStringLower(hashBytes);
-    }
-}
-
-public class AltchaVerifyRequest
-{
-    public string Payload { get; set; } = string.Empty;
-}
-
-public class AltchaSolution
-{
-    public string algorithm { get; set; } = string.Empty;
-    public string challenge { get; set; } = string.Empty;
-    public int number { get; set; }
-    public string salt { get; set; } = string.Empty;
-    public string signature { get; set; } = string.Empty;
+            (true, true, var msg) => Ok(new { success = true, message = msg }),
+            (false, true, var msg) => Ok(new { success = false, message = msg }),
+            (false, false, var msg) => BadRequest(new { success = false, message = msg }),
+            _ => BadRequest(new { success = false, message = "Verification failed." })
+        };
 }

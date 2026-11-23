@@ -70,6 +70,12 @@ public class FinesController : ControllerBase
 
     [HttpPost("{id:guid}/notify")]
     [Authorize(Roles = "Cashier,Admin")]
-    public IActionResult NotifyPatronFine(Guid id) =>
-        Ok(ApiResponse<object>.Ok(new { id }, "Overdue balance notice dispatched to patron."));
+    public async Task<IActionResult> NotifyPatronFine(Guid id) =>
+        !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var staffId)
+            ? Unauthorized(ApiResponse<object>.Fail("Invalid staff identity token."))
+            : await _fineService.NotifyPatronFineAsync(id, staffId) switch
+            {
+                (true, _) => Ok(ApiResponse<object>.Ok(new { id }, "Overdue balance notice dispatched to patron.")),
+                (false, var error) => NotFound(ApiResponse<object>.Fail(error ?? "Fine record not found."))
+            };
 }

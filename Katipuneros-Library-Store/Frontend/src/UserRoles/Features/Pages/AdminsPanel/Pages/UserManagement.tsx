@@ -15,6 +15,7 @@ import {
   deleteAdminUser,
   bulkDeleteAdminUsers,
   AdminUserRecord,
+  AdminUpdateUserPayload,
 } from '../../../../../Endpoints/Admin/userApi';
 import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
@@ -28,6 +29,7 @@ import { Button } from '../../../../../Shared/Button';
 import { Dropdown } from '../../../../../Shared/Dropdown';
 import { RadioButton, RadioGroup } from '../../../../../Shared/RadioButton';
 import { exportToCsv, exportToXlsx } from '../../../../../Libs/spreadsheetExport';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 
 // Extended User Record preserving all rich source HTML details
 export interface UserItem {
@@ -233,9 +235,9 @@ const UserManagement: FC = () => {
         // Real-time empty state: database has no users, leave empty!
         setPatrons([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('[UserManagement] Real-time data fetch notice:', err);
-      setFetchError(err?.message || 'Failed to retrieve user accounts from server.');
+      setFetchError(getErrorMessage(err, 'Failed to retrieve user accounts from server.'));
       setPatrons([]);
     } finally {
       setIsLoading(false);
@@ -635,9 +637,9 @@ const UserManagement: FC = () => {
         'success'
       );
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create user:', err);
-      setAddFormError(err?.message || 'Failed to create user. Please check details.');
+      setAddFormError(getErrorMessage(err, 'Failed to create user. Please check details.'));
     }
   };
 
@@ -664,7 +666,7 @@ const UserManagement: FC = () => {
 
     try {
       const roleNum = formRole === 'Admin' ? 3 : formRole === 'Cashier' ? 2 : 1;
-      const updateData: any = {
+      const updateData: AdminUpdateUserPayload = {
         firstName: formFirstName.trim(),
         middleName: formMiddleName.trim() || undefined,
         lastName: formSurname.trim(),
@@ -695,9 +697,9 @@ const UserManagement: FC = () => {
         'success'
       );
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update user:', err);
-      setEditFormError(err?.message || 'Failed to update user.');
+      setEditFormError(getErrorMessage(err, 'Failed to update user.'));
     }
   };
 
@@ -731,9 +733,9 @@ const UserManagement: FC = () => {
       setIsSuspendModalOpen(false);
       setSuspendError('');
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to toggle status:', err);
-      setSuspendError(err?.message || 'Failed to toggle status.');
+      setSuspendError(getErrorMessage(err, 'Failed to toggle status.'));
     }
   };
 
@@ -757,9 +759,9 @@ const UserManagement: FC = () => {
       setUserToDelete(null);
       setSingleDeleteError('');
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to delete user:', err);
-      setSingleDeleteError(err?.message || 'Failed to delete user account.');
+      setSingleDeleteError(getErrorMessage(err, 'Failed to delete user account.'));
     }
   };
 
@@ -779,9 +781,9 @@ const UserManagement: FC = () => {
       setIsBulkDeleteModalOpen(false);
       setBulkDeleteError('');
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Bulk deletion failed:', err);
-      setBulkDeleteError(err?.message || 'Bulk deletion failed.');
+      setBulkDeleteError(getErrorMessage(err, 'Bulk deletion failed.'));
     }
   };
 
@@ -936,7 +938,7 @@ const UserManagement: FC = () => {
                   { value: 'Inactive', label: 'Inactive / Pending', icon: 'schedule' },
                 ]}
                 selectedValue={accountState}
-                onSelect={(val) => setAccountState(val as any)}
+                onSelect={(val) => setAccountState(val as 'All' | 'Active' | 'Inactive' | 'Suspended')}
                 label="Status"
                 icon="filter_alt"
               />
@@ -2103,7 +2105,7 @@ const UserManagement: FC = () => {
               <select
                 value={formRole}
                 onChange={(e) => {
-                  const newRole = e.target.value as any;
+                  const newRole = e.target.value as 'Customer' | 'Cashier' | 'Admin';
                   setFormRole(newRole);
                   setFormCardNumber(getNextSuggestedCardNumber(users, newRole));
                 }}
@@ -2427,7 +2429,7 @@ const UserManagement: FC = () => {
               </label>
               <select
                 value={formRole}
-                onChange={(e) => setFormRole(e.target.value as any)}
+                onChange={(e) => setFormRole(e.target.value as 'Customer' | 'Cashier' | 'Admin')}
                 className="w-full bg-surface-container-low px-space-md py-2.5 rounded-xl font-small text-small text-text-primary border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="Customer">Customer (Student / Patron)</option>
@@ -2863,7 +2865,7 @@ const UserManagement: FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm mt-1">
               <select
                 value={exportAlphaType}
-                onChange={(e) => setExportAlphaType(e.target.value as any)}
+                onChange={(e) => setExportAlphaType(e.target.value as 'all' | 'start' | 'end' | 'contains')}
                 className="bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary border border-outline-variant/30 focus:outline-none"
               >
                 <option value="all">All Names</option>
@@ -2892,7 +2894,7 @@ const UserManagement: FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm mt-1">
               <select
                 value={exportIdType}
-                onChange={(e) => setExportIdType(e.target.value as any)}
+                onChange={(e) => setExportIdType(e.target.value as 'all' | 'start' | 'end' | 'contains')}
                 className="bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary border border-outline-variant/30 focus:outline-none"
               >
                 <option value="all">All IDs</option>
@@ -2921,7 +2923,7 @@ const UserManagement: FC = () => {
               </span>
               <select
                 value={exportSortDir}
-                onChange={(e) => setExportSortDir(e.target.value as any)}
+                onChange={(e) => setExportSortDir(e.target.value as 'asc' | 'desc')}
                 className="w-full bg-surface-container-low px-space-md py-2 rounded-xl font-small text-small text-text-primary border border-outline-variant/30 focus:outline-none"
               >
                 <option value="desc">Descending (Newest to Oldest)</option>

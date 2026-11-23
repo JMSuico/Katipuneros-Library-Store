@@ -28,6 +28,7 @@ import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { useFluidResposiveness } from '../../../../../Hooks/useFluidResposiveness';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { useToasts } from '../../../../../Hooks/useToasts';
 
@@ -437,7 +438,7 @@ const Inventory: FC = () => {
       stopCamera();
       setShowIngestBarcodesModal(false);
       setIngestBarcodesInput('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast('Failed to ingest barcodes', 'error');
     }
   };
@@ -466,10 +467,10 @@ const Inventory: FC = () => {
         res?.message || 'Successfully synchronized 24 MARC 21 bibliographic catalog records with physical inventory stacks coordinates.'
       );
       showToast('Automated MARC 21 synchronization complete!', 'success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMarcSyncError(true);
-      setMarcSyncResult(err?.message || 'MARC Sync failed: Unable to connect to bibliographic catalog service.');
-      showToast(err?.message || 'Failed to complete MARC 21 synchronization.', 'error');
+      setMarcSyncResult(getErrorMessage(err, 'MARC Sync failed: Unable to connect to bibliographic catalog service.'));
+      showToast(getErrorMessage(err, 'Failed to complete MARC 21 synchronization.'), 'error');
     } finally {
       setMarcSyncing(false);
     }
@@ -1690,7 +1691,7 @@ const Inventory: FC = () => {
               </label>
               <select
                 value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value as any)}
+                onChange={(e) => setNewStatus(e.target.value as PhysicalInventoryItem['status'])}
                 className="w-full mt-1 bg-surface-container-low px-space-md py-2.5 rounded-lg font-small text-small text-text-primary border border-white/10 focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="Available">Available (On Shelf)</option>
@@ -2005,7 +2006,7 @@ const Inventory: FC = () => {
               <div className="grid grid-cols-3 gap-2 mt-1">
                 <select
                   value={exportAlphaFilter}
-                  onChange={(e) => setExportAlphaFilter(e.target.value as any)}
+                  onChange={(e) => setExportAlphaFilter(e.target.value as 'all' | 'starts_with' | 'ends_with' | 'contains')}
                   className="col-span-2 bg-surface-container-low px-space-sm py-2 rounded-lg font-small text-small text-text-primary border border-white/10"
                 >
                   <option value="all">All Titles (No letter filter)</option>
@@ -2033,7 +2034,7 @@ const Inventory: FC = () => {
               <div className="grid grid-cols-3 gap-2 mt-1">
                 <select
                   value={exportIdFilter}
-                  onChange={(e) => setExportIdFilter(e.target.value as any)}
+                  onChange={(e) => setExportIdFilter(e.target.value as 'all' | 'starts_with' | 'ends_with' | 'contains')}
                   className="col-span-2 bg-surface-container-low px-space-sm py-2 rounded-lg font-small text-small text-text-primary border border-white/10"
                 >
                   <option value="all">All IDs (No numeric filter)</option>
@@ -2061,7 +2062,7 @@ const Inventory: FC = () => {
                 </label>
                 <select
                   value={exportSortDir}
-                  onChange={(e) => setExportSortDir(e.target.value as any)}
+                  onChange={(e) => setExportSortDir(e.target.value as 'asc' | 'desc')}
                   className="w-full mt-1 bg-surface-container-low px-space-sm py-2 rounded-lg font-small text-small text-text-primary border border-white/10"
                 >
                   <option value="desc">Descending (Newest to Oldest)</option>

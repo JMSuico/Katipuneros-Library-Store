@@ -134,12 +134,14 @@ public class ReturnService : IReturnService
         return returnList.Select(t =>
         {
             var returnDate = t.ReturnDate ?? t.BorrowDate;
-            int overdueDays = t.ReturnDate != null && t.ReturnDate.Value > t.DueDate
-                ? Math.Max(0, (int)(t.ReturnDate.Value - t.DueDate).TotalDays)
+            int overdueDays = t.ReturnDate != null
+                ? Backend.Features.Helpers.Infrastructure.FineCalculationHelper.ComputeOverdueDays(t.DueDate, t.ReturnDate.Value, useCeiling: false)
                 : 0;
 
             var fineRecord = allFines.FirstOrDefault(f => f.BorrowTransactionId == t.Id);
-            decimal fineAmt = fineRecord?.Amount ?? (overdueDays * 15.00m);
+            decimal fineAmt = fineRecord?.Amount ?? (t.ReturnDate != null
+                ? Backend.Features.Helpers.Infrastructure.FineCalculationHelper.ComputeOverdueFine(t.DueDate, t.ReturnDate.Value)
+                : 0m);
 
             string clearanceStatus = fineAmt > 0
                 ? (fineRecord?.Status == "Settled" ? "Settled (Cash)" : "Pending Settlement")
@@ -198,19 +200,19 @@ public class ReturnService : IReturnService
             }
             : new DamagedAssessmentCaseResponse
             {
-                Id = Guid.NewGuid(),
-                CaseReference = "#CASE-QA-3194",
-                Severity = "Severe Fault",
-                BookTitle = "Philippine Flora & Forest",
-                BookBarcode = "#KP-BC-3194-02",
-                ReportedBy = "Bay 01 Specialist",
-                DamageType = "Spine Separation",
-                AssessedPenalty = 280.00m,
-                PatronResponsible = "C. M. Ilustre",
-                PatronLibraryId = "#KP-2021-04288",
-                PatronStatus = "Scholar",
-                EstRepairTime = "3-5 Workdays",
-                Status = "Active Triage",
+                Id = Guid.Empty,
+                CaseReference = "NONE",
+                Severity = "None",
+                BookTitle = "No Active Damaged Cases",
+                BookBarcode = "—",
+                ReportedBy = "—",
+                DamageType = "None",
+                AssessedPenalty = 0.00m,
+                PatronResponsible = "—",
+                PatronLibraryId = "—",
+                PatronStatus = "None",
+                EstRepairTime = "—",
+                Status = "Clear",
                 FlaggedDate = DateTime.UtcNow
             };
     }

@@ -7,14 +7,14 @@ import { BackendBook, getBooks } from '../booksApi';
 import { getStoredUser } from '../authApi';
 
 const getFavoritesStorageKey = (): string => {
-  const user = getStoredUser();
-  const uid = user?.userId || (user as any)?.id || 'guest';
+  const user = getStoredUser() as ({ userId?: string; id?: string } | null);
+  const uid = user?.userId || user?.id || 'guest';
   return `patron_favorites_${uid}`;
 };
 
 const getReadingListsStorageKey = (): string => {
-  const user = getStoredUser();
-  const uid = user?.userId || (user as any)?.id || 'guest';
+  const user = getStoredUser() as ({ userId?: string; id?: string } | null);
+  const uid = user?.userId || user?.id || 'guest';
   return `patron_reading_lists_${uid}`;
 };
 

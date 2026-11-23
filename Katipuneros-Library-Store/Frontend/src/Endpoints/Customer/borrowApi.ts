@@ -27,18 +27,6 @@ export interface CustomerLoanRecord {
   reservationExpressCode?: string;
 }
 
-export interface CustomerBorrowRequest {
-  bookId: string;
-  durationDays?: number;
-}
-
-export interface CustomerBorrowResponse {
-  success: boolean;
-  message: string;
-  borrowId?: string;
-  dueDate?: string;
-}
-
 export interface CustomerFineRecord {
   id: string;
   patronId: string;
@@ -77,20 +65,6 @@ export const renewCustomerLoan = async (loanId: string): Promise<{ success: bool
   return {
     success: res.success,
     message: res.message || (res.success ? 'Loan renewed successfully (+7 days).' : 'Renewal rejected.'),
-  };
-};
-
-export const requestCustomerBorrow = async (req: CustomerBorrowRequest): Promise<CustomerBorrowResponse> => {
-  const res = await apiRequest<CustomerLoanRecord[]>('/borrow/checkout', {
-    method: 'POST',
-    body: JSON.stringify({
-      bookBarcodes: [req.bookId],
-    }),
-  });
-
-  return {
-    success: res.success,
-    message: res.message || (res.success ? 'Borrow request recorded.' : 'Borrow failed.'),
   };
 };
 

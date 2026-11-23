@@ -25,6 +25,7 @@ import { SearchBar } from '../../../../../Shared/SearchBar';
 import { Dropdown, DropdownItem } from '../../../../../Shared/Dropdown';
 import { RadioButton } from '../../../../../Shared/RadioButton';
 import { AdminModalCard } from '../Shared/AdminModalCard';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
@@ -221,8 +222,8 @@ const Reservations: FC = () => {
       } else {
         addToast(res.message || 'Triage failed.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'An error occurred during triage.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'An error occurred during triage.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -245,8 +246,8 @@ const Reservations: FC = () => {
       } else {
         addToast(res.message || 'Failed to dispatch notification.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'Notification error.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Notification error.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -266,8 +267,8 @@ const Reservations: FC = () => {
       } else {
         addToast(res.message || 'Failed to fulfill hold.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'Release failed.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Release failed.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -288,8 +289,8 @@ const Reservations: FC = () => {
       } else {
         addToast(res.message || 'Failed to update status.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'Status transition error.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Status transition error.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -314,8 +315,8 @@ const Reservations: FC = () => {
       } else {
         addToast(res.message || 'Batch clearance failed.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'Batch action failed.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Batch action failed.'), 'error');
     } finally {
       setModalSubmitting(false);
     }

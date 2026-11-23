@@ -308,7 +308,7 @@ public class EmailService : IEmailService
                         </p>
                         <div style=""background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 18px; margin-bottom: 24px;"">
                             <p style=""margin: 0; color: #166534; font-size: 14px; font-weight: 500;"">
-                                ✓ Loan obligation fulfilled on-time. Clearance status: <strong>CLEARED (0.00 Outstanding)</strong>.
+                                [CLEARED] Loan obligation fulfilled on-time. Clearance status: <strong>CLEARED (0.00 Outstanding)</strong>.
                             </p>
                         </div>
                         <p style=""font-size: 14px; color: #64748B;"">

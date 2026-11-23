@@ -855,7 +855,7 @@ const CatalogPage: FC = () => {
                   })}
                 </div>
               ) : (
-                <div className="p-space-3xl rounded-2xl bg-surface-container-lowest border border-border-card text-center flex flex-col items-center gap-space-md">
+                <div className="p-space-3xl rounded-2xl bg-surface-container-lowest border border-outline-variant/40 text-center flex flex-col items-center gap-space-md">
                   <span className="material-symbols-outlined text-5xl text-text-secondary">menu_book</span>
                   <div className="flex flex-col gap-1 max-w-md">
                     <p className="font-headline-3 text-headline-3 text-text-primary font-semibold">
@@ -981,7 +981,7 @@ const CatalogPage: FC = () => {
                   by {selectedBook.author} {selectedBook.publishedYear ? `(${selectedBook.publishedYear})` : ''}
                 </p>
 
-                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-border-card text-small font-small">
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-outline-variant/40 text-small font-small">
                   <div>
                     <span className="text-text-secondary block font-caption text-caption">ISBN</span>
                     <span className="font-mono font-semibold text-text-primary">{selectedBook.isbn}</span>
@@ -1013,7 +1013,7 @@ const CatalogPage: FC = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-space-sm pt-space-xs border-t border-border-card">
+            <div className="flex items-center justify-end gap-space-sm pt-space-xs border-t border-outline-variant/40">
               <button
                 onClick={() => handleToggleFavorite(selectedBook.id, selectedBook.title)}
                 className={`px-space-md py-2.5 rounded-xl font-body-medium text-body-medium flex items-center gap-1.5 transition-colors cursor-pointer ${

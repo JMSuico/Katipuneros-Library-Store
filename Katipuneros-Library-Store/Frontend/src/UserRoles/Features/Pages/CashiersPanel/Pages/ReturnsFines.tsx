@@ -19,6 +19,7 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { dispatchCirculationNotification } from '../../../../../Shared/Utils/notificationBus';
 import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
 import { getPublicSystemSettings, SystemSettingsResponse } from '../../../../../Endpoints/Admin/settingsApi';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 
 
 export interface ReturnReceiptData {
@@ -433,8 +434,8 @@ export const ReturnsFines: FC = () => {
                 );
               }
             }
-          } catch (decodeErr: any) {
-            addToast(decodeErr?.message || 'Error decoding QR from image.', 'error');
+          } catch (decodeErr: unknown) {
+            addToast(getErrorMessage(decodeErr, 'Error decoding QR from image.'), 'error');
           } finally {
             setIsProcessing(false);
           }
@@ -450,9 +451,9 @@ export const ReturnsFines: FC = () => {
         setIsProcessing(false);
       };
       reader.readAsDataURL(file);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsProcessing(false);
-      addToast(err?.message || 'Error processing slip image.', 'error');
+      addToast(getErrorMessage(err, 'Error processing slip image.'), 'error');
     }
   };
 
@@ -539,7 +540,11 @@ export const ReturnsFines: FC = () => {
           ? 'Severe physical damage assessed (binding fee applied)'
           : 'Declared lost by patron';
 
-      const res: any = await processBookReturn({
+      interface ReturnPayloadShape {
+        transaction?: { id?: string; gatePassCode?: string };
+        assessedFine?: number;
+      }
+      const res = await processBookReturn({
         barcode: scannedCopy?.accessionNumber || selectedLoan.bookBarcode,
         bookCopyId: scannedCopy?.id,
         condition:
@@ -556,8 +561,8 @@ export const ReturnsFines: FC = () => {
 
       if (res?.success !== false) {
         // Unpack response payload to capture transaction reference & fine
-        const resData = res?.data || res;
-        const rawTxn = res?.transaction || resData?.transaction;
+        const resData = (res?.data || {}) as ReturnPayloadShape;
+        const rawTxn = resData.transaction;
         const rawRef =
           rawTxn?.gatePassCode ||
           rawTxn?.id ||
@@ -571,8 +576,8 @@ export const ReturnsFines: FC = () => {
             ? rawRef.replace(/^(GP|LN)-/, 'KP-TXN-')
             : `KP-TXN-${rawRef.replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()}`;
 
-        const assessedFine = res?.assessedFine ?? resData?.assessedFine ?? totalFineDue;
-        res.transaction = rawTxn
+        const assessedFine = resData.assessedFine ?? totalFineDue;
+        const resolvedTxn = rawTxn
           ? {
               ...rawTxn,
               gatePassCode: rawTxn.gatePassCode || transactionRef,
@@ -582,7 +587,6 @@ export const ReturnsFines: FC = () => {
               id: transactionRef,
               gatePassCode: transactionRef,
             };
-        res.assessedFine = assessedFine;
 
         const selectedReturnItem = {
           title: selectedLoan.bookTitle,
@@ -594,10 +598,10 @@ export const ReturnsFines: FC = () => {
         window.dispatchEvent(
           new CustomEvent('circulation-return-confirmed', {
             detail: {
-              reference: res.transaction?.gatePassCode || res.transaction?.id,
+              reference: resolvedTxn.gatePassCode || resolvedTxn.id,
               title: selectedReturnItem?.title,
               patronName: selectedReturnItem?.patronName,
-              fine: res.assessedFine,
+              fine: assessedFine,
             },
           })
         );
@@ -607,7 +611,7 @@ export const ReturnsFines: FC = () => {
           const syncChannel = new BroadcastChannel('katipuneros-circulation-sync');
           syncChannel.postMessage({
             type: 'return_confirmed',
-            reference: res.transaction?.gatePassCode || res.transaction?.id,
+            reference: resolvedTxn.gatePassCode || resolvedTxn.id,
             timestamp: Date.now(),
           });
           syncChannel.close();
@@ -619,7 +623,7 @@ export const ReturnsFines: FC = () => {
         dispatchCirculationNotification({
           id: `notif-${Date.now()}`,
           type: 'return_confirmed',
-          reference: res.transaction?.gatePassCode || selectedLoan.loanCode || `KP-TXN-${selectedLoan.id.slice(0, 8)}`,
+          reference: resolvedTxn.gatePassCode || selectedLoan.loanCode || `KP-TXN-${selectedLoan.id.slice(0, 8)}`,
           title: selectedLoan.bookTitle,
           patronName: selectedLoan.patronName,
           timestamp: new Date().toISOString(),
@@ -1732,7 +1736,7 @@ export const ReturnsFines: FC = () => {
               {/* Sort Selector */}
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'due-asc' | 'overdue-first' | 'patron-az' | 'title-az')}
                 className="h-9 px-3 rounded-xl bg-surface-container text-text-primary font-caption text-caption font-semibold outline-none cursor-pointer border border-outline/10"
               >
                 <option value="due-asc">Sort: Due Date (Soonest)</option>

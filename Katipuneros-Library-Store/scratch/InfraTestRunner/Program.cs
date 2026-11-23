@@ -10,9 +10,14 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Backend.Features.Data;
+using Backend.Features.Data.Enums;
 using Backend.Features.Data.Models;
 using Backend.Features.DBInfrastructure.Cache;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Implementations;
+using Backend.Features.Services.Implementations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Scratch.InfraTestRunner
 {
@@ -244,6 +249,77 @@ namespace Scratch.InfraTestRunner
 
             var catReadOnlyField = typeof(CategoryRepository).GetField("_readOnlyContext", BindingFlags.NonPublic | BindingFlags.Instance);
             AssertTrue("CategoryRepository has _readOnlyContext field", catReadOnlyField != null, "Field _readOnlyContext exists");
+
+            // ----------------------------------------------------
+            // 6. Adversarial Security, Sanitizer, CSV & Fine Tests
+            // ----------------------------------------------------
+            AssertTrue("InputSanitizer handles null/whitespace", InputSanitizer.SanitizeText(null) == string.Empty && InputSanitizer.SanitizeText("   ") == string.Empty, "Null/whitespace sanitized cleanly");
+            var xssClean = InputSanitizer.SanitizeText("<script>alert('xss')</script><b>Katipunan</b>");
+            AssertTrue("InputSanitizer strips script & HTML tags", !xssClean.Contains("<script>") && !xssClean.Contains("<b>") && xssClean.Contains("Katipunan"), $"Sanitized: {xssClean}");
+            var regexMeta = InputSanitizer.SanitizeText("[test(.*+\\b%_");
+            AssertTrue("InputSanitizer preserves safe regex metacharacters without crashing", regexMeta == "[test(.*+\\b%_", $"Result: {regexMeta}");
+            var unicodeText = InputSanitizer.SanitizeText("José Rizal — ₱500");
+            AssertTrue("InputSanitizer handles Unicode safely", unicodeText.Contains("José") && unicodeText.Contains("₱500"), $"Result: {unicodeText}");
+
+            // CSV formula injection & RFC-4180 quoting
+            var formulaCell = CsvExportHelper.EscapeCell("=CMD|'/C calc'!A0");
+            var quoteCell = CsvExportHelper.EscapeCell("He said \"hello\"");
+            AssertTrue("CsvExportHelper neutralizes leading formula char", formulaCell == "\"'=CMD|'/C calc'!A0\"", $"Escaped: {formulaCell}");
+            AssertTrue("CsvExportHelper escapes embedded quotes", quoteCell == "\"He said \"\"hello\"\"\"", $"Escaped: {quoteCell}");
+
+            // FineCalculationHelper boundary & cap checks
+            var baseTime = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+            AssertTrue("FineCalculationHelper zero on on-time return", FineCalculationHelper.ComputeOverdueFine(baseTime, baseTime.AddHours(-2)) == 0m, "On-time return = 0.00");
+            int custGrace = FineCalculationHelper.ComputeGracePeriodDays(UserRole.Customer, "Student", 24);
+            AssertTrue("FineCalculationHelper grace period applied for Customer", FineCalculationHelper.ComputeOverdueFine(baseTime, baseTime.AddDays(1), graceDays: custGrace, useCeiling: true) == 0m, "1 day overdue within 24h grace = 0.00");
+            AssertTrue("FineCalculationHelper overdue fine capped at 500", FineCalculationHelper.ComputeOverdueFine(baseTime, baseTime.AddDays(100), graceDays: 0, useCeiling: true) == 500.00m, "100 days overdue capped at 500.00");
+            AssertTrue("FineCalculationHelper damaged & lost penalties", FineCalculationHelper.ComputeConditionPenalty(true, false, null) == 280.00m && FineCalculationHelper.ComputeConditionPenalty(false, true, null) == 650.00m, "Damaged=280, Lost=650");
+
+            // AuditHelper SHA-256 chain tamper detection
+            var ts1 = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc);
+            var h1 = AuditHelper.ComputeHash(AuditHelper.GenesisHash, "CHECKOUT", "Book", "KP-TXN-1", ts1);
+            var h2 = AuditHelper.ComputeHash(h1, "RETURN", "Book", "KP-TXN-1", ts1.AddMinutes(5));
+            var h2Tampered = AuditHelper.ComputeHash(h1, "RETURN", "Book", "KP-TXN-2", ts1.AddMinutes(5));
+            AssertTrue("AuditHelper detects payload tampering", h1.Length == 64 && h2 != h2Tampered, "SHA-256 chain detects 1-char payload mutation");
+
+            // AltchaService PoW + SecretConfiguration enforcement
+            var invalidCfg = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=Test;",
+                ["Jwt:SecretKey"] = "CHANGE_ME"
+            }).Build();
+            bool secretThrew = false;
+            try { SecretConfiguration.ValidateRequired(invalidCfg); } catch (InvalidOperationException) { secretThrew = true; }
+            AssertTrue("SecretConfiguration rejects placeholder & missing Altcha:HmacSecret", secretThrew, "Rejected invalid/missing secrets");
+
+            var validCfg = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=Test;",
+                ["Jwt:SecretKey"] = "TestJwtSigningKey_AtLeast32CharsLong!",
+                ["Altcha:HmacSecret"] = "TestAltchaHmacSecret_AtLeast32Chars!"
+            }).Build();
+            SecretConfiguration.ValidateRequired(validCfg);
+            var altchaSvc = new AltchaService(validCfg, NullLogger<AltchaService>.Instance);
+            var challenge = altchaSvc.GenerateChallenge();
+            var badVerify = altchaSvc.VerifySolution("not-valid-base64!!!");
+            AssertTrue("AltchaService rejects malformed payload", !badVerify.Success && !badVerify.IsValidFormat, badVerify.Message);
+            string? solvedPayload = null;
+            for (int n = 2000; n <= 25000; n++)
+            {
+                var candidate = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{challenge.Salt}{n}")));
+                if (candidate == challenge.Challenge)
+                {
+                    var json = JsonSerializer.Serialize(new { algorithm = challenge.Algorithm, challenge = challenge.Challenge, number = n, salt = challenge.Salt, signature = challenge.Signature });
+                    solvedPayload = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json));
+                    break;
+                }
+            }
+            var goodVerify = solvedPayload != null ? altchaSvc.VerifySolution(solvedPayload) : (Success: false, IsValidFormat: false, Message: "Unsolved");
+            AssertTrue("AltchaService verifies valid PoW challenge", goodVerify.Success, goodVerify.Message);
+
+            // Cache null poisoning guard
+            await cacheService.SetAsync<string>("neg:null", null!, TimeSpan.FromMinutes(5));
+            AssertTrue("CacheService skips null values (no negative cache poisoning)", await cacheService.GetAsync<string>("neg:null") == null, "Null not cached");
 
             Console.WriteLine("----------------------------------------------------------");
             Console.WriteLine($"C# Runtime Checks Summary: {passed} Passed, {failed} Failed");

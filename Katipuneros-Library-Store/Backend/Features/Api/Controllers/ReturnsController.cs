@@ -116,10 +116,14 @@ public class ReturnsController : ControllerBase
         sb.AppendLine("ReturnCode,PatronName,PatronLibraryId,PatronProgram,BookTitle,BookBarcode,ReturnDate,DueDate,OverdueDays,AssessedFine,ConditionGrade,ClearanceStatus,StationDesk,TerminalId");
         foreach (var r in records)
         {
-            sb.AppendLine($"\"{r.ReturnCode}\",\"{r.PatronName.Replace("\"", "\"\"")}\",\"{r.PatronLibraryId}\",\"{r.PatronProgram}\",\"{r.BookTitle.Replace("\"", "\"\"")}\",\"{r.BookBarcode}\",\"{r.ReturnTimestamp:yyyy-MM-dd HH:mm}\",\"{r.DueDate:yyyy-MM-dd}\",{r.OverdueDays},{r.AssessedFine:F2},\"{r.ConditionGrade}\",\"{r.ClearanceStatus}\",\"{r.StationDesk}\",\"{r.TerminalId}\"");
+            sb.AppendLine(Backend.Features.Helpers.Infrastructure.CsvExportHelper.BuildRow(
+                r.ReturnCode, r.PatronName, r.PatronLibraryId, r.PatronProgram, r.BookTitle, r.BookBarcode,
+                r.ReturnTimestamp.ToString("yyyy-MM-dd HH:mm"), r.DueDate.ToString("yyyy-MM-dd"),
+                r.OverdueDays, r.AssessedFine.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                r.ConditionGrade, r.ClearanceStatus, r.StationDesk, r.TerminalId));
         }
 
-        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        var bytes = Backend.Features.Helpers.Infrastructure.CsvExportHelper.ToUtf8CsvBytes(sb);
         return File(bytes, "text/csv", $"Returns_Journal_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 

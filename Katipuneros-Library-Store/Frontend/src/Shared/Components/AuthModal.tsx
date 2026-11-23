@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, registerUser } from '../../Endpoints/authApi';
+import { loginUser, registerUser, getPortalUrl } from '../../Endpoints/authApi';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -101,7 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         } else if (res.user.role === 'Customer') {
           navigate('/customer/home');
         } else {
-          setErrorMessage('Admin access is restricted to the dedicated Admin terminal at http://127.0.0.1:5174/admin.');
+          setErrorMessage(`Admin access is restricted to the dedicated Admin terminal (${getPortalUrl('admin', '/admin/login')}).`);
         }
       } else {
         setErrorMessage(res.message);

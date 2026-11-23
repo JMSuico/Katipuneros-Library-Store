@@ -9,6 +9,7 @@ import { RadioButton } from '../../../../../Shared/RadioButton';
 import { Dropdown } from '../../../../../Shared/Dropdown';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 import { KebabMenu } from '../../../../../Shared/KebabMenu';
+import { PieGraphChart } from '../../../../../Shared/Charts';
 import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
@@ -635,28 +636,19 @@ const Notifications: FC = () => {
               <span>SMTP &amp; Twilio nominal</span>
             </div>
           </div>
-          <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
-            <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-surface-container"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3.5"
-              />
-              <path
-                className="text-action-green"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="currentColor"
-                strokeDasharray={`${topMetrics.deliveryReliability}, 100`}
-                strokeLinecap="round"
-                strokeWidth="3.5"
-              />
-            </svg>
-            <span className="absolute font-caption text-[11px] font-bold text-text-primary">
-              {topMetrics.deliveryFailRate}% fl
-            </span>
+          <div className="relative flex items-center justify-center shrink-0">
+            <PieGraphChart
+              slices={[
+                { label: 'Delivered', value: Math.max(0, topMetrics.deliveryReliability), color: 'var(--color-action-green, #9BE564)' },
+                { label: 'Failed', value: Math.max(0, topMetrics.deliveryFailRate), color: 'var(--color-surface-container, #e8eff0)' },
+              ]}
+              centerMetric={`${topMetrics.deliveryFailRate}%`}
+              centerLabel="fail"
+              sizeClass="w-20 h-20"
+              strokeWidth={10}
+              showLegend={false}
+              emptyMessage="0%"
+            />
           </div>
         </div>
 

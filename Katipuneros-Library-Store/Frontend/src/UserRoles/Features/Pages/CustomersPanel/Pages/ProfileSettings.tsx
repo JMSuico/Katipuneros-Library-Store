@@ -862,7 +862,7 @@ export const ProfileSettings: FC = () => {
                         <button
                           type="button"
                           onClick={() => setIsEditing(true)}
-                          className="h-11 px-space-lg rounded-full bg-primary text-on-primary hover:bg-primary-hover font-small text-small font-semibold shadow-md transition-all flex items-center gap-space-xs cursor-pointer"
+                          className="h-11 px-space-lg rounded-full bg-primary text-on-primary hover:bg-primary-container font-small text-small font-semibold shadow-md transition-all flex items-center gap-space-xs cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-lg">edit</span>
                           <span>Edit Profile</span>
@@ -1421,7 +1421,7 @@ export const ProfileSettings: FC = () => {
                       }}
                     />
                     {isUploadingAvatar && (
-                      <div className="absolute inset-0 bg-scrim/60 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-inverse-surface/60 flex items-center justify-center">
                         <span className="material-symbols-outlined text-white animate-spin text-xl">
                           progress_activity
                         </span>
@@ -1457,7 +1457,7 @@ export const ProfileSettings: FC = () => {
 
       {/* Modal: Change Password */}
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/40 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface-container-lowest rounded-2xl p-space-lg max-w-md w-full shadow-2xl border border-outline-variant/20">
             <div className="flex items-center justify-between mb-space-md">
               <div className="flex items-center gap-2">
@@ -1527,7 +1527,7 @@ export const ProfileSettings: FC = () => {
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="px-space-lg py-2 rounded-full bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 font-small text-small font-bold shadow-md cursor-pointer"
+                  className="px-space-lg py-2 rounded-full bg-primary text-on-primary hover:bg-primary-container disabled:opacity-50 font-small text-small font-bold shadow-md cursor-pointer"
                 >
                   {isChangingPassword ? 'Updating...' : 'Update Password'}
                 </button>

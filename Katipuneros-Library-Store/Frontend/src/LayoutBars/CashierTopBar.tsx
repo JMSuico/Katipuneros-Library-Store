@@ -152,7 +152,7 @@ const CashierTopBar: React.FC<CashierTopBarProps> = ({
   const handleLogout = () => {
     setIsDropdownOpen(false);
     logoutUser();
-    navigate('/login');
+    navigate('/cashier/login');
   };
 
   const displayName = currentUser?.fullName || 'Cashier Desk';

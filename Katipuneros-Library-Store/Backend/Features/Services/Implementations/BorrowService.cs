@@ -131,20 +131,19 @@ public class BorrowService : IBorrowService
         Guid? reservationId = null) =>
         await ExecuteAsync<(bool Success, List<BorrowTransaction> Transactions, string? Error)>(async () =>
         {
+            if (bookBarcodes == null || bookBarcodes.Count == 0)
+                return (false, new List<BorrowTransaction>(), "At least one book barcode or copy identifier is required for checkout.");
+
             var patron = await _userRepository.GetByIdAsync(patronId);
             if (patron == null || !patron.IsActive)
                 return (false, new List<BorrowTransaction>(), "Patron record is invalid or currently suspended.");
 
-            var activeLoans = await _borrowRepository.GetActiveByPatronIdAsync(patronId);
             var circPolicy = await GetCirculationPolicyAsync();
             var patronTier = GetPatronTier(patron, circPolicy);
 
             int maxAllowed = patronTier.MaxConcurrency > 0
                 ? patronTier.MaxConcurrency
                 : (int.TryParse(_configuration["LibraryPolicy:MaxActiveBorrowingsPerPatron"], out int cap) ? cap : 3);
-
-            if (activeLoans.Count + bookBarcodes.Count > maxAllowed)
-                return (false, new List<BorrowTransaction>(), $"Loan quota exceeded. Patrons can have at most {maxAllowed} active loans concurrently (currently active: {activeLoans.Count}).");
 
             // Validate explicit reservation hold if provided
             Reservation? explicitReservation = null;
@@ -180,6 +179,13 @@ public class BorrowService : IBorrowService
             using var dbTx = await _context.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead);
             try
             {
+                var activeLoans = await _borrowRepository.GetActiveByPatronIdAsync(patronId);
+                if (activeLoans.Count + bookBarcodes.Count > maxAllowed)
+                {
+                    await dbTx.RollbackAsync();
+                    return (false, new List<BorrowTransaction>(), $"Loan quota exceeded. Patrons can have at most {maxAllowed} active loans concurrently (currently active: {activeLoans.Count}).");
+                }
+
                 int defaultLoanDays = patronTier.DaysDuration > 0 ? patronTier.DaysDuration : 14;
                 DateTime effectiveDueDate = dueDate.HasValue && dueDate.Value > DateTime.UtcNow
                     ? dueDate.Value
@@ -584,6 +590,15 @@ public class BorrowService : IBorrowService
             using var dbTx = await _context.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead);
             try
             {
+                // Re-verify loan status inside transaction to prevent double-return race conditions
+                var lockedLoan = await _borrowRepository.GetByIdAsync(activeLoan.Id);
+                if (lockedLoan == null || (lockedLoan.Status != TransactionStatus.Active && lockedLoan.Status != TransactionStatus.Overdue))
+                {
+                    await dbTx.RollbackAsync();
+                    return (false, null, 0, "This loan has already been processed or returned.");
+                }
+                activeLoan = lockedLoan;
+
                 if (copy != null)
                 {
                     copy.Status = isDamaged ? CopyStatus.Damaged : isLost ? CopyStatus.Lost : CopyStatus.Available;
@@ -613,53 +628,42 @@ public class BorrowService : IBorrowService
                     book.AvailableCopies = Math.Min(book.TotalCopies, book.AvailableCopies + 1);
                 }
 
-                // Dynamic statutory fine tariffs and circulation policy
+                // Dynamic statutory fine tariffs and circulation policy (delegated to FineCalculationHelper)
                 var fineTariffs = await GetFineTariffsAsync();
                 var circPolicy = await GetCirculationPolicyAsync();
 
                 decimal dailyFine = fineTariffs.DailyOverdueTariff > 0
                     ? fineTariffs.DailyOverdueTariff
-                    : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal fr) ? fr : 15.00m);
+                    : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out decimal fr) ? fr : FineCalculationHelper.DefaultDailyFineRate);
                 decimal fineCap = fineTariffs.MaxPenaltyCap > 0
                     ? fineTariffs.MaxPenaltyCap
-                    : (decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out decimal fc) ? fc : 500.00m);
+                    : (decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out decimal fc) ? fc : FineCalculationHelper.DefaultMaxFineCap);
 
                 if (activeLoan.Patron == null)
                 {
                     activeLoan.Patron = await _userRepository.GetByIdAsync(activeLoan.PatronId);
                 }
 
-                int gracePeriodHours = circPolicy.GracePeriodHours > 0 ? circPolicy.GracePeriodHours : 24;
-                int dynamicGracePeriodDays = (int)Math.Ceiling(gracePeriodHours / 24.0);
+                int gracePeriodHours = circPolicy.GracePeriodHours > 0 ? circPolicy.GracePeriodHours : FineCalculationHelper.DefaultGracePeriodHours;
+                int gracePeriodDays = FineCalculationHelper.ComputeGracePeriodDays(activeLoan.Patron?.Role, activeLoan.Patron?.EmploymentStatus, gracePeriodHours);
 
-                bool isStudentOrCustomer = activeLoan.Patron?.Role == UserRole.Customer ||
-                    string.Equals(activeLoan.Patron?.EmploymentStatus, "Student", StringComparison.OrdinalIgnoreCase);
-                int gracePeriodDays = isStudentOrCustomer ? dynamicGracePeriodDays : 0;
-
-                if (activeLoan.ReturnDate.HasValue && activeLoan.ReturnDate.Value > activeLoan.DueDate)
+                if (activeLoan.ReturnDate.HasValue)
                 {
-                    var rawOverdueDays = (int)Math.Ceiling((activeLoan.ReturnDate.Value - activeLoan.DueDate).TotalDays);
-                    var billableDays = Math.Max(0, rawOverdueDays - gracePeriodDays);
-                    if (billableDays > 0)
-                    {
-                        decimal overduePenalty = Math.Min(billableDays * dailyFine, fineCap);
-                        totalFine += overduePenalty;
-                    }
+                    totalFine += FineCalculationHelper.ComputeOverdueFine(
+                        activeLoan.DueDate,
+                        activeLoan.ReturnDate.Value,
+                        dailyFine,
+                        fineCap,
+                        gracePeriodDays,
+                        useCeiling: true);
                 }
 
-                if (damageFee.HasValue && damageFee.Value > 0)
-                {
-                    totalFine += damageFee.Value;
-                }
-                else if (isDamaged)
-                {
-                    totalFine += fineTariffs.BindingRepairTariff > 0 ? fineTariffs.BindingRepairTariff : 280.00m;
-                }
-                else if (isLost)
-                {
-                    decimal lostAdminFee = fineTariffs.LostBookAdministrativeFee > 0 ? fineTariffs.LostBookAdministrativeFee : 150.00m;
-                    totalFine += 500.00m + lostAdminFee;
-                }
+                totalFine += FineCalculationHelper.ComputeConditionPenalty(
+                    isDamaged,
+                    isLost,
+                    damageFee,
+                    fineTariffs.BindingRepairTariff,
+                    fineTariffs.LostBookAdministrativeFee);
 
                 DetachModifiedGraph();
 
@@ -712,25 +716,20 @@ public class BorrowService : IBorrowService
 
             decimal dailyRate = fineTariffs.DailyOverdueTariff > 0
                 ? fineTariffs.DailyOverdueTariff
-                : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out var configuredRate) ? configuredRate : 15.00m);
+                : (decimal.TryParse(_configuration["LibraryPolicy:DailyOverdueFineRate"], out var configuredRate) ? configuredRate : FineCalculationHelper.DefaultDailyFineRate);
             decimal fineCap = fineTariffs.MaxPenaltyCap > 0
                 ? fineTariffs.MaxPenaltyCap
-                : (decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out var configuredCap) ? configuredCap : 500.00m);
+                : (decimal.TryParse(_configuration["LibraryPolicy:MaximumFineCap"], out var configuredCap) ? configuredCap : FineCalculationHelper.DefaultMaxFineCap);
 
-            int gracePeriodHours = circPolicy.GracePeriodHours > 0 ? circPolicy.GracePeriodHours : 24;
-            int dynamicGraceDays = (int)Math.Ceiling(gracePeriodHours / 24.0);
+            int gracePeriodHours = circPolicy.GracePeriodHours > 0 ? circPolicy.GracePeriodHours : FineCalculationHelper.DefaultGracePeriodHours;
 
             return loans.Select(b =>
             {
                 int daysRemaining = (int)Math.Ceiling((b.DueDate - now).TotalDays);
-                bool isOverdue = b.Status == TransactionStatus.Active && b.DueDate < now;
-                bool isStudentOrCustomer = b.Patron?.Role == UserRole.Customer ||
-                    string.Equals(b.Patron?.EmploymentStatus, "Student", StringComparison.OrdinalIgnoreCase);
-                int graceDays = isStudentOrCustomer ? dynamicGraceDays : 0;
-                int rawOverdueDays = Math.Max(0, (int)Math.Floor((now - b.DueDate).TotalDays));
-                int billableDays = Math.Max(0, rawOverdueDays - graceDays);
+                bool isOverdue = (b.Status == TransactionStatus.Active || b.Status == TransactionStatus.Overdue) && b.DueDate < now;
+                int graceDays = FineCalculationHelper.ComputeGracePeriodDays(b.Patron?.Role, b.Patron?.EmploymentStatus, gracePeriodHours);
                 decimal fine = isOverdue
-                    ? Math.Min(billableDays * dailyRate, fineCap)
+                    ? FineCalculationHelper.ComputeOverdueFine(b.DueDate, now, dailyRate, fineCap, graceDays, useCeiling: false)
                     : 0m;
 
                 string roleLabel = b.Patron?.EmploymentStatus ?? (b.Patron?.Role == UserRole.Customer ? "Undergrad" : b.Patron?.Role.ToString() ?? "Patron");

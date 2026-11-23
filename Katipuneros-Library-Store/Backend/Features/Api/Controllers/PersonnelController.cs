@@ -5,8 +5,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Models;
 using Backend.Features.Services.Interfaces;
@@ -15,30 +15,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Features.Api.Controllers;
-
-public class CreatePersonnelRequest
-{
-    [Required]
-    [MaxLength(150)]
-    public string FullName { get; set; } = string.Empty;
-
-    [Required]
-    [MaxLength(100)]
-    public string Position { get; set; } = string.Empty;
-
-    [MaxLength(100)]
-    public string Department { get; set; } = string.Empty;
-
-    [MaxLength(500)]
-    public string? ImageUrl { get; set; }
-
-    public int DisplayOrder { get; set; } = 1;
-}
-
-public class UpdatePersonnelRequest : CreatePersonnelRequest
-{
-    public bool IsActive { get; set; } = true;
-}
 
 [ApiController]
 [Route("api/[controller]")]

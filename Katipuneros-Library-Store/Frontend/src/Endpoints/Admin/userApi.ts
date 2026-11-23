@@ -133,26 +133,28 @@ export const createAdminUser = async (user: {
     body: JSON.stringify(user),
   });
 
+export interface AdminUpdateUserPayload {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  username?: string;
+  email?: string;
+  department?: string;
+  libraryCardNumber?: string;
+  phoneNumber?: string;
+  currentAddress?: string;
+  permanentAddress?: string;
+  employmentStatus?: string;
+  profilePictureUrl?: string;
+  age?: string;
+  password?: string;
+  role: number;
+  isActive: boolean;
+}
+
 export const updateAdminUser = async (
   userId: string,
-  user: {
-    firstName: string; 
-    middleName?: string; 
-    lastName: string; 
-    username?: string;
-    email?: string;
-    department?: string; 
-    libraryCardNumber?: string;
-    phoneNumber?: string;
-    currentAddress?: string;
-    permanentAddress?: string;
-    employmentStatus?: string;
-    profilePictureUrl?: string;
-    age?: string;
-    password?: string;
-    role: number;
-    isActive: boolean;
-  }
+  user: AdminUpdateUserPayload
 ) =>
   await apiRequest<object>(`/users/${userId}/admin-update`, {
     method: 'PUT',

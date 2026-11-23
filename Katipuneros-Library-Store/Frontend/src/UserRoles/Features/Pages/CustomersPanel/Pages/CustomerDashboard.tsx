@@ -671,7 +671,7 @@ const CustomerDashboard: FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-space-xl rounded-3xl bg-surface-container-lowest border border-border-card text-center flex flex-col items-center gap-space-sm">
+              <div className="p-space-xl rounded-3xl bg-surface-container-lowest border border-outline-variant/40 text-center flex flex-col items-center gap-space-sm">
                 <span className="material-symbols-outlined text-4xl text-text-secondary">auto_stories</span>
                 <p className="font-headline-4 text-headline-4 text-text-primary">No Spotlight Volume Designated</p>
                 <p className="font-body text-body text-text-secondary max-w-md">
@@ -925,7 +925,7 @@ const CustomerDashboard: FC = () => {
                 })}
               </div>
             ) : (
-              <div className="p-space-xl rounded-2xl bg-surface-container-lowest border border-border-card text-center flex flex-col items-center gap-space-sm">
+              <div className="p-space-xl rounded-2xl bg-surface-container-lowest border border-outline-variant/40 text-center flex flex-col items-center gap-space-sm">
                 <span className="material-symbols-outlined text-4xl text-text-secondary">menu_book</span>
                 <p className="font-headline-4 text-headline-4 text-text-primary">No Titles Available in This Category</p>
                 <p className="font-body text-body text-text-secondary max-w-md">
@@ -1021,7 +1021,7 @@ const CustomerDashboard: FC = () => {
                 })}
               </div>
             ) : (
-              <div className="p-space-lg rounded-2xl bg-surface-container-lowest border border-border-card text-center text-text-secondary font-body text-body">
+              <div className="p-space-lg rounded-2xl bg-surface-container-lowest border border-outline-variant/40 text-center text-text-secondary font-body text-body">
                 No high-circulation titles recorded yet for this academic term.
               </div>
             )}

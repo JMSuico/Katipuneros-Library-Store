@@ -28,6 +28,7 @@ import {
 import { SearchBar } from '../../../../../Shared/SearchBar';
 import { DefaultFloatingModalCard } from '../../../../../Shared/DefaultFloatingModalCard';
 import { Dropdown } from '../../../../../Shared/Dropdown';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 import { Button } from '../../../../../Shared/Button';
 import { useDebounce } from '../../../../../Hooks/useDebounce';
 import { usePagination } from '../../../../../Hooks/usePagination';
@@ -428,8 +429,8 @@ const BooksManager: FC = () => {
       }));
       setIsEditModalOpen(false);
       loadData();
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to update catalog entry.', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to update catalog entry.'), 'error');
     }
   };
 
@@ -540,8 +541,8 @@ const BooksManager: FC = () => {
       } else {
         setSingleDeleteError(res.message || 'Failed to delete book.');
       }
-    } catch (err: any) {
-      setSingleDeleteError(err?.message || 'Failed to delete book.');
+    } catch (err: unknown) {
+      setSingleDeleteError(getErrorMessage(err, 'Failed to delete book.'));
     }
   };
 
@@ -557,8 +558,8 @@ const BooksManager: FC = () => {
       clearSelection();
       setIsBulkDeleteModalOpen(false);
       loadData();
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to delete books', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to delete books'), 'error');
     }
   };
 
@@ -571,8 +572,8 @@ const BooksManager: FC = () => {
       setBooks((prev) => prev.map((b) => (selectedIds.has(b.id) ? { ...b, isArchived: true } : b)));
       showToast(`${ids.length} books moved to archive.`, 'success');
       clearSelection();
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to archive books.', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to archive books.'), 'error');
     }
   };
 
@@ -598,8 +599,8 @@ const BooksManager: FC = () => {
       } else {
         showToast(res?.message || 'Failed to import ISBN barcodes.', 'error');
       }
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to import ISBN barcodes.', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to import ISBN barcodes.'), 'error');
     }
   };
 
@@ -2639,7 +2640,7 @@ const BooksManager: FC = () => {
               </label>
               <select
                 value={exportParams.sortDirection}
-                onChange={(e) => setExportParams({ ...exportParams, sortDirection: e.target.value as any })}
+                onChange={(e) => setExportParams({ ...exportParams, sortDirection: e.target.value as 'asc' | 'desc' })}
                 className="w-full bg-surface-container-low px-3 py-2 rounded-xl text-small font-small text-text-primary border border-outline-variant/20"
               >
                 <option value="asc">Ascending (Oldest First / A-Z)</option>

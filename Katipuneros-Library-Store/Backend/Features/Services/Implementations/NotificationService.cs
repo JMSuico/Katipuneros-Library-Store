@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Models;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
 using Backend.Features.Services.Interfaces;
 
@@ -383,14 +384,21 @@ public class NotificationService : INotificationService
             targetAlert.IsResolved = true;
         }
 
+        var acqNow = DateTime.UtcNow;
+        var acqDelta = $"Triggered order for '{req.MonographTitle}' ({req.CopiesRequested} copies). Notes: {req.Notes}";
+        var acqPrev = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? AuditHelper.GenesisHash;
         await _auditRepository.AddAsync(new AuditLogEntry
         {
             Action = "ACQUISITION_ORDER_DISPATCHED",
             TargetEntity = "BookAcquisitions",
             Severity = "Information",
             IpAddress = "127.0.0.1",
-            DeltaModification = $"Triggered order for '{req.MonographTitle}' ({req.CopiesRequested} copies). Notes: {req.Notes}"
+            DeltaModification = acqDelta,
+            PreviousHash = acqPrev,
+            CurrentHash = AuditHelper.ComputeHash(acqPrev, "ACQUISITION_ORDER_DISPATCHED", "BookAcquisitions", acqDelta, acqNow),
+            Timestamp = acqNow
         });
+        await _auditRepository.SaveChangesAsync();
 
         return true;
     }
@@ -405,14 +413,21 @@ public class NotificationService : INotificationService
             targetAlert.IsResolved = true;
         }
 
+        var regNow = DateTime.UtcNow;
+        var regDelta = $"Registrar notice dispatched for {req.AffectedPatronsCount} delinquent patrons. Subject: {req.Subject}";
+        var regPrev = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? AuditHelper.GenesisHash;
         await _auditRepository.AddAsync(new AuditLogEntry
         {
             Action = "REGISTRAR_SANCTION_NOTICE_SENT",
             TargetEntity = "PatronSanctions",
             Severity = "Warning",
             IpAddress = "127.0.0.1",
-            DeltaModification = $"Registrar notice dispatched for {req.AffectedPatronsCount} delinquent patrons. Subject: {req.Subject}"
+            DeltaModification = regDelta,
+            PreviousHash = regPrev,
+            CurrentHash = AuditHelper.ComputeHash(regPrev, "REGISTRAR_SANCTION_NOTICE_SENT", "PatronSanctions", regDelta, regNow),
+            Timestamp = regNow
         });
+        await _auditRepository.SaveChangesAsync();
 
         return true;
     }
@@ -425,14 +440,21 @@ public class NotificationService : INotificationService
             targetAlert.TriggeredAgo = "Ticket Dispatched";
         }
 
+        var hwNow = DateTime.UtcNow;
+        var hwDelta = $"Pinged hardware team regarding {req.DeviceName} ({req.IpAddress}) with urgency {req.Urgency}.";
+        var hwPrev = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? AuditHelper.GenesisHash;
         await _auditRepository.AddAsync(new AuditLogEntry
         {
             Action = "HARDWARE_SUPPORT_TICKET_CREATED",
             TargetEntity = "TurnstileGateScanner",
             Severity = "Warning",
             IpAddress = req.IpAddress,
-            DeltaModification = $"Pinged hardware team regarding {req.DeviceName} ({req.IpAddress}) with urgency {req.Urgency}."
+            DeltaModification = hwDelta,
+            PreviousHash = hwPrev,
+            CurrentHash = AuditHelper.ComputeHash(hwPrev, "HARDWARE_SUPPORT_TICKET_CREATED", "TurnstileGateScanner", hwDelta, hwNow),
+            Timestamp = hwNow
         });
+        await _auditRepository.SaveChangesAsync();
 
         return true;
     }

@@ -13,6 +13,7 @@ using Backend.Features.Repositories.Interfaces;
 using Backend.Features.Services.Implementations;
 using Backend.Features.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -129,6 +130,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ICashierService, CashierService>();
+builder.Services.AddScoped<IAltchaService, AltchaService>();
 builder.Services.AddSingleton<IEmailService, EmailService>();
 
 // ==========================================
@@ -222,13 +224,24 @@ builder.Services.AddControllers()
 // 7. OpenAPI & Scalar V1 Documentation
 // ==========================================
 builder.Services.AddOpenApi();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var app = builder.Build();
 
 // ==========================================
-// 8. Middleware Pipeline (CORS First for Preflight & Error Safety)
+// 8. Middleware Pipeline (ForwardedHeaders + CORS First for Proxy & Preflight Safety)
 // ==========================================
+app.UseForwardedHeaders();                     // 0. Respect Render/Vercel proxy X-Forwarded-Proto & X-Forwarded-For
 app.UseCors("AllowFrontend");                    // 1. CORS headers FIRST so all responses & preflights succeed
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseMiddleware<GlobalExceptionMiddleware>();  // 2. Catch unhandled exceptions
 app.UseMiddleware<RateLimitMiddleware>();        // 3. Rate limiting per IP
 app.UseMiddleware<IdempotencyMiddleware>();      // 4. Duplicate POST protection
@@ -239,9 +252,12 @@ app.MapControllers();                            // 8. Route to controllers
 app.MapGet("/", () => Results.Ok(new { status = "Healthy", service = "Katipuneros Library Store API", version = "1.0.0" }));
 app.MapGet("/healthz", () => Results.Ok("OK"));
 
-// Scalar V1 Interactive API Documentation & OpenAPI schema
-app.MapOpenApi();                                // /openapi/v1.json
-app.MapScalarApiReference();                     // /scalar/v1
+// Scalar V1 Interactive API Documentation & OpenAPI schema (Development only)
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();                            // /openapi/v1.json
+    app.MapScalarApiReference();                 // /scalar/v1
+}
 
 // ==========================================
 // 8.5 Admin & User CLI Creation / Management

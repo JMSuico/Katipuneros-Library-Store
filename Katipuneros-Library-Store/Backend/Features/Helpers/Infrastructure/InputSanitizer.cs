@@ -1,9 +1,8 @@
 // [Layer: Features/Helpers/Infrastructure]
 // InputSanitizer.cs -- XSS guard and string sanitization utility.
-// All public text inputs must pass through this before persistence.
+// Strips script blocks, HTML tags, angle brackets, and null bytes while preserving valid UTF-8 / Filipino diacritics.
 // DO NOT perform database operations or business workflows here.
 
-using System.Net;
 using System.Text.RegularExpressions;
 
 namespace Backend.Features.Helpers.Infrastructure;
@@ -16,7 +15,11 @@ public static class InputSanitizer
     public static string SanitizeText(string? input) =>
         string.IsNullOrWhiteSpace(input)
             ? string.Empty
-            : WebUtility.HtmlEncode(HtmlTagRegex.Replace(ScriptTagRegex.Replace(input, string.Empty), string.Empty).Trim());
+            : HtmlTagRegex.Replace(ScriptTagRegex.Replace(input, string.Empty), string.Empty)
+                .Replace("<", string.Empty)
+                .Replace(">", string.Empty)
+                .Replace("\0", string.Empty)
+                .Trim();
 
     public static string SanitizeEmail(string? email) =>
         string.IsNullOrWhiteSpace(email)

@@ -267,7 +267,7 @@ export const OverdueFines: FC = () => {
 
     try {
       setIsCollecting(true);
-      const res: any = await settleFine({
+      const res = await settleFine({
         fineId: targetFineId,
         amountPaid: fineAmount,
         paymentMethod: 'Cash',
@@ -304,7 +304,7 @@ export const OverdueFines: FC = () => {
 
     try {
       setIsWaiving(true);
-      const res: any = await waiveFine({
+      const res = await waiveFine({
         fineId: targetFineId,
         reason: waiverReason.trim() || 'Academic courtesy exemption authorized by circulation supervisor',
       });
@@ -664,7 +664,7 @@ export const OverdueFines: FC = () => {
 
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'days-desc' | 'days-asc' | 'fine-desc' | 'patron-asc' | 'title-asc')}
                 aria-label="Sort overdue entries"
                 className="px-3 py-2 bg-surface-container-low rounded-xl text-caption font-caption font-bold text-text-primary outline-none cursor-pointer border border-outline/10"
               >

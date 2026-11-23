@@ -4,7 +4,7 @@
 // DO NOT put business logic or API calls here.
 
 import { FC } from 'react';
-import { Button, ButtonProps } from '../../../../../Shared/Button';
+import { Button, ButtonProps, ButtonVariant } from '../../../../../Shared/Button';
 
 export interface CustomerButtonProps extends Omit<ButtonProps, 'variant'> {
   variant?: 'primary' | 'secondary' | 'outline';
@@ -15,8 +15,8 @@ export const CustomerButton: FC<CustomerButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const mappedVariant = variant === 'primary' ? 'action-green' : variant;
-  return <Button variant={mappedVariant as any} className={`rounded-full ${className}`} {...props} />;
+  const mappedVariant: ButtonVariant = variant === 'primary' ? 'action-green' : variant;
+  return <Button variant={mappedVariant} className={`rounded-full ${className}`} {...props} />;
 };
 
 export default CustomerButton;

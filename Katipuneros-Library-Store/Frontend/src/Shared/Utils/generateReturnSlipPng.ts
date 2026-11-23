@@ -518,7 +518,7 @@ export async function generateReturnSlipPng(
   // Clearance badge status
   ctx.font = 'bold 10px Inter, sans-serif';
   ctx.fillStyle = '#059669';
-  ctx.fillText('[✓] CLEARED & DISCHARGED', stampBoxX + 10, stampBoxY + 76);
+  ctx.fillText('[OK] CLEARED & DISCHARGED', stampBoxX + 10, stampBoxY + 76);
 
   // ---------------------------------------------------------------------------
   // 7. SECTION 5: 3-OPTION RETURN INSTRUCTIONS

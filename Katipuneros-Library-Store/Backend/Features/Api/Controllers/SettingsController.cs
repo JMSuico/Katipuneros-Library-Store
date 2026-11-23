@@ -93,13 +93,21 @@ public class SettingsController : ControllerBase
     /// <summary> Add a new campus CIDR subnet rule </summary>
     [HttpPost("cidr")]
     [ProducesResponseType(typeof(ApiResponse<CidrSubnetDto>), StatusCodes.Status201Created)]
-    public async Task<IActionResult> AddCidrSubnet([FromBody] AddCidrSubnetRequest request) =>
-        !ModelState.IsValid
-            ? BadRequest(ApiResponse<object>.Fail("Invalid CIDR format or network classification."))
-            : CreatedAtAction(nameof(GetCidrSubnets), ApiResponse<CidrSubnetDto>.Ok(
-                await _settingsService.AddCidrSubnetAsync(request, User?.Identity?.Name ?? "Admin"),
-                "Campus subnet whitelisted."
-            ));
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddCidrSubnet([FromBody] AddCidrSubnetRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.Fail("Invalid CIDR format or network classification."));
+        try
+        {
+            var created = await _settingsService.AddCidrSubnetAsync(request, User?.Identity?.Name ?? "Admin");
+            return CreatedAtAction(nameof(GetCidrSubnets), ApiResponse<CidrSubnetDto>.Ok(created, "Campus subnet whitelisted."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
 
     /// <summary> Bulk delete whitelisted CIDR subnets </summary>
     [HttpPost("cidr/bulk-delete")]

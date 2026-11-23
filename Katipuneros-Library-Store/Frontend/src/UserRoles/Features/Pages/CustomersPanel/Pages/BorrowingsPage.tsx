@@ -540,7 +540,7 @@ const BorrowingsPage: FC = () => {
                 <div className="flex items-start justify-between">
                   <span
                     className={`font-caption text-caption uppercase tracking-wider font-semibold ${
-                      overdueCount > 0 ? 'text-status-lost' : 'text-text-secondary'
+                      overdueCount > 0 ? 'text-status-danger' : 'text-text-secondary'
                     }`}
                   >
                     Overdue Loans
@@ -548,7 +548,7 @@ const BorrowingsPage: FC = () => {
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                       overdueCount > 0
-                        ? 'bg-status-lost/20 text-status-lost'
+                        ? 'bg-status-danger/20 text-status-danger'
                         : 'bg-status-available/20 text-status-available'
                     }`}
                   >
@@ -560,14 +560,14 @@ const BorrowingsPage: FC = () => {
                 <div className="mt-space-md flex items-baseline gap-space-sm">
                   <span
                     className={`font-display-hero text-headline-1 ${
-                      overdueCount > 0 ? 'text-status-lost' : 'text-text-primary'
+                      overdueCount > 0 ? 'text-status-danger' : 'text-text-primary'
                     }`}
                   >
                     {String(overdueCount).padStart(2, '0')}
                   </span>
                   <span
                     className={`font-caption text-caption font-medium ${
-                      overdueCount > 0 ? 'text-status-lost' : 'text-status-available'
+                      overdueCount > 0 ? 'text-status-danger' : 'text-status-available'
                     }`}
                   >
                     {overdueCount > 0 ? 'Requires Immediate Action' : 'Clean Record'}
@@ -703,7 +703,7 @@ const BorrowingsPage: FC = () => {
                       <div
                         className={`absolute top-0 left-0 right-0 h-1.5 ${
                           isOverdue
-                            ? 'bg-status-lost'
+                            ? 'bg-status-danger'
                             : isUrgent
                             ? 'bg-status-pending'
                             : 'bg-primary'
@@ -743,7 +743,7 @@ const BorrowingsPage: FC = () => {
                               <span
                                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-caption text-caption font-semibold ${
                                   isOverdue
-                                    ? 'bg-status-lost/20 text-status-lost'
+                                    ? 'bg-status-danger/20 text-status-danger'
                                     : isUrgent
                                     ? 'bg-status-pending/20 text-text-primary'
                                     : 'bg-soft-blue text-primary'
@@ -752,7 +752,7 @@ const BorrowingsPage: FC = () => {
                                 <span
                                   className={`w-2 h-2 rounded-full ${
                                     isOverdue
-                                      ? 'bg-status-lost animate-ping'
+                                      ? 'bg-status-danger animate-ping'
                                       : isUrgent
                                       ? 'bg-status-pending animate-ping'
                                       : 'bg-primary'
@@ -794,7 +794,7 @@ const BorrowingsPage: FC = () => {
                                 <span
                                   className={`font-small text-small font-semibold ${
                                     isOverdue
-                                      ? 'text-status-lost'
+                                      ? 'text-status-danger'
                                       : isUrgent
                                       ? 'text-status-pending'
                                       : 'text-text-primary'
@@ -838,7 +838,7 @@ const BorrowingsPage: FC = () => {
                               <span
                                 className={`font-semibold ${
                                   isOverdue
-                                    ? 'text-status-lost'
+                                    ? 'text-status-danger'
                                     : isUrgent
                                     ? 'text-status-pending'
                                     : 'text-primary'
@@ -851,7 +851,7 @@ const BorrowingsPage: FC = () => {
                               <div
                                 className={`h-full rounded-full transition-all duration-500 ${
                                   isOverdue
-                                    ? 'bg-status-lost'
+                                    ? 'bg-status-danger'
                                     : isUrgent
                                     ? 'bg-status-pending'
                                     : 'bg-primary'
@@ -1425,7 +1425,7 @@ const BorrowingsPage: FC = () => {
                               </span>
                               <span
                                 className={`block font-caption text-caption ${
-                                  isLate ? 'text-status-lost' : 'text-status-available'
+                                  isLate ? 'text-status-danger' : 'text-status-available'
                                 }`}
                               >
                                 {isLate ? 'Late return' : 'On-time clearance'}
