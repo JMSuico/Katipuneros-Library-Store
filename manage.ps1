@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Katipuneros Library Store -- Unified Dev & Ops Master Controller
 # Works across any Windows laptop without needing Visual Studio IDE.
 # Usage:
@@ -22,6 +22,9 @@ param (
 )
 
 $ErrorActionPreference = "Stop"
+
+# Ensure ASP.NET Core Development environment is set for local CLI commands & user-secrets
+$env:ASPNETCORE_ENVIRONMENT = "Development"
 
 # Resolve root and inner directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -181,19 +184,16 @@ function Show-Status {
         }
 
         # Check HTTP Endpoint
-        if ($tcpStatus -eq "LISTENING") {
-            try {
-                $resp = Invoke-WebRequest -Uri $svc.Target -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-                if ($resp.StatusCode -eq 200) {
-                    $httpStatus = "200 OK"
-                } else {
-                    $httpStatus = "HTTP $($resp.StatusCode)"
-                }
-            } catch {
-                $httpStatus = "NO RESPONSE"
+        try {
+            $resp = Invoke-WebRequest -Uri $svc.Target -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            if ($resp.StatusCode -eq 200) {
+                $httpStatus = "200 OK"
+                if ($tcpStatus -eq "OFFLINE") { $tcpStatus = "LISTENING" }
+            } else {
+                $httpStatus = "HTTP $($resp.StatusCode)"
             }
-        } else {
-            $httpStatus = "DOWN"
+        } catch {
+            $httpStatus = if ($tcpStatus -eq "LISTENING") { "NO RESPONSE" } else { "DOWN" }
         }
 
         $color = if ($tcpStatus -eq "LISTENING" -and $httpStatus -like "*200*") { "Green" } elseif ($tcpStatus -eq "LISTENING") { "Yellow" } else { "DarkGray" }
@@ -234,7 +234,7 @@ function Start-AllServices {
     while ($retry -lt 15 -and -not $backendReady) {
         Start-Sleep -Seconds 1
         try {
-            $testReq = Invoke-WebRequest -Uri "http://localhost:5000/api/books" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+            $testReq = Invoke-WebRequest -Uri "http://localhost:5000/api/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
             if ($testReq.StatusCode -eq 200) { $backendReady = $true }
         } catch {
             $retry++
@@ -401,8 +401,8 @@ function Run-HealthTests {
     # 3. Check live API endpoints if running
     Write-Host "[3/5] Testing Backend REST API connectivity (:5000)..." -ForegroundColor Gray
     try {
-        $books = Invoke-RestMethod -Uri "http://localhost:5000/api/books" -TimeoutSec 3 -ErrorAction Stop
-        Write-Host "  [OK] GET /api/books returned $($books.data.Count) catalog titles." -ForegroundColor Green
+        $health = Invoke-RestMethod -Uri "http://localhost:5000/api/health" -TimeoutSec 3 -ErrorAction Stop
+        Write-Host "  [OK] GET /api/health returned healthy ($($health.service))." -ForegroundColor Green
     } catch {
         Write-Host "  [i] Backend is not currently running. Start services via Option [1] to test live API." -ForegroundColor Yellow
     }
@@ -415,7 +415,7 @@ function Run-HealthTests {
         @{ Port = 5175; Label = "Cashier Terminal (:5175)" }
     )
     foreach ($fp in $fePorts) {
-        $found = Get-NetTCPConnection -LocalPort $fp.Port -State Listen -ErrorAction SilentlyContinue
+        $found = Get-NetTCPConnection -LocalPort $fp.Port -ErrorAction SilentlyContinue | Where-Object { $_.OwningProcess -gt 0 } | Select-Object -First 1
         if ($found) {
             Write-Host "  [OK] $($fp.Label) is active (PID: $($found.OwningProcess))." -ForegroundColor Green
         } else {
@@ -449,195 +449,271 @@ function Run-HealthTests {
     }
 }
 
+function Show-LoginPortalNotice {
+    param(
+        [string]$Role,
+        [string]$Username,
+        [string]$Email,
+        [string]$PortalUrl,
+        [string]$PortNumber
+    )
+    Write-Host ""
+    Write-Host "======================================================================" -ForegroundColor Green
+    Write-Host "  ACCOUNT PROVISIONED & READY FOR SYSTEM AUTHENTICATION" -ForegroundColor Green
+    Write-Host "======================================================================" -ForegroundColor Green
+    Write-Host "  * Username / Login ID: $Username" -ForegroundColor White
+    Write-Host "  * Email Address:       $Email" -ForegroundColor White
+    Write-Host "  * Assigned Role:       $Role" -ForegroundColor White
+    Write-Host "  * Target Portal URL:   $PortalUrl" -ForegroundColor Yellow
+    Write-Host "  * Dedicated Port:      PORT $PortNumber ONLY" -ForegroundColor Cyan
+    Write-Host "----------------------------------------------------------------------" -ForegroundColor Gray
+    
+    $backendUp = $false
+    try {
+        $conn = Test-NetConnection -ComputerName 127.0.0.1 -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue
+        if ($conn) { $backendUp = $true }
+    } catch { $backendUp = $false }
+    
+    if ($backendUp) {
+        Write-Host "  [OK] Backend API is currently online on port 5000." -ForegroundColor Green
+        Write-Host "       You can now open $PortalUrl in your browser and sign in." -ForegroundColor White
+    } else {
+        Write-Host "  [!] NOTICE: Backend service (:5000) is NOT currently running in the background." -ForegroundColor Yellow
+        Write-Host "      CLI account creation updates the database directly, but web portals need" -ForegroundColor Yellow
+        Write-Host "      the backend API to authenticate." -ForegroundColor Yellow
+        Write-Host "      -> Please select Option [1] (Start Fullstack Dev) to launch all services!" -ForegroundColor Cyan
+    }
+    Write-Host "======================================================================" -ForegroundColor Green
+}
+
 function New-SuperAdminPrompt {
-    Write-Header "CREATE SUPERADMIN CLI"
-    $username = Read-Host "Enter Username"
-    $password = Read-Host "Enter Password"
-    $email = Read-Host "Enter Email"
+    Write-Header "CREATE SUPERADMIN ACCOUNT CLI"
+    $username = (Read-Host "Enter Username").Trim()
+    $password = (Read-Host "Enter Password").Trim()
+    $email = (Read-Host "Enter Email").Trim()
     if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password) -or [string]::IsNullOrWhiteSpace($email)) {
         Write-Host "[!] Username, Password, and Email are required." -ForegroundColor Red
         return
     }
     Push-Location $BackendDir
-    & dotnet run -- createsuperadmin $username $password $email
+    & dotnet run --launch-profile http -- createsuperadmin "$username" "$password" "$email"
     Pop-Location
+    Show-LoginPortalNotice -Role "Administrator (SuperAdmin)" -Username $username -Email $email -PortalUrl "http://127.0.0.1:5174/admin/login" -PortNumber "5174"
 }
 
 function New-CashierSuperAdminPrompt {
-    Write-Header "CREATE CASHIER SUPERUSER CLI"
-    $username = Read-Host "Enter Username"
-    $password = Read-Host "Enter Password"
-    $email = Read-Host "Enter Email"
-    $firstName = Read-Host "Enter First Name (Default: Cashier)"
+    Write-Header "CREATE CASHIER ACCOUNT CLI"
+    $username = (Read-Host "Enter Username").Trim()
+    $password = (Read-Host "Enter Password").Trim()
+    $email = (Read-Host "Enter Email").Trim()
+    if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password) -or [string]::IsNullOrWhiteSpace($email)) {
+        Write-Host "[!] Username, Password, and Email are required." -ForegroundColor Red
+        return
+    }
+    $firstName = (Read-Host "Enter First Name (Default: Cashier)").Trim()
     if ([string]::IsNullOrWhiteSpace($firstName)) { $firstName = "Cashier" }
-    $lastName = Read-Host "Enter Last Name (Default: Officer)"
+    $lastName = (Read-Host "Enter Last Name (Default: Officer)").Trim()
     if ([string]::IsNullOrWhiteSpace($lastName)) { $lastName = "Officer" }
-    $department = Read-Host "Enter Department (Default: Library Circulation Desk)"
+    $department = (Read-Host "Enter Department (Default: Library Circulation Desk)").Trim()
     if ([string]::IsNullOrWhiteSpace($department)) { $department = "Library Circulation Desk" }
     
     Push-Location $BackendDir
-    & dotnet run -- createcashiersuperuseradmin $username $password $email $firstName $lastName $department
+    & dotnet run --launch-profile http -- createcashiersuperuseradmin "$username" "$password" "$email" "$firstName" "$lastName" "$department"
     Pop-Location
+    Show-LoginPortalNotice -Role "Cashier (Circulation Staff)" -Username $username -Email $email -PortalUrl "http://127.0.0.1:5175/cashier/login" -PortNumber "5175"
 }
 
 function New-CustomSuperAdminPrompt {
     Write-Header "CREATE CUSTOM SUPERADMIN CLI"
-    $username = Read-Host "Enter Username"
-    $password = Read-Host "Enter Password"
-    $email = Read-Host "Enter Email"
-    $firstName = Read-Host "Enter First Name (Default: Custom)"
+    $username = (Read-Host "Enter Username").Trim()
+    $password = (Read-Host "Enter Password").Trim()
+    $email = (Read-Host "Enter Email").Trim()
+    if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password) -or [string]::IsNullOrWhiteSpace($email)) {
+        Write-Host "[!] Username, Password, and Email are required." -ForegroundColor Red
+        return
+    }
+    $firstName = (Read-Host "Enter First Name (Default: Custom)").Trim()
     if ([string]::IsNullOrWhiteSpace($firstName)) { $firstName = "Custom" }
-    $lastName = Read-Host "Enter Last Name (Default: SuperAdmin)"
+    $lastName = (Read-Host "Enter Last Name (Default: SuperAdmin)").Trim()
     if ([string]::IsNullOrWhiteSpace($lastName)) { $lastName = "SuperAdmin" }
-    $department = Read-Host "Enter Department (Default: System Administration)"
+    $department = (Read-Host "Enter Department (Default: System Administration)").Trim()
     if ([string]::IsNullOrWhiteSpace($department)) { $department = "System Administration" }
     
     Push-Location $BackendDir
-    & dotnet run -- createcustomsuperadmin $username $password $email $firstName $lastName $department
+    & dotnet run --launch-profile http -- createcustomsuperadmin "$username" "$password" "$email" "$firstName" "$lastName" "$department"
     Pop-Location
+    Show-LoginPortalNotice -Role "Custom SuperAdmin" -Username $username -Email $email -PortalUrl "http://127.0.0.1:5174/admin/login" -PortNumber "5174"
 }
 
 function New-ResetPasswordPrompt {
     Write-Header "RESET USER PASSWORD CLI"
-    $identifier = Read-Host "Enter Username, Email, or Library Card Number"
-    $newPassword = Read-Host "Enter New Password"
+    $identifier = (Read-Host "Enter Username, Email, Full Name, or Library Card Number").Trim()
+    $newPassword = (Read-Host "Enter New Password").Trim()
     if ([string]::IsNullOrWhiteSpace($identifier) -or [string]::IsNullOrWhiteSpace($newPassword)) {
         Write-Host "[!] Identifier and New Password are required." -ForegroundColor Red
         return
     }
     Push-Location $BackendDir
-    & dotnet run -- resetpassword $identifier $newPassword
+    & dotnet run --launch-profile http -- resetpassword "$identifier" "$newPassword"
     Pop-Location
+    Write-Host ""
+    Write-Host "[*] Password updated. Ensure Option [1] (Start Fullstack Dev) is running, then log into the user's assigned portal." -ForegroundColor Green
 }
 
 function New-UserCliPrompt {
-    Write-Header "ADD NEW USER CLI"
-    $username = Read-Host "Enter Username"
-    $password = Read-Host "Enter Password"
-    $email = Read-Host "Enter Email"
-    $role = Read-Host "Enter Role [Customer/Cashier/Admin] (Default: Customer)"
+    Write-Header "CREATE ACCOUNT / ADD USER CLI (PATRON / CASHIER / ADMIN)"
+    $username = (Read-Host "Enter Username").Trim()
+    $password = (Read-Host "Enter Password").Trim()
+    $email = (Read-Host "Enter Email").Trim()
+    if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password) -or [string]::IsNullOrWhiteSpace($email)) {
+        Write-Host "[!] Username, Password, and Email are required." -ForegroundColor Red
+        return
+    }
+    $role = (Read-Host "Enter Role [Customer/Cashier/Admin] (Default: Customer)").Trim()
     if ([string]::IsNullOrWhiteSpace($role)) { $role = "Customer" }
-    $firstName = Read-Host "Enter First Name (Default: New)"
+    if ($role.ToLower() -eq "admin") { $role = "Admin" }
+    elseif ($role.ToLower() -eq "cashier") { $role = "Cashier" }
+    else { $role = "Customer" }
+    
+    $firstName = (Read-Host "Enter First Name (Default: New)").Trim()
     if ([string]::IsNullOrWhiteSpace($firstName)) { $firstName = "New" }
-    $lastName = Read-Host "Enter Last Name (Default: User)"
+    $lastName = (Read-Host "Enter Last Name (Default: User)").Trim()
     if ([string]::IsNullOrWhiteSpace($lastName)) { $lastName = "User" }
-    $department = Read-Host "Enter Department (Default: General)"
+    $department = (Read-Host "Enter Department (Default: General)").Trim()
     if ([string]::IsNullOrWhiteSpace($department)) { $department = "General" }
     
     Push-Location $BackendDir
-    & dotnet run -- adduser $username $password $email $role $firstName $lastName $department
+    & dotnet run --launch-profile http -- adduser "$username" "$password" "$email" "$role" "$firstName" "$lastName" "$department"
     Pop-Location
+
+    $targetUrl = if ($role -eq "Admin") { "http://127.0.0.1:5174/admin/login" } elseif ($role -eq "Cashier") { "http://127.0.0.1:5175/cashier/login" } else { "http://127.0.0.1:5173/login" }
+    $targetPort = if ($role -eq "Admin") { "5174" } elseif ($role -eq "Cashier") { "5175" } else { "5173" }
+    Show-LoginPortalNotice -Role $role -Username $username -Email $email -PortalUrl $targetUrl -PortNumber $targetPort
 }
 
 # ─── Command Line Argument Dispatcher ────────────────────────────────────────
 switch ($Action.ToLower()) {
-    "start"   { Start-AllServices; exit }
-    "status"  { Show-Status; exit }
-    "refresh" { Hard-Refresh; exit }
-    "stop"    { Stop-AllServices; exit }
-    "migrate" { Run-DatabaseMigrations; exit }
+    "start"   { Start-AllServices; exit 0 }
+    "status"  { Show-Status; exit 0 }
+    "refresh" { Hard-Refresh; exit 0 }
+    "stop"    { Stop-AllServices; exit 0 }
+    "migrate" { Run-DatabaseMigrations; exit 0 }
     "createdb" { 
         Write-Host "[*] Creating/Updating Database via EF Core migrations with InventoryLibrary credentials..." -ForegroundColor Cyan
         Push-Location $RootDir
         & dotnet ef database update --project Backend --context AppDbContext
         Pop-Location
-        exit
+        exit 0
     }
-    "test"    { Run-HealthTests; exit }
-    "createsuperadmin" { 
+    "test"    { Run-HealthTests; exit 0 }
+
+    { $_ -in "createsuperadmin", "createsuperuseradmin", "createadmin" } { 
         if ($AllArgs.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 createsuperadmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
-            exit 1
+            New-SuperAdminPrompt
+            exit 0
         }
         $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Super" }
         $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Admin" }
         $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "System Administration" }
         Push-Location $BackendDir
-        & dotnet run -- createsuperadmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        & dotnet run --launch-profile http -- createsuperadmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
         Pop-Location
-        exit 
+        exit 0
     }
-    "createsuperuseradmin" {
+
+    { $_ -in "createcustomsuperadmin", "createcustomadmin" } {
         if ($AllArgs.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 createsuperuseradmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
-            exit 1
-        }
-        $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Super" }
-        $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Admin" }
-        $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "System Administration" }
-        Push-Location $BackendDir
-        & dotnet run -- createsuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
-        Pop-Location
-        exit
-    }
-    "createcustomsuperadmin" {
-        if ($AllArgs.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 createcustomsuperadmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
-            exit 1
+            New-CustomSuperAdminPrompt
+            exit 0
         }
         $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Custom" }
         $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "SuperAdmin" }
         $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "System Administration" }
         Push-Location $BackendDir
-        & dotnet run -- createcustomsuperadmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        & dotnet run --launch-profile http -- createcustomsuperadmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
         Pop-Location
-        exit
+        exit 0
     }
-    "createcashiersuperuseradmin" {
+
+    { $_ -in "createcashiersuperuseradmin", "createcashier", "createcashiersuperadmin" } {
         if ($AllArgs.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 createcashiersuperuseradmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
-            exit 1
+            New-CashierSuperAdminPrompt
+            exit 0
         }
         $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Cashier" }
         $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Officer" }
         $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "Library Circulation Desk" }
         Push-Location $BackendDir
-        & dotnet run -- createcashiersuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        & dotnet run --launch-profile http -- createcashiersuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
         Pop-Location
-        exit
+        exit 0
     }
-    "createcustomersuperuseradmin" {
+
+    { $_ -in "createcustomersuperuseradmin", "createcustomeradmin" } {
         if ($AllArgs.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 createcustomersuperuseradmin <username> <password> <email> [firstName] [lastName] [department]" -ForegroundColor Red
-            exit 1
+            New-UserCliPrompt
+            exit 0
         }
         $fName = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Customer" }
         $lName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "Superuser" }
         $dept = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "Academic Research & Governance" }
         Push-Location $BackendDir
-        & dotnet run -- createcustomersuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
+        & dotnet run --launch-profile http -- createcustomersuperuseradmin $AllArgs[0] $AllArgs[1] $AllArgs[2] $fName $lName $dept
         Pop-Location
-        exit
+        exit 0
     }
+
     "resetpassword" {
         if ($AllArgs.Count -lt 2) {
-            Write-Host "Usage: .\manage.ps1 resetpassword <identifier> <newPassword>" -ForegroundColor Red
-            exit 1
+            New-ResetPasswordPrompt
+            exit 0
         }
         Push-Location $BackendDir
-        & dotnet run -- resetpassword $AllArgs[0] $AllArgs[1]
+        & dotnet run --launch-profile http -- resetpassword $AllArgs[0] $AllArgs[1]
         Pop-Location
-        exit
+        exit 0
     }
-    "adduser" {
+
+    { $_ -in "adduser", "createaccount", "createuser", "create-user", "create-account", "register", "newuser", "new-user", "createcustomer", "createpatron" } {
         if ($AllArgs.Count -lt 3) {
-            Write-Host "Usage: .\manage.ps1 adduser <username> <password> <email> [role] [firstName] [lastName] [department]" -ForegroundColor Red
-            exit 1
+            New-UserCliPrompt
+            exit 0
         }
         $role = if ($AllArgs.Count -gt 3) { $AllArgs[3] } else { "Customer" }
         $fName = if ($AllArgs.Count -gt 4) { $AllArgs[4] } else { "New" }
         $lName = if ($AllArgs.Count -gt 5) { $AllArgs[5] } else { "User" }
         $dept = if ($AllArgs.Count -gt 6) { $AllArgs[6] } else { "General" }
         Push-Location $BackendDir
-        & dotnet run -- adduser $AllArgs[0] $AllArgs[1] $AllArgs[2] $role $fName $lName $dept
+        & dotnet run --launch-profile http -- adduser $AllArgs[0] $AllArgs[1] $AllArgs[2] $role $fName $lName $dept
         Pop-Location
-        exit
+        exit 0
     }
+
     "listusers" {
         Push-Location $BackendDir
-        & dotnet run -- listcliusers
+        & dotnet run --launch-profile http -- listcliusers
         Pop-Location
-        exit
+        exit 0
+    }
+
+    { $_ -in "help", "-h", "--help", "/?" } {
+        Write-Host "Usage: .\manage.ps1 [command] [args...]" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Service Commands:"
+        Write-Host "  start                               Starts all 4 services (Ports 5000, 5173, 5174, 5175)"
+        Write-Host "  status                              Probes live health of all ports"
+        Write-Host "  stop                                Terminates processes on ports 5000, 5173, 5174, 5175"
+        Write-Host "  refresh                             Purge caches, re-compile and restart all 4 services"
+        Write-Host "  migrate                             Run EF Core migrations"
+        Write-Host ""
+        Write-Host "Account Creation & Management Commands:"
+        Write-Host "  createaccount / adduser <u p e>...  Creates Customer/Patron account (or interactively prompts)"
+        Write-Host "  createsuperadmin <u p e>...         Creates SuperAdmin account (or interactively prompts)"
+        Write-Host "  createcashier <u p e>...            Creates Cashier account (or interactively prompts)"
+        Write-Host "  createcustomsuperadmin <u p e>...   Creates Custom Admin account"
+        Write-Host "  resetpassword <identifier> <pass>   Resets user password"
+        Write-Host "  listusers                           Lists CLI protected accounts"
+        exit 0
     }
 }
 
@@ -655,11 +731,11 @@ do {
     Write-Host "  [4] Stop All Services          -> Free ports 5000, 5173, 5174, and 5175" -ForegroundColor White
     Write-Host "  [5] Database Migrations        -> Add EF Core migration & update SQL Server" -ForegroundColor White
     Write-Host "  [6] Health Check & Tests       -> Build validation & SHA-256 audit verification" -ForegroundColor White
-    Write-Host "  [7] Create SuperAdmin CLI      -> Terminal prompt for createsuperadmin" -ForegroundColor White
-    Write-Host "  [8] Create Cashier Superuser   -> Terminal prompt for createcashiersuperuseradmin" -ForegroundColor White
-    Write-Host "  [9] Create Custom Admin CLI    -> Terminal prompt for createcustomsuperadmin" -ForegroundColor White
-    Write-Host "  [10] Reset User Password CLI   -> Terminal prompt for resetpassword" -ForegroundColor White
-    Write-Host "  [11] Add User CLI              -> Terminal prompt to add Patron/Cashier/Admin" -ForegroundColor White
+    Write-Host "  [7] Create SuperAdmin CLI      -> Terminal prompt for SuperAdmin account" -ForegroundColor White
+    Write-Host "  [8] Create Cashier Superuser   -> Terminal prompt for Cashier account" -ForegroundColor White
+    Write-Host "  [9] Create Custom Admin CLI    -> Terminal prompt for Custom Admin account" -ForegroundColor White
+    Write-Host "  [10] Reset User Password CLI   -> Terminal prompt to reset user password" -ForegroundColor White
+    Write-Host "  [11] Create Account / Add User -> Terminal prompt to add Patron/Customer/Cashier/Admin" -ForegroundColor White
     Write-Host "  [12] SSMS 19 DB Initialize     -> Create/Update DB via EF Core (InventoryLibrary)" -ForegroundColor White
     Write-Host ""
     Write-Host "  [0] Exit" -ForegroundColor DarkGray

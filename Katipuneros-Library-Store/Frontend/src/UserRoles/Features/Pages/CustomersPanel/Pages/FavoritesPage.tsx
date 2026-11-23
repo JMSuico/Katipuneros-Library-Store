@@ -1091,7 +1091,7 @@ export const FavoritesPage: FC = () => {
 
       {/* Modal: Create Reading List */}
       {isCreateListOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/40 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface-container-lowest rounded-2xl p-space-lg max-w-md w-full shadow-2xl border border-outline-variant/20">
             <div className="flex items-center justify-between mb-space-md">
               <div className="flex items-center gap-2">
@@ -1136,7 +1136,7 @@ export const FavoritesPage: FC = () => {
                 <button
                   type="submit"
                   disabled={!newListName.trim()}
-                  className="px-space-lg py-2 rounded-full bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 font-small text-small font-bold shadow-md cursor-pointer"
+                  className="px-space-lg py-2 rounded-full bg-primary text-on-primary hover:bg-primary-container disabled:opacity-50 font-small text-small font-bold shadow-md cursor-pointer"
                 >
                   Create List
                 </button>

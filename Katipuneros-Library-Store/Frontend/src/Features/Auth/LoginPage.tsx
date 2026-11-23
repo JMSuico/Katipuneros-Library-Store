@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { loginUser, getStoredUser } from '../../Endpoints/authApi';
+import { loginUser, getStoredUser, getPortalUrl } from '../../Endpoints/authApi';
 import { getAuthToken, isTokenValid, clearAuthSession } from '../../Endpoints/apiClient';
 
 export const LoginPage: React.FC = () => {
@@ -53,9 +53,9 @@ export const LoginPage: React.FC = () => {
         if (res.user.role === 'Customer') {
           navigate('/customer/home');
         } else if (res.user.role === 'Cashier') {
-          setErrorMessage('Cashier desk staff must sign in at the dedicated Circulation Terminal on port 5175 (http://127.0.0.1:5175/cashier/login).');
+          setErrorMessage(`Cashier desk staff must sign in at the dedicated Circulation Terminal (${getPortalUrl('cashier', '/cashier/login')}).`);
         } else {
-          setErrorMessage('Admin access is restricted to the dedicated Admin Console on port 5174 (http://127.0.0.1:5174/admin/login).');
+          setErrorMessage(`Admin access is restricted to the dedicated Admin Console (${getPortalUrl('admin', '/admin/login')}).`);
         }
       } else {
         setErrorMessage(res.message);
@@ -119,24 +119,24 @@ export const LoginPage: React.FC = () => {
               <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">error</span>
               <span className="flex-1">{errorMessage}</span>
             </div>
-            {errorMessage.includes('5174') && (
+            {errorMessage.toLowerCase().includes('admin') && (
               <div className="mt-1 pl-7">
                 <a
-                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5174/admin/login`}
+                  href={getPortalUrl('admin', '/admin/login')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Open Administrator Console (Port 5174)</span>
+                  <span>Open Administrator Console</span>
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                 </a>
               </div>
             )}
-            {errorMessage.includes('5175') && (
+            {errorMessage.toLowerCase().includes('cashier') && (
               <div className="mt-1 pl-7">
                 <a
-                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5175/cashier/login`}
+                  href={getPortalUrl('cashier', '/cashier/login')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-action-green text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Open Cashier Terminal (Port 5175)</span>
+                  <span>Open Cashier Terminal</span>
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                 </a>
               </div>

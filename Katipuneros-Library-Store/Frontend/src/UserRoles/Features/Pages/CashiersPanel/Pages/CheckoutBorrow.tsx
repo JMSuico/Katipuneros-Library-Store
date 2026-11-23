@@ -1118,7 +1118,7 @@ export const CheckoutBorrow: FC = () => {
               </span>
               <div className="flex flex-col leading-none">
                 <span className="font-caption text-caption font-bold text-text-primary">
-                  ⚡ QR &amp; ExpressCode Scanner Ready
+                  QR &amp; ExpressCode Scanner Ready
                 </span>
                 <span className="font-caption text-caption text-text-secondary text-[10px]">
                   Circulation Input Active

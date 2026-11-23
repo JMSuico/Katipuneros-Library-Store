@@ -53,7 +53,7 @@ public class AuditService : IAuditService
     }
 
     public async Task<(bool IsIntact, int VerifiedCount, Guid? BrokenEntryId)> VerifyHashChainAsync() =>
-        VerifyOrderedLogs(await _auditRepository.GetAllAsync(null, 1000));
+        VerifyOrderedLogs(await _auditRepository.GetAllAsync(null, int.MaxValue));
 
     public async Task<PagedAuditLogsResponseDto> GetPagedAuditLogsAsync(AuditLogQueryRequest request)
     {
@@ -98,7 +98,7 @@ public class AuditService : IAuditService
         // Hash chain status reflects what was actually verified. An empty chain has
         // nothing verified, so it reports 0.0 -- it must never claim 100% integrity
         // on the basis that verification never ran.
-        int totalBlocks = (await _auditRepository.GetAllAsync(null, 1000)).Count;
+        int totalBlocks = await _auditRepository.GetFilteredCountAsync(null, null, null, null, null, null);
         double chainPercent = totalBlocks == 0
             ? 0.0
             : Math.Round(verifiedCount / (double)totalBlocks * 100, 2);

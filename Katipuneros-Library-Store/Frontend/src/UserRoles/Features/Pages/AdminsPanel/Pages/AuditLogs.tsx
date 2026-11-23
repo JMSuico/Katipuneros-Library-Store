@@ -13,6 +13,7 @@ import { usePagination } from '../../../../../Hooks/usePagination';
 import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 import {
   getAuditLogs,
   getAuditMetrics,
@@ -163,8 +164,8 @@ const AuditLogs: FC = () => {
       } else {
         addToast(`Integrity breach detected at block ID: ${result.brokenEntryId || 'unknown'}`, 'error');
       }
-    } catch (err: any) {
-      addToast(err?.message || 'Failed to verify audit hash chain.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Failed to verify audit hash chain.'), 'error');
     }
   };
 

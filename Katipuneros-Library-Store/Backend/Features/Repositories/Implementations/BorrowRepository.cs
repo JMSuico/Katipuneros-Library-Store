@@ -116,8 +116,14 @@ public class BorrowRepository : IBorrowRepository
 
         var overdue = activeLoans.Where(b => b.DueDate < now).ToList();
         int overdueCount = overdue.Count;
-        const decimal dailyPenalty = 15.00m;
-        decimal cumulativeFines = overdue.Sum(b => Math.Max(0, (int)Math.Floor((now - b.DueDate).TotalDays)) * dailyPenalty);
+        decimal cumulativeFines = overdue.Sum(b =>
+            Backend.Features.Helpers.Infrastructure.FineCalculationHelper.ComputeOverdueFine(
+                b.DueDate,
+                now,
+                Backend.Features.Helpers.Infrastructure.FineCalculationHelper.DefaultDailyFineRate,
+                Backend.Features.Helpers.Infrastructure.FineCalculationHelper.DefaultMaxFineCap,
+                graceDays: 0,
+                useCeiling: false));
 
         return new Backend.Features.Api.DTOs.Responses.BorrowingMetricsResponse
         {

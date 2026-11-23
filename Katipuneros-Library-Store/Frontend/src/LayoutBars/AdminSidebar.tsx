@@ -9,6 +9,7 @@
 import { FC } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
+import { getPortalUrl, isCurrentPortAdmin, isCurrentPortCashier } from '../Endpoints/authApi';
 
 export interface AdminSidebarProps {
   isOpen?: boolean;
@@ -51,25 +52,15 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = true, onClose }) => {
     }
   };
 
-  const getPublicLandingUrl = (): string => {
-    if (typeof window !== 'undefined') {
-      const port = window.location.port;
-      if (port === '5174' || port === '5175') {
-        return `${window.location.protocol}//${window.location.hostname}:5173/`;
-      }
-    }
-    return '/';
-  };
+  const getPublicLandingUrl = (): string =>
+    (isCurrentPortAdmin() || isCurrentPortCashier()) ? getPortalUrl('customer', '/') : '/';
 
   const handleExitToPublic = (e: React.MouseEvent<HTMLAnchorElement>) => {
     handleLinkClick();
-    if (typeof window !== 'undefined') {
-      const port = window.location.port;
-      if (port === '5174' || port === '5175') {
-        e.preventDefault();
-        window.location.href = `${window.location.protocol}//${window.location.hostname}:5173/`;
-        return;
-      }
+    if (isCurrentPortAdmin() || isCurrentPortCashier()) {
+      e.preventDefault();
+      window.location.href = getPortalUrl('customer', '/');
+      return;
     }
     e.preventDefault();
     navigate('/');

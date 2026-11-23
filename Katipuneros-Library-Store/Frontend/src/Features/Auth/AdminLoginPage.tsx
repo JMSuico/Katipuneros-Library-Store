@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, getStoredUser } from '../../Endpoints/authApi';
+import { loginUser, getStoredUser, getPortalUrl } from '../../Endpoints/authApi';
 import { getAuthToken, isTokenValid, clearAuthSession } from '../../Endpoints/apiClient';
 
 export const AdminLoginPage: React.FC = () => {
@@ -86,10 +86,10 @@ export const AdminLoginPage: React.FC = () => {
             {(errorMessage.toLowerCase().includes('customer') || errorMessage.toLowerCase().includes('patron')) && (
               <div className="mt-1 pl-7">
                 <a
-                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5173/login`}
+                  href={getPortalUrl('customer', '/login')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Go to Patron Portal (Port 5173)</span>
+                  <span>Go to Patron Portal</span>
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                 </a>
               </div>
@@ -97,10 +97,10 @@ export const AdminLoginPage: React.FC = () => {
             {errorMessage.toLowerCase().includes('cashier') && (
               <div className="mt-1 pl-7">
                 <a
-                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5175/cashier/login`}
+                  href={getPortalUrl('cashier', '/cashier/login')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-action-green text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Go to Cashier Terminal (Port 5175)</span>
+                  <span>Go to Cashier Terminal</span>
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                 </a>
               </div>

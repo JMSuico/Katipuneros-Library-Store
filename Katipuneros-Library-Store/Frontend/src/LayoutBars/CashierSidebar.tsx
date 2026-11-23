@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { logoutUser } from '../Endpoints/authApi';
+import { logoutUser, getPortalUrl, isCurrentPortAdmin, isCurrentPortCashier } from '../Endpoints/authApi';
 import { getCashierDashboardKpis } from '../Endpoints/Cashier/cashierApi';
 import { KatipunanLogo } from '../Shared/Components/KatipunanLogo';
 
@@ -90,25 +90,15 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({
     }
   };
 
-  const getPublicLandingUrl = (): string => {
-    if (typeof window !== 'undefined') {
-      const port = window.location.port;
-      if (port === '5174' || port === '5175') {
-        return `${window.location.protocol}//${window.location.hostname}:5173/`;
-      }
-    }
-    return '/';
-  };
+  const getPublicLandingUrl = (): string =>
+    (isCurrentPortAdmin() || isCurrentPortCashier()) ? getPortalUrl('customer', '/') : '/';
 
   const handleExitToPublic = (e: React.MouseEvent<HTMLAnchorElement>) => {
     handleLinkClick();
-    if (typeof window !== 'undefined') {
-      const port = window.location.port;
-      if (port === '5174' || port === '5175') {
-        e.preventDefault();
-        window.location.href = `${window.location.protocol}//${window.location.hostname}:5173/`;
-        return;
-      }
+    if (isCurrentPortAdmin() || isCurrentPortCashier()) {
+      e.preventDefault();
+      window.location.href = getPortalUrl('customer', '/');
+      return;
     }
     e.preventDefault();
     navigate('/');
@@ -272,7 +262,7 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({
               type="button"
               onClick={() => {
                 logoutUser();
-                window.location.href = '/login';
+                window.location.href = '/cashier/login';
               }}
               title={!isOpen ? 'Logout' : undefined}
               className={`w-full group flex items-center rounded-xl text-error-container hover:bg-error-container hover:text-on-error-container transition-all duration-200 cursor-pointer text-left ${

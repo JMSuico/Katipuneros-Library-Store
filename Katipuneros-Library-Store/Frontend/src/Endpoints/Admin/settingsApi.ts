@@ -110,6 +110,12 @@ export const updateFineTariffs = async (data: Partial<FineTariffsResponse>) =>
     body: JSON.stringify(data),
   });
 
+export const updateSecurityGovernance = async (data: Partial<SecurityGovernanceResponse>) =>
+  await apiRequest<object>('/admin/settings/security', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
 export const getSystemArchives = async (): Promise<ArchiveModuleSummaryDto[]> => {
   const res = await apiRequest<ArchiveModuleSummaryDto[]>('/admin/settings/archives');
   return res.success && Array.isArray(res.data) ? res.data : [];

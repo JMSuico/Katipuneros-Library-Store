@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { loginUser, getStoredUser } from '../../Endpoints/authApi';
+import { loginUser, getStoredUser, getPortalUrl } from '../../Endpoints/authApi';
 import { getAuthToken, isTokenValid, clearAuthSession } from '../../Endpoints/apiClient';
 
 export const CashierLoginPage: React.FC = () => {
@@ -104,10 +104,10 @@ export const CashierLoginPage: React.FC = () => {
             {(errorMessage.toLowerCase().includes('customer') || errorMessage.toLowerCase().includes('patron')) && (
               <div className="mt-1 pl-7">
                 <a
-                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5173/login`}
+                  href={getPortalUrl('customer', '/login')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Go to Patron Portal (Port 5173)</span>
+                  <span>Go to Patron Portal</span>
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                 </a>
               </div>
@@ -115,10 +115,10 @@ export const CashierLoginPage: React.FC = () => {
             {errorMessage.toLowerCase().includes('admin') && (
               <div className="mt-1 pl-7">
                 <a
-                  href={`http://${typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'}:5174/admin/login`}
+                  href={getPortalUrl('admin', '/admin/login')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold text-caption hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Go to Administrator Console (Port 5174)</span>
+                  <span>Go to Administrator Console</span>
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                 </a>
               </div>

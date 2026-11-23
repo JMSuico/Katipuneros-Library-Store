@@ -4,7 +4,7 @@
 // DO NOT put business logic or API calls here.
 
 import { FC } from 'react';
-import { Button, ButtonProps } from '../../../../../Shared/Button';
+import { Button, ButtonProps, ButtonVariant } from '../../../../../Shared/Button';
 
 export interface CashierButtonProps extends Omit<ButtonProps, 'variant'> {
   variant?: 'primary' | 'secondary' | 'accent' | 'danger';
@@ -14,8 +14,8 @@ export const CashierButton: FC<CashierButtonProps> = ({
   variant = 'primary',
   ...props
 }) => {
-  const mappedVariant = variant === 'accent' ? 'secondary' : variant === 'primary' ? 'action-green' : variant;
-  return <Button variant={mappedVariant as any} {...props} />;
+  const mappedVariant: ButtonVariant = variant === 'accent' ? 'secondary' : variant === 'primary' ? 'action-green' : variant;
+  return <Button variant={mappedVariant} {...props} />;
 };
 
 export default CashierButton;

@@ -99,9 +99,10 @@ public class BorrowController : ControllerBase
         sb.AppendLine("GatePassCode,BookTitle,BorrowDate,DueDate,RenewalCount,Status");
         foreach (var l in loans)
         {
-            sb.AppendLine($"\"{l.GatePassCode}\",\"{l.Book?.Title?.Replace("\"", "\"\"")}\",\"{l.BorrowDate:yyyy-MM-dd}\",\"{l.DueDate:yyyy-MM-dd}\",{l.RenewalCount},\"{l.Status}\"");
+            sb.AppendLine(Backend.Features.Helpers.Infrastructure.CsvExportHelper.BuildRow(
+                l.GatePassCode, l.Book?.Title, l.BorrowDate.ToString("yyyy-MM-dd"), l.DueDate.ToString("yyyy-MM-dd"), l.RenewalCount, l.Status));
         }
-        var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var bytes = Backend.Features.Helpers.Infrastructure.CsvExportHelper.ToUtf8CsvBytes(sb);
         return File(bytes, "text/csv", $"Patron_Active_Loans_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 
@@ -187,10 +188,13 @@ public class BorrowController : ControllerBase
         sb.AppendLine("LoanCode,PatronName,PatronLibraryId,PatronRole,BookTitle,BookBarcode,BorrowDate,DueDate,DaysRemaining,RenewalCount,Status,AssessedFine,Notes");
         foreach (var r in records)
         {
-            sb.AppendLine($"\"{r.LoanCode}\",\"{r.PatronName.Replace("\"", "\"\"")}\",\"{r.PatronLibraryId}\",\"{r.PatronRole}\",\"{r.BookTitle.Replace("\"", "\"\"")}\",\"{r.BookBarcode}\",\"{r.BorrowDate:yyyy-MM-dd}\",\"{r.DueDate:yyyy-MM-dd}\",{r.DaysRemaining},{r.RenewalCount},\"{r.Status}\",{r.AssessedFine},\"{r.Notes?.Replace("\"", "\"\"")}\"");
+            sb.AppendLine(Backend.Features.Helpers.Infrastructure.CsvExportHelper.BuildRow(
+                r.LoanCode, r.PatronName, r.PatronLibraryId, r.PatronRole, r.BookTitle, r.BookBarcode,
+                r.BorrowDate.ToString("yyyy-MM-dd"), r.DueDate.ToString("yyyy-MM-dd"),
+                r.DaysRemaining, r.RenewalCount, r.Status, r.AssessedFine, r.Notes));
         }
 
-        var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var bytes = Backend.Features.Helpers.Infrastructure.CsvExportHelper.ToUtf8CsvBytes(sb);
         return File(bytes, "text/csv", $"Circulation_Loan_Ledger_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 }

@@ -404,7 +404,7 @@ export const Schedules: FC = () => {
 
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'date-asc' | 'date-desc' | 'patron-asc' | 'title-asc')}
               aria-label="Sort schedule events"
               className="px-3 py-2 bg-surface-container-low rounded-xl text-caption font-caption font-bold text-text-primary outline-none cursor-pointer border border-outline/10"
             >

@@ -258,9 +258,13 @@ export function useAccountTheme() {
         mediaQuery.removeEventListener('change', handleSystemThemeChange);
       };
     } else if ('addListener' in mediaQuery) {
-      (mediaQuery as any).addListener(handleSystemThemeChange);
+      const legacyMedia = mediaQuery as MediaQueryList & {
+        addListener: (listener: (e: MediaQueryListEvent) => void) => void;
+        removeListener: (listener: (e: MediaQueryListEvent) => void) => void;
+      };
+      legacyMedia.addListener(handleSystemThemeChange);
       return () => {
-        (mediaQuery as any).removeListener(handleSystemThemeChange);
+        legacyMedia.removeListener(handleSystemThemeChange);
       };
     }
   }, [preferences.themeMode]);

@@ -27,6 +27,7 @@ import { useTableDraggable } from '../../../../../Hooks/useTableDraggable';
 import { usePagesGlobalRefresh } from '../../../../../Hooks/usePagesGlobalRefresh';
 import { updateCirculationPolicy } from '../../../../../Endpoints/Admin/settingsApi';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 import { OpticalCameraScanner } from '../../../../../Shared/Components/OpticalCameraScanner';
 
 const Borrowings: FC = () => {
@@ -221,8 +222,8 @@ const Borrowings: FC = () => {
       } else {
         addToast(res.message || 'Renewal failed.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'Error processing extension.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Error processing extension.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -250,8 +251,8 @@ const Borrowings: FC = () => {
       } else {
         addToast(res.message || 'Loan override rejected.', 'error');
       }
-    } catch (err: any) {
-      addToast(err.message || 'Override error.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Override error.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -278,8 +279,8 @@ const Borrowings: FC = () => {
       setIsBatchModalOpen(false);
       setSelectedIds(new Set());
       await loadData();
-    } catch (err: any) {
-      addToast(err.message || 'Batch action failed.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Batch action failed.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -330,8 +331,8 @@ const Borrowings: FC = () => {
       });
       setIsPolicyModalOpen(false);
       addToast('Institutional lending policies updated successfully.', 'success');
-    } catch (err: any) {
-      addToast(err?.message || 'Failed to update circulation policy.', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Failed to update circulation policy.'), 'error');
     } finally {
       setModalSubmitting(false);
     }
@@ -664,7 +665,7 @@ const Borrowings: FC = () => {
               <Dropdown<string>
                 items={sortItems}
                 selectedValue={sortBy}
-                onSelect={(val) => setSortBy(val as any)}
+                onSelect={(val) => setSortBy(val as 'recent' | 'patron_az' | 'title_az' | 'due_date')}
                 className="w-48"
               />
               <Dropdown<number>

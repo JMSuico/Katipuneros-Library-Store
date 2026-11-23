@@ -260,10 +260,17 @@ namespace Backend.Features.Api.Controllers
             csvBuilder.AppendLine("User ID,Full Name,Email,Role,Department,Status,Created At");
             foreach (var u in users)
             {
-                csvBuilder.AppendLine($"\"{u.LibraryCardNumber ?? u.Id.ToString()}\",\"{u.FullName}\",\"{u.Email}\",\"{u.Role}\",\"{u.Department ?? "N/A"}\",\"{(u.IsActive ? "Active" : "Suspended")}\",\"{u.CreatedAt:yyyy-MM-dd}\"");
+                csvBuilder.AppendLine(Backend.Features.Helpers.Infrastructure.CsvExportHelper.BuildRow(
+                    u.LibraryCardNumber ?? u.Id.ToString(),
+                    u.FullName,
+                    u.Email,
+                    u.Role.ToString(),
+                    u.Department ?? "N/A",
+                    u.IsActive ? "Active" : "Suspended",
+                    u.CreatedAt.ToString("yyyy-MM-dd")));
             }
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
+            var bytes = Backend.Features.Helpers.Infrastructure.CsvExportHelper.ToUtf8CsvBytes(csvBuilder);
             return File(bytes, "text/csv", $"users_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
         }
     }

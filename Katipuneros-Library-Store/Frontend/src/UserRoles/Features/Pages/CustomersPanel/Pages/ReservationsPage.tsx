@@ -1052,10 +1052,10 @@ const ReservationsPage: FC = () => {
                 <div>
                   <h3 className="font-headline-3 text-headline-3 text-text-primary">
                     {selectedPickup && isReady(selectedPickup.status)
-                      ? '✓ Reservation Approved & Staged'
+                      ? 'Reservation Approved & Staged'
                       : selectedPickup && isCancelledOrExpired(selectedPickup.status)
-                      ? '✕ Reservation Declined'
-                      : '⏳ Reservation Pending Staff Review'}
+                      ? 'Reservation Declined'
+                      : 'Reservation Pending Staff Review'}
                   </h3>
                   <span className="font-caption text-caption text-primary uppercase font-semibold">
                     {selectedPickup ? `#${selectedPickup.id.slice(0, 8).toUpperCase()}` : ''} • Katipuneros Central Stacks

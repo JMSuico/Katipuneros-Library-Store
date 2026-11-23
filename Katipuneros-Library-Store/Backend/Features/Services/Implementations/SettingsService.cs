@@ -3,6 +3,8 @@
 // Uses clean expression-bodied lambda syntax (=>) and pattern matching.
 // DO NOT query _context directly -- use ISettingsRepository only.
 
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -110,7 +112,8 @@ public class SettingsService : ISettingsService
         };
     }
 
-    public async Task<bool> UpdateCirculationPolicyAsync(UpdateCirculationPolicyRequest request, string updatedBy) =>
+    public async Task<bool> UpdateCirculationPolicyAsync(UpdateCirculationPolicyRequest request, string updatedBy)
+    {
         await _settingsRepo.UpsertSettingAsync(
             "circulation_policy",
             JsonSerializer.Serialize(new CirculationPolicyResponse
@@ -123,10 +126,12 @@ public class SettingsService : ISettingsService
             }),
             "Circulation",
             "Circulation duration and patron tier borrowing policy",
-            updatedBy
-        ).ContinueWith(_ => true);
+            updatedBy);
+        return true;
+    }
 
-    public async Task<bool> UpdateReservationSetupsAsync(UpdateReservationSetupsRequest request, string updatedBy) =>
+    public async Task<bool> UpdateReservationSetupsAsync(UpdateReservationSetupsRequest request, string updatedBy)
+    {
         await _settingsRepo.UpsertSettingAsync(
             "reservation_setups",
             JsonSerializer.Serialize(new ReservationSetupsResponse
@@ -137,10 +142,12 @@ public class SettingsService : ISettingsService
             }),
             "Reservations",
             "Reservation hold thresholds and notification rules",
-            updatedBy
-        ).ContinueWith(_ => true);
+            updatedBy);
+        return true;
+    }
 
-    public async Task<bool> UpdateFineTariffsAsync(UpdateFineTariffsRequest request, string updatedBy) =>
+    public async Task<bool> UpdateFineTariffsAsync(UpdateFineTariffsRequest request, string updatedBy)
+    {
         await _settingsRepo.UpsertSettingAsync(
             "fine_tariffs",
             JsonSerializer.Serialize(new FineTariffsResponse
@@ -154,8 +161,9 @@ public class SettingsService : ISettingsService
             }),
             "Fines",
             "Overdue penalties, repair costs, and waiver governance",
-            updatedBy
-        ).ContinueWith(_ => true);
+            updatedBy);
+        return true;
+    }
 
     public async Task<List<ArchiveModuleSummaryDto>> GetSystemArchivesSummaryAsync() =>
         await _settingsRepo.GetLiveArchiveSummariesAsync();
@@ -174,11 +182,28 @@ public class SettingsService : ISettingsService
         }).ToList();
     }
 
+    private static bool IsValidCidr(string cidr)
+    {
+        var parts = cidr.Split('/');
+        if (parts.Length != 2 || !IPAddress.TryParse(parts[0], out var ip) || !int.TryParse(parts[1], out var prefix))
+            return false;
+        return ip.AddressFamily switch
+        {
+            AddressFamily.InterNetwork => prefix is >= 0 and <= 32,
+            AddressFamily.InterNetworkV6 => prefix is >= 0 and <= 128,
+            _ => false
+        };
+    }
+
     public async Task<CidrSubnetDto> AddCidrSubnetAsync(AddCidrSubnetRequest request, string createdBy)
     {
+        var cleanCidr = request.CidrRange.Trim();
+        if (!IsValidCidr(cleanCidr))
+            throw new ArgumentException($"Invalid CIDR subnet notation: '{cleanCidr}'. Expected IPv4/prefix (e.g. 192.168.1.0/24) or IPv6/prefix.");
+
         var entity = new CidrSubnet
         {
-            CidrRange = request.CidrRange.Trim(),
+            CidrRange = cleanCidr,
             NetworkClassification = request.NetworkClassification.Trim(),
             AccessLevel = request.AccessLevel.Trim(),
             IsActive = true,
@@ -247,7 +272,8 @@ public class SettingsService : ISettingsService
         return true;
     }
 
-    public async Task<bool> UpdateSecurityGovernanceAsync(UpdateSecurityGovernanceRequest request, string updatedBy) =>
+    public async Task<bool> UpdateSecurityGovernanceAsync(UpdateSecurityGovernanceRequest request, string updatedBy)
+    {
         await _settingsRepo.UpsertSettingAsync(
             "security_governance",
             JsonSerializer.Serialize(new SecurityGovernanceResponse
@@ -260,8 +286,9 @@ public class SettingsService : ISettingsService
             }),
             "Security",
             "Security session timeouts and node governance",
-            updatedBy
-        ).ContinueWith(_ => true);
+            updatedBy);
+        return true;
+    }
 
     public async Task<bool> SaveAllSettingsAsync(SystemSettingsSaveRequest settings, string updatedBy)
     {

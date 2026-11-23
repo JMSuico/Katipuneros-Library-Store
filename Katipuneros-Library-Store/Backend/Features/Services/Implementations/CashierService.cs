@@ -60,8 +60,8 @@ public class CashierService : ICashierService
 
         return raw.Select(t =>
         {
-            var days = Math.Max(0, (int)(now.Date - t.DueDate.Date).TotalDays);
-            var fine = Math.Min(days * 15.00m, 500.00m);
+            var days = Backend.Features.Helpers.Infrastructure.FineCalculationHelper.ComputeOverdueDays(t.DueDate.Date, now.Date, useCeiling: false);
+            var fine = Backend.Features.Helpers.Infrastructure.FineCalculationHelper.ComputeOverdueFine(t.DueDate.Date, now.Date);
 
             return new CashierOverdueQueueItemResponse
             {

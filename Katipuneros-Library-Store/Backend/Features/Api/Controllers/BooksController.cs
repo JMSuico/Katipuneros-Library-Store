@@ -178,15 +178,12 @@ public class BooksController : ControllerBase
         if (string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase))
             books.Reverse();
 
-        // Standard CSV Export Format (RFC 4180 escaping, UTF-8 BOM so Excel renders symbols correctly).
-        // Genuine .xlsx workbooks are generated client-side by Libs/spreadsheetExport.ts.
-        Func<string?, string> esc = v => $"\"{(v ?? string.Empty).Replace("\"", "\"\"")}\"";
         var csvBuilder = new System.Text.StringBuilder();
         csvBuilder.AppendLine("ISBN,Title,Author,Category,Published Year,Total Copies,Available Copies,Bay Location,Created At");
-        books.ForEach(b => csvBuilder.AppendLine(
-            $"{esc(b.Isbn)},{esc(b.Title)},{esc(b.Author)},{esc(b.Category?.Name ?? "Uncategorized")},{b.PublishedYear},{b.TotalCopies},{b.AvailableCopies},{esc(b.BayLocation)},{esc(b.CreatedAt.ToString("yyyy-MM-dd"))}"));
+        books.ForEach(b => csvBuilder.AppendLine(Backend.Features.Helpers.Infrastructure.CsvExportHelper.BuildRow(
+            b.Isbn, b.Title, b.Author, b.Category?.Name ?? "Uncategorized", b.PublishedYear, b.TotalCopies, b.AvailableCopies, b.BayLocation, b.CreatedAt.ToString("yyyy-MM-dd"))));
 
-        var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString())).ToArray();
+        var bytes = Backend.Features.Helpers.Infrastructure.CsvExportHelper.ToUtf8CsvBytes(csvBuilder);
         return File(bytes, "text/csv", $"books_catalog_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 }

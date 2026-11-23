@@ -51,19 +51,19 @@ public class ReturnJournalItemResponse
 public class DamagedAssessmentCaseResponse
 {
     public Guid Id { get; set; }
-    public string CaseReference { get; set; } = "#CASE-QA-3194";
-    public string Severity { get; set; } = "Severe Fault";
-    public string BookTitle { get; set; } = "Philippine Flora & Forest";
-    public string BookBarcode { get; set; } = "#KP-BC-3194-02";
+    public string CaseReference { get; set; } = string.Empty;
+    public string Severity { get; set; } = string.Empty;
+    public string BookTitle { get; set; } = string.Empty;
+    public string BookBarcode { get; set; } = string.Empty;
     public string? BookCoverImage { get; set; }
-    public string ReportedBy { get; set; } = "Bay 01 Specialist";
-    public string DamageType { get; set; } = "Spine Separation";
-    public decimal AssessedPenalty { get; set; } = 280.00m;
-    public string PatronResponsible { get; set; } = "C. M. Ilustre";
-    public string PatronLibraryId { get; set; } = "#KP-2021-04288";
-    public string PatronStatus { get; set; } = "Scholar";
-    public string EstRepairTime { get; set; } = "3-5 Workdays";
-    public string Status { get; set; } = "Active Triage";
+    public string ReportedBy { get; set; } = string.Empty;
+    public string DamageType { get; set; } = string.Empty;
+    public decimal AssessedPenalty { get; set; }
+    public string PatronResponsible { get; set; } = string.Empty;
+    public string PatronLibraryId { get; set; } = string.Empty;
+    public string PatronStatus { get; set; } = string.Empty;
+    public string EstRepairTime { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
     public string? RoutingDestination { get; set; }
     public DateTime FlaggedDate { get; set; }
 }

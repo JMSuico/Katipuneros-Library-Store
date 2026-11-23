@@ -13,6 +13,7 @@ using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Enums;
 using Backend.Features.Data.Models;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
 using Backend.Features.Services.Interfaces;
 
@@ -376,15 +377,18 @@ public class ReportService : IReportService
             }
 
             // Append to audit trail
+            var auditNow = DateTime.UtcNow;
+            var prevHash = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? AuditHelper.GenesisHash;
+            var auditDelta = $"Generated {dossier.Title} in {req.ExportFormat} with SHA-256 {dossier.Sha256Digest[..12]}...";
             await _auditRepository.AddAsync(new AuditLogEntry
             {
                 Action = "GENERATE_DOSSIER",
                 TargetEntity = "Reports",
                 RecordRef = dossier.Reference,
-                DeltaModification = $"Generated {dossier.Title} in {req.ExportFormat} with SHA-256 {dossier.Sha256Digest[..12]}...",
-                CurrentHash = dossier.Sha256Digest,
-                PreviousHash = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? "GENESIS",
-                Timestamp = DateTime.UtcNow
+                DeltaModification = auditDelta,
+                PreviousHash = prevHash,
+                CurrentHash = AuditHelper.ComputeHash(prevHash, "GENERATE_DOSSIER", "Reports", auditDelta, auditNow),
+                Timestamp = auditNow
             });
             await _auditRepository.SaveChangesAsync();
 
@@ -403,11 +407,15 @@ public class ReportService : IReportService
                 };
             }
 
-            var input = req.HashOrId.Trim().ToLowerInvariant();
-            var match = _dossiersLedger.FirstOrDefault(d =>
-                d.Sha256Digest.ToLowerInvariant().Contains(input) ||
-                d.Id.Equals(input, StringComparison.OrdinalIgnoreCase) ||
-                d.Reference.ToLowerInvariant().Contains(input));
+            var input = req.HashOrId.Trim();
+            CompletedDossierResponse? match;
+            lock (_dossiersLedger)
+            {
+                match = _dossiersLedger.FirstOrDefault(d =>
+                    d.Sha256Digest.Equals(input, StringComparison.OrdinalIgnoreCase) ||
+                    d.Id.Equals(input, StringComparison.OrdinalIgnoreCase) ||
+                    d.Reference.Equals(input, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (match != null)
             {
@@ -449,15 +457,19 @@ public class ReportService : IReportService
                 }
             }
 
+            var bulkNow = DateTime.UtcNow;
+            var bulkAction = "BULK_" + req.Action.ToUpperInvariant();
+            var bulkDelta = $"Executed bulk {req.Action} on {req.DossierIds.Count} dossiers";
+            var bulkPrev = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? AuditHelper.GenesisHash;
             await _auditRepository.AddAsync(new AuditLogEntry
             {
-                Action = "BULK_" + req.Action.ToUpperInvariant(),
+                Action = bulkAction,
                 TargetEntity = "Reports",
                 RecordRef = $"{req.DossierIds.Count} dossiers",
-                DeltaModification = $"Executed bulk {req.Action} on {req.DossierIds.Count} dossiers",
-                CurrentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(DateTime.UtcNow.Ticks.ToString()))),
-                PreviousHash = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? "GENESIS",
-                Timestamp = DateTime.UtcNow
+                DeltaModification = bulkDelta,
+                PreviousHash = bulkPrev,
+                CurrentHash = AuditHelper.ComputeHash(bulkPrev, bulkAction, "Reports", bulkDelta, bulkNow),
+                Timestamp = bulkNow
             });
             await _auditRepository.SaveChangesAsync();
 
@@ -467,15 +479,18 @@ public class ReportService : IReportService
     public async Task<bool> RunScheduleNowAsync(string scheduleId) =>
         await Task.Run(async () =>
         {
+            var schedNow = DateTime.UtcNow;
+            var schedDelta = $"Dispatched automated schedule task {scheduleId} immediately";
+            var schedPrev = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? AuditHelper.GenesisHash;
             await _auditRepository.AddAsync(new AuditLogEntry
             {
                 Action = "TRIGGER_SCHEDULE_NOW",
                 TargetEntity = "Reports/Schedules",
                 RecordRef = scheduleId,
-                DeltaModification = $"Dispatched automated schedule task {scheduleId} immediately",
-                CurrentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(DateTime.UtcNow.Ticks.ToString()))),
-                PreviousHash = (await _auditRepository.GetLatestLogAsync())?.CurrentHash ?? "GENESIS",
-                Timestamp = DateTime.UtcNow
+                DeltaModification = schedDelta,
+                PreviousHash = schedPrev,
+                CurrentHash = AuditHelper.ComputeHash(schedPrev, "TRIGGER_SCHEDULE_NOW", "Reports/Schedules", schedDelta, schedNow),
+                Timestamp = schedNow
             });
             await _auditRepository.SaveChangesAsync();
 

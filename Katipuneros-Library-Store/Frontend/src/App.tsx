@@ -63,10 +63,10 @@ const SignupPage = lazy(() => import('./Features/Auth/SignupPage'));
 const AdminLoginPage = lazy(() => import('./Features/Auth/AdminLoginPage'));
 
 import { useAccountTheme } from './Hooks/useAccountTheme';
+import { getPortalUrl } from './Endpoints/authApi';
 
-const PortNotice = ({ targetPort, targetRole, targetPath }: { targetPort: string; targetRole: string; targetPath: string }) => {
-  const hostname = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1';
-  const targetUrl = `http://${hostname}:${targetPort}${targetPath}`;
+const PortNotice = ({ targetPortal, targetPort, targetRole, targetPath }: { targetPortal: 'admin' | 'cashier'; targetPort: string; targetRole: string; targetPath: string }) => {
+  const targetUrl = getPortalUrl(targetPortal, targetPath);
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
       <div className="max-w-md w-full p-8 rounded-3xl bg-surface-container border border-outline-variant shadow-xl text-center space-y-4">
@@ -77,13 +77,13 @@ const PortNotice = ({ targetPort, targetRole, targetPath }: { targetPort: string
           Dedicated {targetRole} Terminal
         </h2>
         <p className="font-body text-body text-text-secondary">
-          To maintain strict session security and prevent multi-role credential collisions, {targetRole} operations are hosted exclusively on dedicated <strong>Port {targetPort}</strong>.
+          To maintain strict session security and prevent multi-role credential collisions, {targetRole} operations are hosted on their dedicated portal (Local Port {targetPort}).
         </p>
         <a
           href={targetUrl}
-          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-2xl bg-primary text-on-primary font-body-medium font-bold shadow-md hover:bg-primary-hover transition-all"
+          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-2xl bg-primary text-on-primary font-body-medium font-bold shadow-md hover:bg-primary-container transition-all"
         >
-          <span>Open {targetRole} Portal (Port {targetPort})</span>
+          <span>Open {targetRole} Portal</span>
           <span className="material-symbols-outlined text-lg">open_in_new</span>
         </a>
       </div>
@@ -193,10 +193,10 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
 
           {/* Cross-Port Redirection Notices on Port 5173 */}
-          <Route path="/cashier/login" element={<PortNotice targetPort="5175" targetRole="Cashier Circulation" targetPath="/cashier/login" />} />
-          <Route path="/cashier/*" element={<PortNotice targetPort="5175" targetRole="Cashier Circulation" targetPath="/cashier/login" />} />
-          <Route path="/admin/login" element={<PortNotice targetPort="5174" targetRole="Administrator" targetPath="/admin/login" />} />
-          <Route path="/admin/*" element={<PortNotice targetPort="5174" targetRole="Administrator" targetPath="/admin/login" />} />
+          <Route path="/cashier/login" element={<PortNotice targetPortal="cashier" targetPort="5175" targetRole="Cashier Circulation" targetPath="/cashier/login" />} />
+          <Route path="/cashier/*" element={<PortNotice targetPortal="cashier" targetPort="5175" targetRole="Cashier Circulation" targetPath="/cashier/login" />} />
+          <Route path="/admin/login" element={<PortNotice targetPortal="admin" targetPort="5174" targetRole="Administrator" targetPath="/admin/login" />} />
+          <Route path="/admin/*" element={<PortNotice targetPortal="admin" targetPort="5174" targetRole="Administrator" targetPath="/admin/login" />} />
 
           {/* Customer Panel Protected */}
           <Route element={<ProtectedRoute allowedRoles={['Customer']} redirectPath="/login" />}>
