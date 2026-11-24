@@ -400,6 +400,28 @@ namespace Backend.Migrations
                     b.ToTable("ContactMessages");
                 });
 
+            modelBuilder.Entity("Backend.Features.Data.Models.DataProtectionKey", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FriendlyName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Xml")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys");
+                });
+
             modelBuilder.Entity("Backend.Features.Data.Models.Feedback", b =>
                 {
                     b.Property<Guid>("Id")

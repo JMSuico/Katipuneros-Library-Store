@@ -7,7 +7,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Backend.Features.Api.DTOs.Responses;
@@ -54,26 +53,16 @@ namespace Backend.Features.Api.Middleware
             }
 
             var remoteIp = context.Connection.RemoteIpAddress;
-            var ip = remoteIp?.ToString() ?? "unknown";
-            var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
-            var host = context.Request.Host.Host;
-
-            // Map IPv4-mapped IPv6 (::ffff:127.0.0.1) back to IPv4 for proper detection
             var effectiveIp = remoteIp != null && remoteIp.IsIPv4MappedToIPv6 ? remoteIp.MapToIPv4() : remoteIp;
-            var isLocalIp = IsPrivateOrLocal(effectiveIp);
+            var ip = effectiveIp?.ToString() ?? "unknown";
+            var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
 
-            var isLocalHost = host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                              host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-                              host.Equals("::1", StringComparison.OrdinalIgnoreCase) ||
-                              host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-                              host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
-
+            // Never trust X-Forwarded-For private IPs or Host header suffixes outside Development
             var isDevelopment = _environment != null && _environment.IsDevelopment();
-            var isTrustedLocalOrDev = isDevelopment || isLocalHost || isLocalIp;
 
             // Classify endpoint category to enforce targeted rate limiting
             var category = GetEndpointCategory(path);
-            var limit = GetEffectiveLimit(category, isTrustedLocalOrDev);
+            var limit = GetEffectiveLimit(category, isDevelopment);
 
             // Isolate authenticated users by token suffix so multiple users behind the same IP/NAT don't lock each other out
             string clientKey;
@@ -89,6 +78,23 @@ namespace Backend.Features.Api.Middleware
             }
 
             var now = DateTime.UtcNow;
+
+            if (_clients.Count > 1000)
+            {
+                foreach (var kv in _clients)
+                {
+                    bool expired;
+                    lock (kv.Value)
+                    {
+                        expired = (now - kv.Value.WindowStart).TotalSeconds > 120;
+                    }
+                    if (expired)
+                    {
+                        _clients.TryRemove(kv.Key, out _);
+                    }
+                }
+            }
+
             var history = _clients.GetOrAdd(clientKey, _ => new ClientRequestHistory
             {
                 RequestCount = 0,
@@ -134,37 +140,6 @@ namespace Backend.Features.Api.Middleware
             }
 
             await _next(context);
-        }
-
-        private static bool IsPrivateOrLocal(IPAddress? address)
-        {
-            if (address == null) return true;
-            if (IPAddress.IsLoopback(address)) return true;
-            if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-
-            if (address.AddressFamily == AddressFamily.InterNetwork)
-            {
-                var bytes = address.GetAddressBytes();
-                // 10.0.0.0/8
-                if (bytes[0] == 10) return true;
-                // 172.16.0.0/12
-                if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
-                // 192.168.0.0/16
-                if (bytes[0] == 192 && bytes[1] == 168) return true;
-                // 127.0.0.0/8
-                if (bytes[0] == 127) return true;
-                // 169.254.0.0/16 (Link-local / APIPA)
-                if (bytes[0] == 169 && bytes[1] == 254) return true;
-            }
-            else if (address.AddressFamily == AddressFamily.InterNetworkV6)
-            {
-                if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal) return true;
-                var bytes = address.GetAddressBytes();
-                // fc00::/7 (Unique Local Address)
-                if ((bytes[0] & 0xFE) == 0xFC) return true;
-            }
-
-            return false;
         }
 
         private static string GetEndpointCategory(string path) =>

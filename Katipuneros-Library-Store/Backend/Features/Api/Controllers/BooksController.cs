@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
+using Backend.Features.Helpers.Validation;
 using Backend.Features.Services.Interfaces;
 
 namespace Backend.Features.Api.Controllers;
@@ -43,10 +44,15 @@ public class BooksController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateBook([FromBody] CreateBookRequest request) =>
-        !ModelState.IsValid
-            ? BadRequest(ApiResponse<object>.Fail("Invalid book creation payload."))
-            : await _bookService.CreateBookAsync(
+    public async Task<IActionResult> CreateBook([FromBody] CreateBookRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.Fail("Invalid book creation payload."));
+
+        if (!ImageInputValidator.TryValidateImage(request.CoverImage, out var imgError))
+            return BadRequest(ApiResponse<object>.Fail(imgError ?? "Invalid cover image input."));
+
+        return await _bookService.CreateBookAsync(
                 request.Title,
                 request.Author,
                 request.Isbn,
@@ -61,13 +67,19 @@ public class BooksController : ControllerBase
             ) is { } created
                 ? CreatedAtAction(nameof(GetBookById), new { id = created.Id }, ApiResponse<object>.Ok(created, "Book accessioned into catalog."))
                 : BadRequest(ApiResponse<object>.Fail("Failed to accession book."));
+    }
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateBook(Guid id, [FromBody] UpdateBookRequest request) =>
-        !ModelState.IsValid
-            ? BadRequest(ApiResponse<object>.Fail("Invalid book update payload."))
-            : await _bookService.UpdateBookAsync(
+    public async Task<IActionResult> UpdateBook(Guid id, [FromBody] UpdateBookRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.Fail("Invalid book update payload."));
+
+        if (!ImageInputValidator.TryValidateImage(request.CoverImage, out var imgError))
+            return BadRequest(ApiResponse<object>.Fail(imgError ?? "Invalid cover image input."));
+
+        return await _bookService.UpdateBookAsync(
                 id,
                 request.Title,
                 request.Author,
@@ -85,6 +97,7 @@ public class BooksController : ControllerBase
                 (true, _) => Ok(ApiResponse<object>.Ok(new { id }, "Catalog entry updated successfully.")),
                 (false, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update catalog entry."))
             };
+    }
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]

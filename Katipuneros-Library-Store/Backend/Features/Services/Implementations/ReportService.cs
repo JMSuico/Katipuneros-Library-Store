@@ -328,17 +328,23 @@ public class ReportService : IReportService
         var logs = await _auditRepository.GetAllAsync(limit: 10);
         if (logs.Count == 0) return new List<AuditAttestationResponse>();
 
-        return logs.Select(l => new AuditAttestationResponse
+        return logs.Select(l =>
         {
-            Id = $"att-{l.Id}",
-            LedgerEvent = l.Action,
-            TargetDossier = l.RecordRef ?? l.TargetEntity,
-            Sha256DigestSignature = l.CurrentHash.Length > 16 ? $"{l.CurrentHash[..11]}...{l.CurrentHash[^6..]}" : l.CurrentHash,
-            CertifiedSignerName = "System Auditor",
-            CertifiedSignerRole = "Automated Attestation",
-            CertifiedSignerInitials = "SA",
-            TimestampUtc8 = l.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
-            AttestationStatus = "Certified Intact"
+            var utc = l.Timestamp.Kind == DateTimeKind.Local
+                ? l.Timestamp.ToUniversalTime()
+                : DateTime.SpecifyKind(l.Timestamp, DateTimeKind.Utc);
+            return new AuditAttestationResponse
+            {
+                Id = $"att-{l.Id}",
+                LedgerEvent = l.Action,
+                TargetDossier = l.RecordRef ?? l.TargetEntity,
+                Sha256DigestSignature = l.CurrentHash.Length > 16 ? $"{l.CurrentHash[..11]}...{l.CurrentHash[^6..]}" : l.CurrentHash,
+                CertifiedSignerName = "System Auditor",
+                CertifiedSignerRole = "Automated Attestation",
+                CertifiedSignerInitials = "SA",
+                TimestampUtc8 = utc.AddHours(8).ToString("yyyy-MM-dd HH:mm:ss"),
+                AttestationStatus = "Certified Intact"
+            };
         }).ToList();
     }
 

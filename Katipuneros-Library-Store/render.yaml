@@ -7,12 +7,12 @@ services:
     plan: starter
     region: singapore
     autoDeploy: true
-    healthCheckPath: /api/health
+    healthCheckPath: /healthz
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      - key: ASPNETCORE_URLS
-        value: http://+:5000
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "5000"
       # ── REQUIRED SECRETS ──────────────────────────────────────────────
       # Set these in the Render dashboard (Environment). The service will
       # refuse to boot if any of them is missing.
@@ -27,6 +27,8 @@ services:
         sync: false # Supabase Read Replica (or same as Primary)
       - key: Redis__ConnectionString
         sync: false # Optional: Upstash Redis or Render Redis
+      - key: SmtpSettings__SenderEmail
+        sync: false # Optional: Gmail sender address for transactional email
       - key: SmtpSettings__AppPassword
         sync: false # Optional: Google App Password. Email self-disables if unset.
       # ── PUBLIC CONFIG ─────────────────────────────────────────────────

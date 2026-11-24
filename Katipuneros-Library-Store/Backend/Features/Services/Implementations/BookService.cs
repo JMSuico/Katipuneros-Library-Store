@@ -5,6 +5,7 @@
 // DO NOT access HttpContext -- HTTP concerns stay in controllers.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Backend.Features.Data.Models;
 using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
@@ -15,9 +16,10 @@ namespace Backend.Features.Services.Implementations;
 public class BookService : IBookService
 {
     private readonly IBookRepository _bookRepository;
+    private readonly ILogger<BookService>? _logger;
 
-    public BookService(IBookRepository bookRepository) =>
-        _bookRepository = bookRepository;
+    public BookService(IBookRepository bookRepository, ILogger<BookService>? logger = null) =>
+        (_bookRepository, _logger) = (bookRepository, logger);
 
     public async Task<List<Book>> GetCatalogAsync(Guid? categoryId = null, string? query = null, bool? isSpotlight = null) =>
         await _bookRepository.GetAllAsync(categoryId, query, isSpotlight);
@@ -98,13 +100,20 @@ public class BookService : IBookService
             var saved = await _bookRepository.SaveChangesAsync();
             return (saved, saved ? null : "Failed to delete book asset.");
         }
-        catch (DbUpdateException)
+        catch (DbUpdateConcurrencyException ex)
         {
+            _logger?.LogWarning(ex, "Concurrency conflict deleting book {BookId}", book.Id);
+            return (false, "Record was modified by another operation. Please refresh and retry.");
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger?.LogWarning(ex, "Database constraint prevented deleting book {BookId}", book.Id);
             return (false, "Cannot de-accession catalog asset: historical circulation, reservation, or ledger records are linked. Please archive the title instead.");
         }
         catch (Exception ex)
         {
-            return (false, $"Error deleting book asset: {ex.Message}");
+            _logger?.LogError(ex, "Unexpected error deleting book {BookId}", book.Id);
+            return (false, "An unexpected error occurred while deleting the book asset.");
         }
     }
 
@@ -122,8 +131,10 @@ public class BookService : IBookService
     {
         if (bookIds == null || bookIds.Count == 0) return (0, "No book IDs provided for deletion.");
         var toDelete = new List<Book>();
+        var seenIds = new HashSet<Guid>();
         foreach (var id in bookIds)
         {
+            if (!seenIds.Add(id)) continue;
             if (await _bookRepository.GetByIdAsync(id) is { } book && book.TotalCopies <= book.AvailableCopies)
             {
                 toDelete.Add(book);
@@ -136,13 +147,20 @@ public class BookService : IBookService
             await _bookRepository.SaveChangesAsync();
             return (toDelete.Count, null);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateConcurrencyException ex)
         {
+            _logger?.LogWarning(ex, "Concurrency conflict during bulk book deletion");
+            return (0, "Record was modified by another operation. Please refresh and retry.");
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger?.LogWarning(ex, "Database constraint prevented bulk book deletion");
             return (0, "Cannot de-accession one or more selected assets: historical circulation or reservation records are linked. Please archive instead.");
         }
         catch (Exception ex)
         {
-            return (0, $"Error during bulk de-accession: {ex.Message}");
+            _logger?.LogError(ex, "Unexpected error during bulk book deletion");
+            return (0, "An unexpected error occurred during bulk de-accession.");
         }
     }
 

@@ -4,7 +4,7 @@
 // DO NOT put UI rendering or feature business logic here.
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { getApiBaseUrl } from '../Endpoints/apiClient';
+import { apiRequest } from '../Endpoints/apiClient';
 
 export interface UsePagesGlobalRefreshOptions {
   onRefresh?: () => void | Promise<void>;
@@ -32,12 +32,8 @@ export function usePagesGlobalRefresh(
   const executeRefresh = useCallback(async () => {
     try {
       if (checkHealthOnReconnect) {
-        // Must be absolute. The previous relative '/api/health' resolved against the
-        // Vite dev origin (5173/5174/5175) instead of the API host, and no dev proxy
-        // is configured -- so the check always failed and isHealthy stayed pinned at
-        // its initialiser, silently disabling health detection on all 17 consumers.
-        const res = await fetch(`${getApiBaseUrl()}/health`).catch(() => null);
-        setIsHealthy(Boolean(res && res.ok));
+        const res = await apiRequest<object>('/health');
+        setIsHealthy(res.success);
       }
       if (savedCallback.current) {
         await savedCallback.current();

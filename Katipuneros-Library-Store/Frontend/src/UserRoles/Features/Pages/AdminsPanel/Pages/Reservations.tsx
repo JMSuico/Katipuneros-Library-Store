@@ -21,6 +21,7 @@ import {
   LockerDiagnosticsResponse,
   ExportRosterParams,
 } from '../../../../../Endpoints/Admin/reservationsApi';
+import { downloadAuthenticatedFile } from '../../../../../Endpoints/apiClient';
 import { SearchBar } from '../../../../../Shared/SearchBar';
 import { Dropdown, DropdownItem } from '../../../../../Shared/Dropdown';
 import { RadioButton } from '../../../../../Shared/RadioButton';
@@ -337,7 +338,7 @@ const Reservations: FC = () => {
   };
 
   // Action: Export Submit
-  const handleExportDownload = () => {
+  const handleExportDownload = async () => {
     const params: ExportRosterParams = {
       startDate: exportStartDate || undefined,
       endDate: exportEndDate || undefined,
@@ -347,8 +348,14 @@ const Reservations: FC = () => {
       format: exportFormat,
     };
     const url = getExportReservationsUrl(params);
-    window.open(url, '_blank');
-    setIsExportModalOpen(false);
+    const ext = exportFormat === 'excel' ? 'xlsx' : 'csv';
+    try {
+      await downloadAuthenticatedFile(url, `reservations_export.${ext}`);
+      setIsExportModalOpen(false);
+      addToast(`Reservation roster exported (${exportFormat.toUpperCase()}).`, 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Failed to export reservation roster.'), 'error');
+    }
   };
 
   // Page Size dropdown items
@@ -369,6 +376,33 @@ const Reservations: FC = () => {
 
   return (
     <div className="w-full">
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto px-4 py-3 rounded-lg shadow-lg flex items-center justify-between gap-3 text-white text-small font-medium transition-all ${
+                toast.type === 'success'
+                  ? 'bg-action-green text-on-surface'
+                  : toast.type === 'error'
+                  ? 'bg-status-danger'
+                  : toast.type === 'warning'
+                  ? 'bg-status-pending text-on-surface'
+                  : 'bg-primary'
+              }`}
+            >
+              <span>{toast.message}</span>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                className="opacity-70 hover:opacity-100 material-symbols-outlined text-[16px]"
+              >
+                close
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex flex-col w-full gap-space-lg">
         {/* Toast / Feedback Alert */}
         {operationMessage && (

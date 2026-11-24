@@ -470,6 +470,7 @@ export const CheckoutBorrow: FC = () => {
       }
 
       // 3. Check if code matches a book copy (Accession #)
+      let catalogErrorMessage: string | null = null;
       try {
         const copyScanRes = await scanBookCopy(code);
         if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
@@ -489,8 +490,8 @@ export const CheckoutBorrow: FC = () => {
             return;
           }
         }
-      } catch {
-        // Fallback
+      } catch (err: unknown) {
+        catalogErrorMessage = err instanceof Error ? err.message : 'Error querying book catalog.';
       }
 
       // 4. Fallback: check direct catalog books query
@@ -514,8 +515,14 @@ export const CheckoutBorrow: FC = () => {
           });
           return;
         }
-      } catch {
-        // Fallback
+      } catch (err: unknown) {
+        addToast(err instanceof Error ? err.message : 'Error querying book catalog.', 'error');
+        return;
+      }
+
+      if (catalogErrorMessage) {
+        addToast(catalogErrorMessage, 'error');
+        return;
       }
 
       addToast(`Scanned code "${code}" does not match an active hold reservation or catalog accession.`, 'warning');
@@ -646,8 +653,12 @@ export const CheckoutBorrow: FC = () => {
           return [...prev, matched];
         });
       }
-    } catch {
-      // Graceful fallback
+    } catch (err: unknown) {
+      addToast(
+        err instanceof Error ? err.message : 'Failed to load held book details from catalog.',
+        'error'
+      );
+      return;
     }
 
     setIsHandoverModalOpen(false);
@@ -739,6 +750,7 @@ export const CheckoutBorrow: FC = () => {
     }
 
     // C. Check if Accession # or Barcode via scanBookCopy
+    let catalogLookupError: string | null = null;
     try {
       const copyScanRes = await scanBookCopy(query);
       if (copyScanRes.success && copyScanRes.data?.copy?.bookId) {
@@ -759,8 +771,14 @@ export const CheckoutBorrow: FC = () => {
           return;
         }
       }
-    } catch {
-      // Fallback
+    } catch (err: unknown) {
+      catalogLookupError = err instanceof Error ? err.message : 'Error querying book catalog.';
+    }
+
+    if (catalogLookupError) {
+      setManualCodeError(catalogLookupError);
+      addToast(catalogLookupError, 'error');
+      return;
     }
 
     // D. Mistake recovery error

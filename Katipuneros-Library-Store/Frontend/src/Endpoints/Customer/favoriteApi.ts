@@ -27,7 +27,8 @@ export const getCustomerFavorites = async (): Promise<BackendBook[]> => {
     // Hydrate saved books with latest catalog stock data
     const allBooks = await getBooks();
     return allBooks.filter((b) => savedIds.includes(b.id));
-  } catch {
+  } catch (err: unknown) {
+    console.warn('[favoriteApi] Failed to hydrate customer favorites:', err);
     return [];
   }
 };

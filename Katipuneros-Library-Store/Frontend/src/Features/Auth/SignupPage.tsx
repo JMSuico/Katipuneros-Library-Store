@@ -125,7 +125,7 @@ export const SignupPage: React.FC = () => {
         setErrorMessage(res.message || 'Registration failed.');
       }
     } catch {
-      setErrorMessage('Network connection failure. Unable to reach library API at port 5000.');
+      setErrorMessage('Network connection failure. Unable to reach the library API server.');
     } finally {
       setIsLoading(false);
     }

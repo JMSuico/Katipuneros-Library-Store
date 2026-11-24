@@ -34,11 +34,11 @@ Production
 ### Key 2
 - **Key**:
 ```text
-ASPNETCORE_URLS
+ASPNETCORE_HTTP_PORTS
 ```
 - **Value**:
 ```text
-http://+:5000
+5000
 ```
 
 ### Key 3
@@ -81,47 +81,37 @@ Cors__AllowedOrigins__0
 https://katipuneros-customer.vercel.app
 ```
 
-### Key 7 (CORS: Preview Customer Portal)
+### Key 7 (CORS: Cashier Terminal)
 - **Key**:
 ```text
 Cors__AllowedOrigins__1
 ```
 - **Value**:
 ```text
-https://katipuneros-customer-acgers2xy-suicojm99-gmailcoms-projects.vercel.app
+https://katipuneros-cashier.vercel.app
 ```
 
-### Key 8 (CORS: Cashier Terminal)
+### Key 8 (CORS: Chief Admin Console)
 - **Key**:
 ```text
 Cors__AllowedOrigins__2
 ```
 - **Value**:
 ```text
-https://katipuneros-cashier.vercel.app
+https://katipuneros-admin.onrender.com
 ```
 
-### Key 9 (CORS: Chief Admin Console)
+### Key 9 (CORS: Preview Customer Portal - Optional)
 - **Key**:
 ```text
 Cors__AllowedOrigins__3
 ```
 - **Value**:
 ```text
-https://katipuneros-admin.onrender.com
+https://katipuneros-customer-acgers2xy-suicojm99-gmailcoms-projects.vercel.app
 ```
 
-### Key 10 (CORS: Wildcard Fallback)
-- **Key**:
-```text
-Cors__AllowedOrigins__4
-```
-- **Value**:
-```text
-*
-```
-
-### Key 11 (REQUIRED: JWT HS256 Secret Key)
+### Key 10 (REQUIRED: JWT HS256 Secret Key, >= 32 UTF-8 bytes)
 - **Key**:
 ```text
 Jwt__SecretKey
@@ -131,7 +121,7 @@ Jwt__SecretKey
 KatipunerosLibraryStoreJwtSecretKey_2026_SecureKey_MustBeLongEnough!
 ```
 
-### Key 12 (OPTIONAL: ALTCHA HMAC Secret - Captcha removed from UI)
+### Key 11 (REQUIRED: ALTCHA HMAC Secret, >= 32 UTF-8 bytes)
 - **Key**:
 ```text
 Altcha__HmacSecret
@@ -139,6 +129,26 @@ Altcha__HmacSecret
 - **Value**:
 ```text
 KatipunerosAltchaHmacSecret_2026_SecureKey_MustBeLongEnough!
+```
+
+### Key 12 (OPTIONAL: SMTP Sender Email for Transactional Mail)
+- **Key**:
+```text
+SmtpSettings__SenderEmail
+```
+- **Value**:
+```text
+<your-gmail-address@gmail.com>
+```
+
+### Key 13 (OPTIONAL: SMTP App Password for Transactional Mail)
+- **Key**:
+```text
+SmtpSettings__AppPassword
+```
+- **Value**:
+```text
+<16-char-google-app-password>
 ```
 
 ---

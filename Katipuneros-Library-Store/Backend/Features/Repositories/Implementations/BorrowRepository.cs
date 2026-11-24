@@ -144,10 +144,9 @@ public class BorrowRepository : IBorrowRepository
             .Include(b => b.BookCopy)
             .Include(b => b.Patron)
             .Include(b => b.Cashier)
-            .Where(b => b.Status == TransactionStatus.Active &&
-                ((copyId.HasValue && b.BookCopyId == copyId.Value) || (b.BookId == bookId)))
-            .OrderByDescending(b => copyId.HasValue && b.BookCopyId == copyId.Value ? 1 : 0)
-            .ThenBy(b => b.BorrowDate)
+            .Where(b => (b.Status == TransactionStatus.Active || b.Status == TransactionStatus.Overdue) &&
+                (copyId.HasValue ? b.BookCopyId == copyId.Value : b.BookId == bookId))
+            .OrderBy(b => b.BorrowDate)
             .FirstOrDefaultAsync();
 
     public async Task AddAsync(BorrowTransaction transaction) =>

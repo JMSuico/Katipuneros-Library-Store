@@ -5,17 +5,24 @@
 // DO NOT hardcode secret fallbacks here -- that is the exact defect this type exists to prevent.
 // DO NOT perform database operations or business workflows here.
 
+using System.Text;
 using Microsoft.Extensions.Configuration;
 
 namespace Backend.Features.Helpers.Infrastructure;
 
 public static class SecretConfiguration
 {
+    private const int MinimumSymmetricSecretBytes = 32;
+
     /// <summary>Placeholder values that must never survive into a running deployment.</summary>
     private static readonly string[] PlaceholderMarkers =
     [
         "<", ">", "CHANGE_ME", "changeme", "REPLACE_ME", "TODO", "your-", "placeholder"
     ];
+
+    private static bool RequiresMinimumLength(string key) =>
+        key.Equals("Jwt:SecretKey", StringComparison.OrdinalIgnoreCase) ||
+        key.Equals("Altcha:HmacSecret", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Reads a required secret. Throws when the key is missing, blank, or still a placeholder,
@@ -38,6 +45,10 @@ public static class SecretConfiguration
             throw new InvalidOperationException(
                 $"Secret '{key}' still contains a placeholder token. Replace it with real material " +
                 $"via environment variable '{key.Replace(":", "__")}' or `dotnet user-secrets set \"{key}\" \"<value>\"`.");
+
+        if (RequiresMinimumLength(key) && Encoding.UTF8.GetByteCount(value) < MinimumSymmetricSecretBytes)
+            throw new InvalidOperationException(
+                $"Secret '{key}' must be at least {MinimumSymmetricSecretBytes} UTF-8 bytes long for cryptographic security.");
 
         return value;
     }
@@ -86,6 +97,8 @@ public static class SecretConfiguration
                 problems.Add($"  - '{key}' is missing.  Set env var '{key.Replace(":", "__")}' or run: dotnet user-secrets set \"{key}\" \"<value>\"");
             else if (PlaceholderMarkers.Any(marker => value.Contains(marker, StringComparison.OrdinalIgnoreCase)))
                 problems.Add($"  - '{key}' still holds a placeholder value.");
+            else if (RequiresMinimumLength(key) && Encoding.UTF8.GetByteCount(value) < MinimumSymmetricSecretBytes)
+                problems.Add($"  - '{key}' must be at least {MinimumSymmetricSecretBytes} UTF-8 bytes long for cryptographic security.");
         }
 
         if (problems.Count == 0)

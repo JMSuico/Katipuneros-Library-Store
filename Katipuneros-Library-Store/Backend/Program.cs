@@ -8,13 +8,17 @@ using Backend.Features.Api.Middleware;
 using Backend.Features.Data;
 using Backend.Features.DBInfrastructure.Cache;
 using Backend.Features.DBInfrastructure.Database;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Implementations;
 using Backend.Features.Repositories.Interfaces;
 using Backend.Features.Services.Implementations;
 using Backend.Features.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 
@@ -35,21 +39,39 @@ var primaryConn = builder.Configuration.GetConnectionString("PrimaryConnection")
 var replicaConn = builder.Configuration.GetConnectionString("ReplicaConnection")
     ?? primaryConn;
 
-bool isPostgres = primaryConn.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
-                  primaryConn.Contains("Port=", StringComparison.OrdinalIgnoreCase);
+bool isPostgres = primaryConn.Contains("Host=", StringComparison.OrdinalIgnoreCase) ||
+                  primaryConn.Contains("Port=", StringComparison.OrdinalIgnoreCase) ||
+                  primaryConn.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+                  primaryConn.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase);
+
+static string NormalizePostgresConnectionString(string conn)
+{
+    if (conn.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+        conn.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(conn);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+        var database = uri.AbsolutePath.TrimStart('/');
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var sslMode = conn.Contains("sslmode=", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : ";SslMode=Require;TrustServerCertificate=true";
+        return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password}{sslMode}";
+    }
+
+    return System.Text.RegularExpressions.Regex.Replace(
+        conn,
+        @"Trust\s*Server\s*Certificate",
+        "TrustServerCertificate",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+}
 
 if (isPostgres)
 {
-    primaryConn = System.Text.RegularExpressions.Regex.Replace(
-        primaryConn, 
-        @"Trust\s*Server\s*Certificate", 
-        "TrustServerCertificate", 
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-    replicaConn = System.Text.RegularExpressions.Regex.Replace(
-        replicaConn, 
-        @"Trust\s*Server\s*Certificate", 
-        "TrustServerCertificate", 
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    primaryConn = NormalizePostgresConnectionString(primaryConn);
+    replicaConn = NormalizePostgresConnectionString(replicaConn);
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -91,6 +113,14 @@ if (!string.IsNullOrEmpty(redisConnectionString))
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<CacheInvalidation>();
+
+// Persist Data Protection keys in PostgreSQL so antiforgery/cookie/key rings survive container restarts
+builder.Services.AddDataProtection()
+    .SetApplicationName("KatipunerosLibraryStore");
+if (isPostgres)
+{
+    builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>, ConfigureDataProtectionOptions>();
+}
 
 // ==========================================
 // 2. Repositories (Data Access Layer)
@@ -171,6 +201,25 @@ builder.Services.AddAuthorization(options =>
 // ==========================================
 // 5. CORS Policy
 // ==========================================
+static string NormalizeCorsOrigin(string origin) => origin.Trim().TrimEnd('/');
+
+var allowedCorsOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "https://katipuneros-customer.vercel.app",
+    "https://katipuneros-cashier.vercel.app",
+    "https://katipuneros-admin.onrender.com"
+};
+
+foreach (var configuredOrigin in builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
+{
+    if (string.IsNullOrWhiteSpace(configuredOrigin)) continue;
+    var normalized = NormalizeCorsOrigin(configuredOrigin);
+    if (normalized == "*") continue; // Never pair wildcard origins with AllowCredentials()
+    allowedCorsOrigins.Add(normalized);
+}
+
+bool isDevCors = builder.Environment.IsDevelopment();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -178,30 +227,21 @@ builder.Services.AddCors(options =>
         policy.SetIsOriginAllowed(origin =>
         {
             if (string.IsNullOrWhiteSpace(origin)) return false;
-            try
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+
+            var normalized = NormalizeCorsOrigin(origin);
+            if (allowedCorsOrigins.Contains(normalized))
+                return true;
+
+            if (isDevCors &&
+                (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                 uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                 uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase)))
             {
-                var uri = new Uri(origin);
-                static string Normalize(string o) => o.Trim().TrimEnd('/');
-                var configuredOrigins = (builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
-                    .Where(o => !string.IsNullOrWhiteSpace(o))
-                    .Select(Normalize)
-                    .ToArray();
-                // Our own hosted portals (production + Vercel preview deployments).
-                bool isKatipunerosDeployment = uri.Scheme == "https" &&
-                    uri.Host.StartsWith("katipuneros-", StringComparison.OrdinalIgnoreCase) &&
-                    (uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase) ||
-                     uri.Host.EndsWith(".onrender.com", StringComparison.OrdinalIgnoreCase));
-                return (uri.Host is "localhost" or "127.0.0.1" or "::1") ||
-                       uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-                       (uri.Port is 5173 or 5174 or 5175 or 5176 or 5000) ||
-                       isKatipunerosDeployment ||
-                       configuredOrigins.Contains("*") ||
-                       configuredOrigins.Any(o => o.Equals(Normalize(origin), StringComparison.OrdinalIgnoreCase));
+                return true;
             }
-            catch
-            {
-                return false;
-            }
+
+            return false;
         })
         .AllowAnyHeader()
         .AllowAnyMethod()
@@ -238,7 +278,11 @@ var app = builder.Build();
 // ==========================================
 app.UseForwardedHeaders();                     // 0. Respect Render/Vercel proxy X-Forwarded-Proto & X-Forwarded-For
 app.UseCors("AllowFrontend");                    // 1. CORS headers FIRST so all responses & preflights succeed
-if (!app.Environment.IsDevelopment())
+var hasHttpsPort = !string.IsNullOrWhiteSpace(builder.Configuration["ASPNETCORE_HTTPS_PORT"]) ||
+                   !string.IsNullOrWhiteSpace(builder.Configuration["HTTPS_PORTS"]) ||
+                   !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_HTTPS_PORT")) ||
+                   !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("HTTPS_PORTS"));
+if (hasHttpsPort)
 {
     app.UseHttpsRedirection();
 }
@@ -247,8 +291,7 @@ app.UseMiddleware<RateLimitMiddleware>();        // 3. Rate limiting per IP
 app.UseMiddleware<IdempotencyMiddleware>();      // 4. Duplicate POST protection
 app.UseAuthentication();                         // 5. JWT token validation
 app.UseAuthorization();                          // 6. Role / policy checks
-app.UseMiddleware<JwtMiddleware>();              // 7. Identity context hydration
-app.MapControllers();                            // 8. Route to controllers
+app.MapControllers();                            // 7. Route to controllers
 app.MapGet("/", () => Results.Ok(new { status = "Healthy", service = "Katipuneros Library Store API", version = "1.0.0" }));
 app.MapGet("/healthz", () => Results.Ok("OK"));
 
@@ -331,7 +374,11 @@ if (args.Length >= 4 && args[0].Equals("editcliuser", StringComparison.OrdinalIg
 
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == identifier || u.Email == identifier || u.LibraryCardNumber == identifier);
+    var clean = identifier.Trim().ToLower();
+    var user = await dbContext.Users.FirstOrDefaultAsync(u =>
+        (u.Username != null && u.Username.ToLower() == clean) ||
+        u.Email.ToLower() == clean ||
+        u.LibraryCardNumber.ToLower() == clean);
     if (user == null)
     {
         Console.WriteLine($"[!] User '{identifier}' not found.");
@@ -393,11 +440,15 @@ if (args.Length >= 2 && args[0].Equals("deletecliuser", StringComparison.Ordinal
     var identifier = args[1];
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var clean = identifier.Trim().ToLower();
     var user = await dbContext.Users
         .Include(u => u.BorrowTransactions)
         .Include(u => u.Reservations)
         .Include(u => u.FineTransactions)
-        .FirstOrDefaultAsync(u => u.Username == identifier || u.Email == identifier || u.LibraryCardNumber == identifier);
+        .FirstOrDefaultAsync(u =>
+            (u.Username != null && u.Username.ToLower() == clean) ||
+            u.Email.ToLower() == clean ||
+            u.LibraryCardNumber.ToLower() == clean);
 
     if (user == null)
     {
@@ -416,6 +467,9 @@ if (args.Length >= 2 && args[0].Equals("deletecliuser", StringComparison.Ordinal
 
     var cashierLoans = await dbContext.BorrowTransactions.Where(b => b.CashierId == user.Id).ToListAsync();
     foreach (var b in cashierLoans) b.CashierId = null;
+
+    var cashierFines = await dbContext.FineTransactions.Where(f => f.CashierId == user.Id).ToListAsync();
+    foreach (var f in cashierFines) f.CashierId = null;
 
     var waivedFines = await dbContext.FineTransactions.Where(f => f.WaivedByUserId == user.Id).ToListAsync();
     foreach (var f in waivedFines) f.WaivedByUserId = null;
@@ -462,6 +516,9 @@ if (args.Length >= 1 && args[0].Equals("deleteallcliusers", StringComparison.Ord
 
     var cashierLoans = await dbContext.BorrowTransactions.Where(b => b.CashierId.HasValue && ids.Contains(b.CashierId.Value)).ToListAsync();
     foreach (var b in cashierLoans) b.CashierId = null;
+
+    var cashierFines = await dbContext.FineTransactions.Where(f => f.CashierId.HasValue && ids.Contains(f.CashierId.Value)).ToListAsync();
+    foreach (var f in cashierFines) f.CashierId = null;
 
     var waivedFines = await dbContext.FineTransactions.Where(f => f.WaivedByUserId.HasValue && ids.Contains(f.WaivedByUserId.Value)).ToListAsync();
     foreach (var f in waivedFines) f.WaivedByUserId = null;
@@ -624,18 +681,37 @@ if (args.Length >= 4 && (args[0].Equals("createsuperadmin", StringComparison.Ord
 // ==========================================
 // 9. Database Auto-Seeder on Startup
 // ==========================================
+bool isSyncPgSchemaCommand = args.Length >= 1 && args[0].Equals("syncpgschema", StringComparison.OrdinalIgnoreCase);
+
 if (isPostgres)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     try
     {
-        db.Database.EnsureCreated();
+        await DatabaseSchemaSync.EnsurePostgresSchemaAsync(db, app.Logger);
+        if (isSyncPgSchemaCommand)
+        {
+            Console.WriteLine("[OK] PostgreSQL schema sync completed.");
+            return;
+        }
     }
     catch (Exception ex)
     {
-        app.Logger.LogWarning(ex, "PostgreSQL Database.EnsureCreated completed with non-fatal status.");
+        app.Logger.LogError(ex, "PostgreSQL schema synchronization failed.");
+        if (isSyncPgSchemaCommand)
+        {
+            Console.Error.WriteLine($"[!] PostgreSQL schema sync failed: {ex.GetBaseException().Message}");
+            Environment.ExitCode = 1;
+            return;
+        }
     }
+}
+else if (isSyncPgSchemaCommand)
+{
+    Console.Error.WriteLine("[!] Cannot run syncpgschema: configured database provider is not PostgreSQL.");
+    Environment.ExitCode = 1;
+    return;
 }
 
 using (var scope = app.Services.CreateScope())

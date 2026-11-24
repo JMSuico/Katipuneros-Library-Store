@@ -5,6 +5,7 @@
 // DO NOT put business logic, validation rules, or HTTP concerns here.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Backend.Features.Data;
 using Backend.Features.Data.Enums;
 using Backend.Features.Data.Models;
@@ -15,9 +16,13 @@ namespace Backend.Features.Repositories.Implementations;
 public class BookCopyRepository : IBookCopyRepository
 {
     private readonly AppDbContext _context;
+    private readonly ILogger<BookCopyRepository>? _logger;
 
-    public BookCopyRepository(AppDbContext context) =>
+    public BookCopyRepository(AppDbContext context, ILogger<BookCopyRepository>? logger = null)
+    {
         _context = context;
+        _logger = logger;
+    }
 
     public async Task<BookCopy?> GetByIdAsync(Guid id) =>
         await _context.BookCopies
@@ -25,17 +30,25 @@ public class BookCopyRepository : IBookCopyRepository
                 .ThenInclude(b => b!.Category)
             .FirstOrDefaultAsync(bc => bc.Id == id);
 
-    public async Task<BookCopy?> GetByAccessionNumberAsync(string accessionNumber) =>
-        await _context.BookCopies
+    public async Task<BookCopy?> GetByAccessionNumberAsync(string accessionNumber)
+    {
+        if (string.IsNullOrWhiteSpace(accessionNumber)) return null;
+        var clean = accessionNumber.Trim().ToLower();
+        return await _context.BookCopies
             .Include(bc => bc.Book)
                 .ThenInclude(b => b!.Category)
-            .FirstOrDefaultAsync(bc => bc.AccessionNumber == accessionNumber.Trim());
+            .FirstOrDefaultAsync(bc => bc.AccessionNumber.ToLower() == clean);
+    }
 
-    public async Task<BookCopy?> GetByQrCodeAsync(string qrCodeData) =>
-        await _context.BookCopies
+    public async Task<BookCopy?> GetByQrCodeAsync(string qrCodeData)
+    {
+        if (string.IsNullOrWhiteSpace(qrCodeData)) return null;
+        var clean = qrCodeData.Trim().ToLower();
+        return await _context.BookCopies
             .Include(bc => bc.Book)
                 .ThenInclude(b => b!.Category)
-            .FirstOrDefaultAsync(bc => bc.QrCodeData == qrCodeData.Trim());
+            .FirstOrDefaultAsync(bc => bc.QrCodeData.ToLower() == clean);
+    }
 
     public async Task<BookCopy?> FindByCodeAsync(string code) =>
         await ExecuteAsync(async () =>
@@ -43,6 +56,7 @@ public class BookCopyRepository : IBookCopyRepository
             if (string.IsNullOrWhiteSpace(code)) return null;
 
             var clean = code.Trim();
+            var cleanLower = clean.ToLower();
             var isGuid = Guid.TryParse(clean, out var parsedGuid);
 
             // 1. Direct match on AccessionNumber or QrCodeData or Id
@@ -51,9 +65,9 @@ public class BookCopyRepository : IBookCopyRepository
                     .ThenInclude(b => b!.Category)
                 .FirstOrDefaultAsync(bc =>
                     (isGuid && bc.Id == parsedGuid) ||
-                    bc.AccessionNumber == clean ||
-                    bc.QrCodeData == clean ||
-                    bc.QrCodeData.Contains(clean));
+                    bc.AccessionNumber.ToLower() == cleanLower ||
+                    bc.QrCodeData.ToLower() == cleanLower ||
+                    bc.QrCodeData.ToLower().Contains(cleanLower));
 
             if (directMatch != null) return directMatch;
 
@@ -63,10 +77,11 @@ public class BookCopyRepository : IBookCopyRepository
                 var parts = clean.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 foreach (var part in parts)
                 {
+                    var partLower = part.ToLower();
                     var match = await _context.BookCopies
                         .Include(bc => bc.Book)
                             .ThenInclude(b => b!.Category)
-                        .FirstOrDefaultAsync(bc => bc.AccessionNumber == part);
+                        .FirstOrDefaultAsync(bc => bc.AccessionNumber.ToLower() == partLower);
                     if (match != null) return match;
                 }
             }
@@ -75,9 +90,9 @@ public class BookCopyRepository : IBookCopyRepository
             var book = await _context.Books
                 .FirstOrDefaultAsync(b =>
                     (isGuid && b.Id == parsedGuid) ||
-                    b.IsbnBarcode == clean ||
-                    b.Isbn == clean ||
-                    b.RfidTag == clean);
+                    (b.IsbnBarcode != null && b.IsbnBarcode.ToLower() == cleanLower) ||
+                    b.Isbn.ToLower() == cleanLower ||
+                    (b.RfidTag != null && b.RfidTag.ToLower() == cleanLower));
 
             if (book != null)
             {
@@ -152,6 +167,7 @@ public class BookCopyRepository : IBookCopyRepository
                 {
                     var sqlServerCopy = await _context.BookCopies
                         .FromSqlInterpolated($"SELECT TOP 1 * FROM [BookCopies] WITH (UPDLOCK, ROWLOCK) WHERE [BookId] = {bookId} AND [Status] = {(int)CopyStatus.Available} ORDER BY [CopyNumber]")
+                        .Include(bc => bc.Book)
                         .FirstOrDefaultAsync();
 
                     if (sqlServerCopy is { Status: CopyStatus.Available })
@@ -163,6 +179,7 @@ public class BookCopyRepository : IBookCopyRepository
                 {
                     var npgsqlCopy = await _context.BookCopies
                         .FromSqlInterpolated($"SELECT * FROM \"BookCopies\" WHERE \"BookId\" = {bookId} AND \"Status\" = {(int)CopyStatus.Available} ORDER BY \"CopyNumber\" LIMIT 1 FOR UPDATE")
+                        .Include(bc => bc.Book)
                         .FirstOrDefaultAsync();
 
                     if (npgsqlCopy is { Status: CopyStatus.Available })
@@ -171,9 +188,9 @@ public class BookCopyRepository : IBookCopyRepository
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to LINQ if relational locking syntax is unsupported on current provider
+                _logger?.LogWarning(ex, "Relational row-lock query failed for BookId {BookId}; falling back to standard LINQ query.", bookId);
             }
 
             return await _context.BookCopies

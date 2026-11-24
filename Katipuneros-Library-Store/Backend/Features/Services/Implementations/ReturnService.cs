@@ -256,8 +256,9 @@ public class ReturnService : IReturnService
 
         if (request.Action == "DeaccessionSalvage" && book != null && book.TotalCopies > 0)
         {
-            book.TotalCopies = Math.Max(0, book.TotalCopies - 1);
-            await _bookRepository.UpdateAsync(book);
+            var trackedBook = await _bookRepository.GetByIdAsync(book.Id) ?? book;
+            trackedBook.TotalCopies = Math.Max(0, trackedBook.TotalCopies - 1);
+            await _bookRepository.UpdateAsync(trackedBook);
             await _bookRepository.SaveChangesAsync();
         }
 
@@ -270,15 +271,27 @@ public class ReturnService : IReturnService
             return (false, 0, "No barcodes provided for bulk check-in.");
 
         int count = 0;
+        var trackedBooks = new Dictionary<Guid, Book>();
         foreach (var barcode in request.Barcodes)
         {
-            var book = await _bookRepository.GetByBarcodeAsync(barcode);
-            if (book != null)
+            if (string.IsNullOrWhiteSpace(barcode)) continue;
+            var matched = await _bookRepository.GetByBarcodeAsync(barcode);
+            if (matched != null)
             {
+                if (!trackedBooks.TryGetValue(matched.Id, out var book))
+                {
+                    book = await _bookRepository.GetByIdAsync(matched.Id) ?? matched;
+                    trackedBooks[book.Id] = book;
+                }
+
                 book.AvailableCopies = Math.Min(book.TotalCopies, book.AvailableCopies + 1);
-                await _bookRepository.UpdateAsync(book);
                 count++;
             }
+        }
+
+        foreach (var book in trackedBooks.Values)
+        {
+            await _bookRepository.UpdateAsync(book);
         }
 
         await _bookRepository.SaveChangesAsync();

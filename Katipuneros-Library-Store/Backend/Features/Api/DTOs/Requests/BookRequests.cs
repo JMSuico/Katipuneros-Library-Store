@@ -4,6 +4,7 @@
 // DO NOT put business validation logic or database queries here.
 
 using System.ComponentModel.DataAnnotations;
+using Backend.Features.Helpers.Validation;
 
 namespace Backend.Features.Api.DTOs.Requests;
 
@@ -40,6 +41,7 @@ public class CreateBookRequest
     [Obsolete("Legacy RFID tag hardware property is deprecated and ignored.")]
     public string? RfidTag { get; set; }
 
+    [ValidImageInput]
     public string? CoverImage { get; set; }
 }
 
@@ -76,6 +78,7 @@ public class UpdateBookRequest
     [Obsolete("Legacy RFID tag hardware property is deprecated and ignored.")]
     public string? RfidTag { get; set; }
 
+    [ValidImageInput]
     public string? CoverImage { get; set; }
 }
 

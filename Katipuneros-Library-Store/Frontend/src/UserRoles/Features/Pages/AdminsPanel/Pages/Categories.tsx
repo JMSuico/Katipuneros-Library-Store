@@ -72,19 +72,24 @@ const Categories: FC = () => {
         getCategories(),
         getCatalogBooks(),
       ]);
-      setCategories(catsData || []);
+      const resolvedCats = catsData || [];
+      setCategories(resolvedCats);
       setBooks(booksData || []);
-      if (catsData && catsData.length > 0 && !selectedCategoryId) {
-        setSelectedCategoryId(catsData[0].id);
-      }
-    } catch (err) {
+      setSelectedCategoryId((prev) => {
+        if (resolvedCats.length === 0) return null;
+        if (prev && resolvedCats.some((c) => c.id === prev)) return prev;
+        return resolvedCats[0].id;
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load categories or catalog data.';
       console.error('Failed to load categories or books from API ledger:', err);
       setCategories([]);
       setBooks([]);
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }
-  }, [selectedCategoryId]);
+  }, [addToast]);
 
   useEffect(() => {
     loadData();

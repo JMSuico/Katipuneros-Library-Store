@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
+using Backend.Features.Helpers.Validation;
 using Backend.Features.Services.Interfaces;
 
 namespace Backend.Features.Api.Controllers;
@@ -134,16 +135,23 @@ public class AuthController : ControllerBase
 
     [HttpPost("profile-picture")]
     [Authorize]
-    public async Task<IActionResult> UpdateProfilePicture([FromBody] UpdateProfilePictureRequest request) =>
-        !ModelState.IsValid || string.IsNullOrWhiteSpace(request.GetPictureData())
-            ? BadRequest(ApiResponse<object>.Fail("Invalid picture payload."))
-            : !Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)
-                ? Unauthorized(ApiResponse<object>.Fail("Invalid user identity token."))
-                : await _userService.UpdateProfilePictureAsync(userId, request.GetPictureData()) switch
-                {
-                    (true, var url, _) => Ok(ApiResponse<object>.Ok(new { ProfilePictureUrl = url }, "Profile picture updated successfully.")),
-                    (false, _, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update profile picture."))
-                };
+    public async Task<IActionResult> UpdateProfilePicture([FromBody] UpdateProfilePictureRequest request)
+    {
+        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(request.GetPictureData()))
+            return BadRequest(ApiResponse<object>.Fail("Invalid picture payload."));
+
+        if (!ImageInputValidator.TryValidateImage(request.GetPictureData(), out var imgError))
+            return BadRequest(ApiResponse<object>.Fail(imgError ?? "Invalid picture payload."));
+
+        if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return Unauthorized(ApiResponse<object>.Fail("Invalid user identity token."));
+
+        return await _userService.UpdateProfilePictureAsync(userId, request.GetPictureData()) switch
+        {
+            (true, var url, _) => Ok(ApiResponse<object>.Ok(new { ProfilePictureUrl = url }, "Profile picture updated successfully.")),
+            (false, _, var error) => BadRequest(ApiResponse<object>.Fail(error ?? "Failed to update profile picture."))
+        };
+    }
 
     [HttpPut("change-password")]
     [Authorize]

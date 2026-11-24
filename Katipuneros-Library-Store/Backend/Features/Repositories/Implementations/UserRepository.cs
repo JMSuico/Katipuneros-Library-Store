@@ -74,6 +74,9 @@ public class UserRepository : IUserRepository
             var waivedFines = await _context.FineTransactions.Where(f => f.WaivedByUserId == user.Id).ToListAsync();
             foreach (var f in waivedFines) f.WaivedByUserId = null;
 
+            var settledFines = await _context.FineTransactions.Where(f => f.CashierId == user.Id).ToListAsync();
+            foreach (var f in settledFines) f.CashierId = null;
+
             var feedbacks = await _context.Feedbacks.Where(f => f.PatronId == user.Id).ToListAsync();
             if (feedbacks.Any()) _context.Feedbacks.RemoveRange(feedbacks);
 
@@ -110,6 +113,9 @@ public class UserRepository : IUserRepository
 
         var waivedFines = await _context.FineTransactions.Where(f => f.WaivedByUserId.HasValue && ids.Contains(f.WaivedByUserId.Value)).ToListAsync();
         foreach (var f in waivedFines) f.WaivedByUserId = null;
+
+        var settledFines = await _context.FineTransactions.Where(f => f.CashierId.HasValue && ids.Contains(f.CashierId.Value)).ToListAsync();
+        foreach (var f in settledFines) f.CashierId = null;
 
         var feedbacks = await _context.Feedbacks.Where(f => f.PatronId.HasValue && ids.Contains(f.PatronId.Value)).ToListAsync();
         if (feedbacks.Any()) _context.Feedbacks.RemoveRange(feedbacks);

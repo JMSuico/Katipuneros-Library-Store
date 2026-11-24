@@ -61,6 +61,7 @@ const BooksManager: FC = () => {
   const [metrics, setMetrics] = useState<CatalogMetrics | null>(null);
   const [selectedBook, setSelectedBook] = useState<BackendBook | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // State: Filters & View
   const [searchParams] = useSearchParams();
@@ -169,6 +170,7 @@ const BooksManager: FC = () => {
 
   // Fetch Catalog Data & Metrics via Flowchain
   const loadData = useCallback(async () => {
+    setLoadError(null);
     try {
       const [fetchedBooks, fetchedMetrics, fetchedCategories] = await Promise.all([
         getCatalogBooks(),
@@ -178,28 +180,33 @@ const BooksManager: FC = () => {
 
       if (fetchedBooks) {
         setBooks(fetchedBooks);
-        if (fetchedBooks.length > 0) {
-          if (!selectedBook || !fetchedBooks.find((b) => b.id === selectedBook.id)) {
-            setSelectedBook(fetchedBooks[0]);
+        setSelectedBook((prev) => {
+          if (fetchedBooks.length === 0) return null;
+          if (prev) {
+            const matched = fetchedBooks.find((b) => b.id === prev.id);
+            if (matched) return matched;
           }
-        } else {
-          setSelectedBook(null);
-        }
+          return fetchedBooks[0];
+        });
       }
       if (fetchedMetrics) {
         setMetrics(fetchedMetrics);
       }
       if (fetchedCategories) {
         setCategories(fetchedCategories);
-        if (fetchedCategories.length > 0 && !addForm.categoryId) {
-          setAddForm((prev) => ({ ...prev, categoryId: fetchedCategories[0].id }));
+        if (fetchedCategories.length > 0) {
+          setAddForm((prev) =>
+            prev.categoryId ? prev : { ...prev, categoryId: fetchedCategories[0].id }
+          );
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err, 'Failed to load catalog data from the server.');
       console.warn('[BooksManager] Could not load catalog data:', err);
-      setBooks([]);
+      setLoadError(msg);
+      addToast(msg, 'error');
     }
-  }, [addForm.categoryId, selectedBook]);
+  }, [addToast]);
 
   useEffect(() => {
     loadData();
@@ -838,6 +845,26 @@ const BooksManager: FC = () => {
             </Button>
           </div>
         </div>
+
+        {/* Catalog Fetch Error Banner */}
+        {loadError && (
+          <div
+            role="alert"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-error-container text-on-error-container border border-error/25 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              <span className="font-small text-small font-semibold">{loadError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadData()}
+              className="px-4 py-1.5 rounded-xl bg-surface-container-lowest text-text-primary font-caption text-caption font-bold hover:bg-surface-container transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              Retry Sync
+            </button>
+          </div>
+        )}
 
         {/* 4 Live Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md mb-space-lg">

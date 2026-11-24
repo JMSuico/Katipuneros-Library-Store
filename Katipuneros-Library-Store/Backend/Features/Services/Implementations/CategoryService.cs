@@ -5,6 +5,7 @@
 // DO NOT access HttpContext -- HTTP concerns stay in controllers.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Backend.Features.Data.Models;
 using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
@@ -15,9 +16,10 @@ namespace Backend.Features.Services.Implementations;
 public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository _categoryRepository;
+    private readonly ILogger<CategoryService>? _logger;
 
-    public CategoryService(ICategoryRepository categoryRepository) =>
-        _categoryRepository = categoryRepository;
+    public CategoryService(ICategoryRepository categoryRepository, ILogger<CategoryService>? logger = null) =>
+        (_categoryRepository, _logger) = (categoryRepository, logger);
 
     public async Task<List<Category>> GetAllCategoriesAsync() =>
         await _categoryRepository.GetAllAsync();
@@ -94,13 +96,20 @@ public class CategoryService : ICategoryService
             var saved = await _categoryRepository.SaveChangesAsync();
             return (saved, saved ? null : "Failed to delete category.");
         }
-        catch (DbUpdateException)
+        catch (DbUpdateConcurrencyException ex)
         {
+            _logger?.LogWarning(ex, "Concurrency conflict deleting category {CategoryId}", category.Id);
+            return (false, "Record was modified by another operation. Please refresh and retry.");
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger?.LogWarning(ex, "Database constraint prevented deleting category {CategoryId}", category.Id);
             return (false, "Cannot remove classification category: books are actively assigned to it.");
         }
         catch (Exception ex)
         {
-            return (false, $"Error removing classification category: {ex.Message}");
+            _logger?.LogError(ex, "Unexpected error deleting category {CategoryId}", category.Id);
+            return (false, "An unexpected error occurred while removing the classification category.");
         }
     }
 
@@ -108,8 +117,10 @@ public class CategoryService : ICategoryService
     {
         if (categoryIds == null || categoryIds.Count == 0) return (0, "No category IDs provided for deletion.");
         var toDelete = new List<Category>();
+        var seenIds = new HashSet<Guid>();
         foreach (var id in categoryIds)
         {
+            if (!seenIds.Add(id)) continue;
             if (await _categoryRepository.GetByIdAsync(id) is { } category)
             {
                 if (category.Books.Any())
@@ -126,13 +137,20 @@ public class CategoryService : ICategoryService
             await _categoryRepository.SaveChangesAsync();
             return (toDelete.Count, null);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateConcurrencyException ex)
         {
+            _logger?.LogWarning(ex, "Concurrency conflict during bulk category deletion");
+            return (0, "Record was modified by another operation. Please refresh and retry.");
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger?.LogWarning(ex, "Database constraint prevented bulk category deletion");
             return (0, "Cannot remove one or more selected categories: catalog titles are actively assigned to them.");
         }
         catch (Exception ex)
         {
-            return (0, $"Error during bulk category removal: {ex.Message}");
+            _logger?.LogError(ex, "Unexpected error during bulk category deletion");
+            return (0, "An unexpected error occurred during bulk category removal.");
         }
     }
 }

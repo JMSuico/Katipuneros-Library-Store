@@ -4,7 +4,7 @@
 // DO NOT put business logic or UI rendering here.
 
 import { apiRequest, getApiBaseUrl } from './apiClient';
-import { FEATURED_BOOKS, StaticBook } from '../Libs/Assets/bookData';
+import { StaticBook } from '../Libs/Assets/bookData';
 
 export interface BackendCategory {
   id: string;
@@ -78,8 +78,11 @@ export const getPublicBooks = async (categoryId?: string, query?: string): Promi
   if (query) queryParams.append('query', query);
 
   const res = await apiRequest<BackendBook[]>(`/books?${queryParams.toString()}`);
+  if (!res.success) {
+    throw new Error(res.message || 'Failed to load public catalog books.');
+  }
 
-  return res.success && Array.isArray(res.data)
+  return Array.isArray(res.data)
     ? res.data.map((b) => ({
         id: b.id,
         title: b.title,
@@ -108,13 +111,21 @@ export const getCatalogBooks = async (categoryId?: string, query?: string): Prom
   if (query) queryParams.append('query', query);
 
   const res = await apiRequest<BackendBook[]>(`/books?${queryParams.toString()}`);
-  return res.success && Array.isArray(res.data) ? res.data : [];
+  if (!res.success) {
+    throw new Error(res.message || 'Failed to load catalog books.');
+  }
+  return Array.isArray(res.data) ? res.data : [];
 };
 
 export const getBooks = getCatalogBooks;
 
-export const getBookDetails = async (id: string): Promise<BackendBook | null> =>
-  (await apiRequest<BackendBook>(`/books/${id}`)).data ?? null;
+export const getBookDetails = async (id: string): Promise<BackendBook | null> => {
+  const res = await apiRequest<BackendBook>(`/books/${id}`);
+  if (!res.success) {
+    throw new Error(res.message || 'Failed to load book details.');
+  }
+  return res.data ?? null;
+};
 
 export const createCatalogBook = async (book: CreateBookDto) =>
   await apiRequest<BackendBook>('/books', {
@@ -135,7 +146,10 @@ export const deleteCatalogBook = async (id: string) =>
 
 export const getCatalogMetrics = async (): Promise<CatalogMetrics | null> => {
   const res = await apiRequest<CatalogMetrics>('/books/metrics');
-  return res.success && res.data ? res.data : null;
+  if (!res.success) {
+    throw new Error(res.message || 'Failed to load catalog metrics.');
+  }
+  return res.data ?? null;
 };
 
 export const bulkDeleteCatalogBooks = async (bookIds: string[]) =>
@@ -158,7 +172,10 @@ export const batchIngestIsbns = async (isbns: string[], categoryId?: string) =>
 
 export const getCategories = async (): Promise<BackendCategory[]> => {
   const res = await apiRequest<BackendCategory[]>('/categories');
-  return res.success && Array.isArray(res.data) ? res.data : [];
+  if (!res.success) {
+    throw new Error(res.message || 'Failed to load categories.');
+  }
+  return Array.isArray(res.data) ? res.data : [];
 };
 
 export const getExportBooksUrl = (params: ExportFilterParams): string => {

@@ -22,62 +22,85 @@ public class BookRepository : IBookRepository
     }
 
     public async Task<Book?> GetByIdAsync(Guid id) =>
-        await _readOnlyContext.Books
+        await _context.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Id == id);
 
-    public async Task<Book?> GetByIsbnAsync(string isbn) =>
-        await _readOnlyContext.Books
+    public async Task<Book?> GetByIsbnAsync(string isbn)
+    {
+        if (string.IsNullOrWhiteSpace(isbn)) return null;
+        var cleanIsbn = isbn.Trim().ToLower();
+        return await _context.Books
             .Include(b => b.Category)
-            .FirstOrDefaultAsync(b => b.Isbn == isbn);
+            .FirstOrDefaultAsync(b => b.Isbn.ToLower() == cleanIsbn);
+    }
 
     public async Task<Book?> GetByBarcodeAsync(string barcode)
     {
+        if (string.IsNullOrWhiteSpace(barcode)) return null;
         var cleanBarcode = barcode.Trim();
-        var stripped = cleanBarcode.Replace("-", "");
+        var cleanLower = cleanBarcode.ToLower();
+        var strippedLower = cleanLower.Replace("-", "");
         var isGuid = Guid.TryParse(cleanBarcode, out var bookId);
 
-        return await _readOnlyContext.Books
+        return await _context.Books
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b =>
                 (isGuid && b.Id == bookId) ||
-                b.IsbnBarcode == cleanBarcode ||
-                b.IsbnBarcode == stripped ||
-                b.RfidTag == cleanBarcode ||
-                b.Isbn == cleanBarcode ||
-                b.Isbn == stripped);
+                (b.IsbnBarcode != null && (b.IsbnBarcode.ToLower() == cleanLower || b.IsbnBarcode.ToLower() == strippedLower)) ||
+                (b.RfidTag != null && b.RfidTag.ToLower() == cleanLower) ||
+                b.Isbn.ToLower() == cleanLower ||
+                b.Isbn.ToLower() == strippedLower);
     }
 
     public async Task<Guid> GetDefaultCategoryIdAsync() =>
         await _readOnlyContext.Categories.Select(c => c.Id).FirstOrDefaultAsync();
 
-    public async Task<List<Book>> GetAllAsync(Guid? categoryId = null, string? searchTerm = null, bool? isSpotlight = null) =>
-        await _readOnlyContext.Books
+    public async Task<List<Book>> GetAllAsync(Guid? categoryId = null, string? searchTerm = null, bool? isSpotlight = null)
+    {
+        var term = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm.Trim().ToLower();
+
+        return await _readOnlyContext.Books
             .Include(b => b.Category)
             .Where(b => !categoryId.HasValue || b.CategoryId == categoryId.Value)
             .Where(b => !isSpotlight.HasValue || b.IsSpotlight == isSpotlight.Value)
-            .Where(b => string.IsNullOrWhiteSpace(searchTerm) ||
-                        b.Title.ToLower().Contains(searchTerm.Trim().ToLower()) ||
-                        b.Author.ToLower().Contains(searchTerm.Trim().ToLower()) ||
-                        b.Isbn.Contains(searchTerm.Trim()) ||
-                        b.DeweyCode.Contains(searchTerm.Trim()))
+            .Where(b => term == null ||
+                        b.Title.ToLower().Contains(term) ||
+                        b.Author.ToLower().Contains(term) ||
+                        b.Isbn.ToLower().Contains(term) ||
+                        b.DeweyCode.ToLower().Contains(term))
             .OrderBy(b => b.Title)
             .ToListAsync();
+    }
 
     public async Task AddAsync(Book book) =>
         await _context.Books.AddAsync(book);
 
-    public Task UpdateAsync(Book book) =>
-        Task.FromResult(_context.Books.Update(book));
+    public Task UpdateAsync(Book book)
+    {
+        if (_context.Entry(book).State == EntityState.Detached)
+            _context.Books.Update(book);
+        return Task.CompletedTask;
+    }
 
-    public Task DeleteAsync(Book book) =>
-        Task.FromResult(_context.Books.Remove(book));
+    public Task DeleteAsync(Book book)
+    {
+        var target = ResolveTrackedForDelete(book);
+        _context.Books.Remove(target);
+        return Task.CompletedTask;
+    }
 
     public Task DeleteRangeAsync(IEnumerable<Book> books)
     {
-        _context.Books.RemoveRange(books);
+        var targets = books.Select(ResolveTrackedForDelete).ToList();
+        _context.Books.RemoveRange(targets);
         return Task.CompletedTask;
     }
+
+    private Book ResolveTrackedForDelete(Book book) =>
+        _context.Entry(book).State == EntityState.Detached
+            ? _context.Books.Local.FirstOrDefault(b => b.Id == book.Id) ?? book
+            : book;
 
     public async Task<bool> SaveChangesAsync() =>
         await _context.SaveChangesAsync() > 0;

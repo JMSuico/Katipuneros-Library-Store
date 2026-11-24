@@ -10,41 +10,48 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
+const isLocalHostName = (host: string): boolean =>
+  host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
+
+const isLocalUrl = (url: string): boolean =>
+  url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
+
+const normalizeApiUrl = (raw: string): string => {
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  return trimmed.replace(/\/api$/i, '/api');
+};
+
 export const getApiBaseUrl = (): string => {
   const isBrowser = typeof window !== 'undefined' && Boolean(window.location?.hostname);
   const host = isBrowser ? window.location.hostname : '';
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
+  const isLocalHost = isLocalHostName(host);
 
-  const envUrl = (import.meta.env?.VITE_API_BASE_URL as string | undefined) ??
-                 (import.meta.env?.VITE_API_URL as string | undefined);
+  const envCandidates = [
+    import.meta.env?.VITE_API_URL as string | undefined,
+    import.meta.env?.VITE_API_BASE_URL as string | undefined,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeApiUrl);
 
-  if (envUrl && envUrl.trim().length > 0) {
-    const trimmed = envUrl.trim().replace(/\/+$/, '');
-    const envIsLocal = trimmed.includes('localhost') || trimmed.includes('127.0.0.1') || trimmed.includes('0.0.0.0');
-    // If running in local browser, prioritize local backend if envUrl points to local, or fallback to port 5000
-    if (isBrowser && isLocalHost) {
-      if (envIsLocal) {
-        return trimmed;
-      }
-      const protocol = window.location.protocol || 'http:';
-      return `${protocol}//${host}:5000/api`;
+  if (isBrowser && isLocalHost) {
+    const localCandidate = envCandidates.find(isLocalUrl);
+    if (localCandidate) {
+      return localCandidate;
     }
-
-    // If in a remote/cloud browser session, never let a localhost envUrl override the live backend
-    if (!isBrowser || !envIsLocal) {
-      return trimmed;
-    }
+    const protocol = window.location.protocol || 'http:';
+    return `${protocol}//${host}:5000/api`;
   }
 
-  // Cloud browser runtime (e.g. *.onrender.com, *.vercel.app, custom domains)
   if (isBrowser && !isLocalHost) {
+    const cloudCandidate = envCandidates.find((url) => !isLocalUrl(url));
+    if (cloudCandidate) {
+      return cloudCandidate;
+    }
     return 'https://katipuneros-backend.onrender.com/api';
   }
 
-  // Local development runtime
-  if (isBrowser && isLocalHost) {
-    const protocol = window.location.protocol || 'http:';
-    return `${protocol}//${host}:5000/api`;
+  if (envCandidates.length > 0) {
+    return envCandidates[0];
   }
 
   return 'https://katipuneros-backend.onrender.com/api';
@@ -126,7 +133,7 @@ export const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
   const baseUrl = getApiBaseUrl();
-  const normalizedPath = path.startsWith('/api/')
+  const normalizedPath = path.toLowerCase().startsWith('/api/')
     ? path.slice(4)
     : path.startsWith('/')
       ? path
@@ -140,9 +147,14 @@ export const apiRequest = async <T>(
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  if (token && !headers['Authorization']) {
+  if (token && !headers['Authorization'] && !headers['authorization']) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  const authHeader = headers['Authorization'] ?? headers['authorization'] ?? '';
+  const sentBearerAuth = authHeader.toLowerCase().startsWith('bearer ');
+  const lowerPath = normalizedPath.toLowerCase();
+  const isAuthEndpoint = lowerPath.startsWith('/auth/login') || lowerPath.startsWith('/auth/register');
 
   try {
     const response = await fetch(url, {
@@ -179,6 +191,12 @@ export const apiRequest = async <T>(
 
     if (!response.ok) {
       json.success = false;
+      if (response.status === 401 && sentBearerAuth && !isAuthEndpoint) {
+        clearAuthSession();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('katipuneros-auth-changed', { detail: null }));
+        }
+      }
       if (response.status === 429) {
         json.message = json.message || 'Rate limit exceeded (HTTP 429). Please wait 60 seconds before retrying.';
       }
@@ -193,5 +211,60 @@ export const apiRequest = async <T>(
       data: null as unknown as T,
       errors: [message],
     };
+  }
+};
+
+const parseFilenameFromDisposition = (disposition: string | null, fallbackFilename: string): string => {
+  if (!disposition) return fallbackFilename;
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;\n]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch {
+      return utf8Match[1].trim();
+    }
+  }
+  const asciiMatch = disposition.match(/filename="?([^";\n]+)"?/i);
+  if (asciiMatch?.[1]) {
+    return asciiMatch[1].trim();
+  }
+  return fallbackFilename;
+};
+
+export const downloadAuthenticatedFile = async (url: string, fallbackFilename: string): Promise<void> => {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 && token) {
+      clearAuthSession();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('katipuneros-auth-changed', { detail: null }));
+      }
+    }
+    throw new Error(`Failed to download file (HTTP ${response.status}).`);
+  }
+
+  const filename = parseFilenameFromDisposition(response.headers.get('Content-Disposition'), fallbackFilename);
+  const blob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  } finally {
+    window.URL.revokeObjectURL(objectUrl);
   }
 };

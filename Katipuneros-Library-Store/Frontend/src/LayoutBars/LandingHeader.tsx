@@ -309,7 +309,7 @@ const LandingHeader: React.FC = () => {
           </Link>
           <div className="flex items-center justify-between text-[10px] text-stone-500 px-1 pt-1">
             <span>Katipuneros Library Store</span>
-            <span className="font-mono text-[#B8860B] font-semibold">PORT 5173</span>
+            <span className="font-mono text-[#B8860B] font-semibold">PATRON PORTAL</span>
           </div>
         </div>
       </aside>

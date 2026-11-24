@@ -17,6 +17,7 @@ import {
   EMPTY_BORROWING_METRICS,
   ExportBorrowingsParams,
 } from '../../../../../Endpoints/Admin/borrowingsApi';
+import { downloadAuthenticatedFile } from '../../../../../Endpoints/apiClient';
 import { SearchBar } from '../../../../../Shared/SearchBar';
 import { Dropdown, DropdownItem } from '../../../../../Shared/Dropdown';
 import { RadioButton } from '../../../../../Shared/RadioButton';
@@ -287,7 +288,7 @@ const Borrowings: FC = () => {
   };
 
   // Action: Export Submit
-  const handleExportDownload = () => {
+  const handleExportDownload = async () => {
     const params: ExportBorrowingsParams = {
       startDate: exportStartDate || undefined,
       endDate: exportEndDate || undefined,
@@ -297,9 +298,14 @@ const Borrowings: FC = () => {
       format: exportFormat,
     };
     const url = getExportBorrowingsUrl(params);
-    window.open(url, '_blank');
-    setIsExportModalOpen(false);
-    addToast(`Exporting loan register (${exportFormat.toUpperCase()})...`, 'success');
+    const ext = exportFormat === 'excel' ? 'xlsx' : 'csv';
+    try {
+      await downloadAuthenticatedFile(url, `borrowings_export.${ext}`);
+      setIsExportModalOpen(false);
+      addToast(`Loan register exported (${exportFormat.toUpperCase()}).`, 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Failed to export loan register.'), 'error');
+    }
   };
 
   // Action: Save Institutional Circulation Policy

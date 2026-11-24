@@ -142,6 +142,16 @@ const Analytics: FC = () => {
   // Load all telemetry and metrics
   const loadAnalyticsData = useCallback(async () => {
     try {
+      let hasPartialError = false;
+      const safeOptional = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await fn();
+        } catch {
+          hasPartialError = true;
+          return fallback;
+        }
+      };
+
       const [anomRes, velRes, densRes, commRes, demRes, catalogBooks, reservations, catList] = await Promise.all([
         getAnomalyAlert(),
         getVelocityMetrics(granularity),
@@ -149,8 +159,8 @@ const Analytics: FC = () => {
         getCommunityFlow(),
         getCirculationDemand(),
         getCatalogBooks(),
-        getAdminReservations().catch(() => []),
-        getCategories().catch(() => []),
+        safeOptional(() => getAdminReservations(), []),
+        safeOptional(() => getCategories(), []),
       ]);
 
       setAnomaly(anomRes);
@@ -200,11 +210,17 @@ const Analytics: FC = () => {
       } else {
         setRecords([]);
       }
-    } catch (err) {
+
+      if (hasPartialError) {
+        addToast('Some secondary analytics feeds failed to load; displayed figures may be partial.', 'error');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load live analytics metrics.';
       console.error('[Analytics] Failed to fetch live metrics:', err);
       setRecords([]);
+      addToast(msg, 'error');
     }
-  }, [granularity]);
+  }, [granularity, addToast]);
 
   useEffect(() => {
     loadAnalyticsData();
