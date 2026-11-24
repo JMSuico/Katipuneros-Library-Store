@@ -12,6 +12,7 @@ using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data;
 using Backend.Features.Data.Enums;
 using Backend.Features.Data.Models;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
 
 namespace Backend.Features.Repositories.Implementations;
@@ -26,20 +27,20 @@ public class CashierRepository : ICashierRepository
     public async Task<CashierDashboardKpisResponse> GetDashboardKpisAsync()
     {
         var now = DateTime.UtcNow;
-        var today = now.Date;
+        var (todayStart, todayEnd) = DateTimeNormalizationHelper.GetUtcDayRange(now);
 
         var pendingHolds = await _context.Reservations.CountAsync(r => r.Status == ReservationStatus.Pending);
-        var urgentHolds = await _context.Reservations.CountAsync(r => r.Status == ReservationStatus.Pending && r.ReservationDate.Date == today);
-        var approvedToday = await _context.Reservations.CountAsync(r => r.Status == ReservationStatus.StagedInLocker && r.ReservationDate.Date == today);
+        var urgentHolds = await _context.Reservations.CountAsync(r => r.Status == ReservationStatus.Pending && r.ReservationDate >= todayStart && r.ReservationDate < todayEnd);
+        var approvedToday = await _context.Reservations.CountAsync(r => r.Status == ReservationStatus.StagedInLocker && r.ReservationDate >= todayStart && r.ReservationDate < todayEnd);
         var toRelease = await _context.Reservations.CountAsync(r => r.Status == ReservationStatus.StagedInLocker && r.FulfilledDate == null);
 
         var activeLoans = await _context.BorrowTransactions.CountAsync(t => t.Status == TransactionStatus.Active);
-        var dueToday = await _context.BorrowTransactions.CountAsync(t => t.Status == TransactionStatus.Active && t.DueDate.Date == today);
+        var dueToday = await _context.BorrowTransactions.CountAsync(t => t.Status == TransactionStatus.Active && t.DueDate >= todayStart && t.DueDate < todayEnd);
         var overdueLoans = await _context.BorrowTransactions.CountAsync(t => t.Status == TransactionStatus.Active && t.DueDate < now);
-        var returnsToday = await _context.BorrowTransactions.CountAsync(t => t.Status == TransactionStatus.Returned && t.ReturnDate.HasValue && t.ReturnDate.Value.Date == today);
+        var returnsToday = await _context.BorrowTransactions.CountAsync(t => t.Status == TransactionStatus.Returned && t.ReturnDate.HasValue && t.ReturnDate.Value >= todayStart && t.ReturnDate.Value < todayEnd);
 
         var settledTodayFines = await _context.FineTransactions
-            .Where(f => f.Status == "Settled" && f.SettledAt.HasValue && f.SettledAt.Value.Date == today)
+            .Where(f => f.Status == "Settled" && f.SettledAt.HasValue && f.SettledAt.Value >= todayStart && f.SettledAt.Value < todayEnd)
             .ToListAsync();
 
         var finesAmount = settledTodayFines.Sum(f => f.Amount - f.BalanceRemaining);
@@ -84,37 +85,16 @@ public class CashierRepository : ICashierRepository
 
     public async Task<List<BorrowTransaction>> GetCirculationLedgerAsync(DateTime? date, string? type, string? search, int page = 1, int pageSize = 20)
     {
-        var query = _context.BorrowTransactions
-            .Include(t => t.Patron)
-            .Include(t => t.Book)
-            .Include(t => t.Cashier)
-            .Include(t => t.FineTransactions)
-            .AsQueryable();
-
-        if (date.HasValue)
-        {
-            var targetDate = date.Value.Date;
-            query = query.Where(t => t.BorrowDate.Date == targetDate || (t.ReturnDate.HasValue && t.ReturnDate.Value.Date == targetDate));
-        }
-
-        if (!string.IsNullOrWhiteSpace(type))
-        {
-            query = type.ToLower() switch
-            {
-                "active" or "checkout" => query.Where(t => t.Status == TransactionStatus.Active),
-                "returned" or "return" => query.Where(t => t.Status == TransactionStatus.Returned),
-                "overdue" => query.Where(t => t.Status == TransactionStatus.Active && t.DueDate < DateTime.UtcNow),
-                _ => query
-            };
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var s = search.Trim().ToLower();
-            query = query.Where(t =>
-                (t.Patron != null && (t.Patron.FullName.ToLower().Contains(s) || t.Patron.LibraryCardNumber.ToLower().Contains(s))) ||
-                (t.Book != null && (t.Book.Title.ToLower().Contains(s) || (t.Book.IsbnBarcode != null && t.Book.IsbnBarcode.ToLower().Contains(s)) || t.Book.Isbn.ToLower().Contains(s))));
-        }
+        var query = ApplyCirculationLedgerFilters(
+            _context.BorrowTransactions
+                .Include(t => t.Patron)
+                .Include(t => t.Book)
+                .Include(t => t.Cashier)
+                .Include(t => t.FineTransactions)
+                .AsSplitQuery(),
+            date,
+            type,
+            search);
 
         return await query
             .OrderByDescending(t => t.BorrowDate)
@@ -123,14 +103,33 @@ public class CashierRepository : ICashierRepository
             .ToListAsync();
     }
 
-    public async Task<int> GetCirculationLedgerCountAsync(DateTime? date, string? type, string? search)
-    {
-        var query = _context.BorrowTransactions.AsQueryable();
+    public async Task<int> GetCirculationLedgerCountAsync(DateTime? date, string? type, string? search) =>
+        await ApplyCirculationLedgerFilters(_context.BorrowTransactions, date, type, search)
+            .CountAsync();
 
+    public async Task<List<FineTransaction>> GetDailySettledFinesAsync(DateTime date)
+    {
+        var (dayStart, dayEnd) = DateTimeNormalizationHelper.GetUtcDayRange(date);
+        return await _context.FineTransactions
+            .Include(f => f.Patron)
+            .Include(f => f.BorrowTransaction)
+            .Where(f => f.Status == "Settled" && f.SettledAt.HasValue && f.SettledAt.Value >= dayStart && f.SettledAt.Value < dayEnd)
+            .OrderByDescending(f => f.SettledAt)
+            .ToListAsync();
+    }
+
+    private static IQueryable<BorrowTransaction> ApplyCirculationLedgerFilters(
+        IQueryable<BorrowTransaction> query,
+        DateTime? date,
+        string? type,
+        string? search)
+    {
         if (date.HasValue)
         {
-            var targetDate = date.Value.Date;
-            query = query.Where(t => t.BorrowDate.Date == targetDate || (t.ReturnDate.HasValue && t.ReturnDate.Value.Date == targetDate));
+            var (dayStart, dayEnd) = DateTimeNormalizationHelper.GetUtcDayRange(date.Value);
+            query = query.Where(t =>
+                (t.BorrowDate >= dayStart && t.BorrowDate < dayEnd) ||
+                (t.ReturnDate.HasValue && t.ReturnDate.Value >= dayStart && t.ReturnDate.Value < dayEnd));
         }
 
         if (!string.IsNullOrWhiteSpace(type))
@@ -152,14 +151,6 @@ public class CashierRepository : ICashierRepository
                 (t.Book != null && (t.Book.Title.ToLower().Contains(s) || (t.Book.IsbnBarcode != null && t.Book.IsbnBarcode.ToLower().Contains(s)) || t.Book.Isbn.ToLower().Contains(s))));
         }
 
-        return await query.CountAsync();
+        return query;
     }
-
-    public async Task<List<FineTransaction>> GetDailySettledFinesAsync(DateTime date) =>
-        await _context.FineTransactions
-            .Include(f => f.Patron)
-            .Include(f => f.BorrowTransaction)
-            .Where(f => f.Status == "Settled" && f.SettledAt.HasValue && f.SettledAt.Value.Date == date.Date)
-            .OrderByDescending(f => f.SettledAt)
-            .ToListAsync();
 }

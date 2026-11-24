@@ -4,6 +4,7 @@
 // DO NOT put business validation logic or database queries here.
 
 using System.ComponentModel.DataAnnotations;
+using Backend.Features.Helpers.Validation;
 
 namespace Backend.Features.Api.DTOs.Requests;
 
@@ -117,7 +118,10 @@ public class UpdateProfileRequest
 
 public class UpdateProfilePictureRequest
 {
+    [ValidImageInput]
     public string? PictureData { get; set; }
+
+    [ValidImageInput]
     public string? ProfilePictureUrl { get; set; }
 
     public string GetPictureData() =>
@@ -189,6 +193,7 @@ public class AdminUpdateUserRequest
     public string? CurrentAddress { get; set; }
     public string? PermanentAddress { get; set; }
     public string? EmploymentStatus { get; set; }
+    [ValidImageInput]
     public string? ProfilePictureUrl { get; set; }
     public string? Email { get; set; }
     public string? Age { get; set; }
@@ -229,6 +234,7 @@ public class AdminCreateUserRequest
     public string? CurrentAddress { get; set; }
     public string? PermanentAddress { get; set; }
     public string? EmploymentStatus { get; set; }
+    [ValidImageInput]
     public string? ProfilePictureUrl { get; set; }
     public string? Age { get; set; }
 }

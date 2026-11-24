@@ -7,6 +7,7 @@
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToasts } from '../../../../../Hooks/useToasts';
+import { downloadAuthenticatedFile } from '../../../../../Endpoints/apiClient';
 import {
   getAdminReservations,
   getReservationMetrics,
@@ -67,15 +68,17 @@ export const PendingReservations: FC = () => {
       ]);
       setReservations(listRes);
       setMetrics(metricsRes);
-      if (listRes.length > 0 && !activeReservationId) {
-        setActiveReservationId(listRes[0].id);
-      }
+      setActiveReservationId((prev) => {
+        if (listRes.length === 0) return null;
+        if (prev && listRes.some((r) => r.id === prev)) return prev;
+        return listRes[0].id;
+      });
     } catch {
       addToast('Failed to synchronize reservation holds with database.', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [addToast, activeReservationId]);
+  }, [addToast]);
 
   useEffect(() => {
     loadData();
@@ -193,10 +196,15 @@ export const PendingReservations: FC = () => {
     }
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     const url = getExportReservationsUrl({ format: 'csv' });
-    window.open(url, '_blank');
-    addToast('Intake queue sheet export initiated.', 'info');
+    try {
+      await downloadAuthenticatedFile(url, 'pending_reservations.csv');
+      addToast('Intake queue sheet exported.', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to export intake queue sheet.';
+      addToast(msg, 'error');
+    }
   };
 
   // Hold Status Counts

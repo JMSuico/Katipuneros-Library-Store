@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Models;
@@ -21,9 +22,10 @@ public class SettingsService : ISettingsService
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly ISettingsRepository _settingsRepo;
     private readonly IAuditRepository _auditRepository;
+    private readonly ILogger<SettingsService>? _logger;
 
-    public SettingsService(ISettingsRepository settingsRepo, IAuditRepository auditRepository) =>
-        (_settingsRepo, _auditRepository) = (settingsRepo, auditRepository);
+    public SettingsService(ISettingsRepository settingsRepo, IAuditRepository auditRepository, ILogger<SettingsService>? logger = null) =>
+        (_settingsRepo, _auditRepository, _logger) = (settingsRepo, auditRepository, logger);
 
     public async Task<SystemSettingsResponse> GetSystemSettingsAsync()
     {
@@ -39,7 +41,10 @@ public class SettingsService : ISettingsService
                 var parsed = JsonSerializer.Deserialize<CirculationPolicyResponse>(circSetting.Value, JsonOptions);
                 if (parsed != null) response.Circulation = parsed;
             }
-            catch { /* fallback to defaults */ }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to deserialize circulation_policy setting; falling back to defaults.");
+            }
         }
 
         // Dynamic DB metrics for active scope
@@ -55,7 +60,10 @@ public class SettingsService : ISettingsService
                 var parsed = JsonSerializer.Deserialize<ReservationSetupsResponse>(resSetting.Value, JsonOptions);
                 if (parsed != null) response.Reservations = parsed;
             }
-            catch { /* fallback to defaults */ }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to deserialize reservation_setups setting; falling back to defaults.");
+            }
         }
 
         // 3. Fine Tariffs
@@ -67,7 +75,10 @@ public class SettingsService : ISettingsService
                 var parsed = JsonSerializer.Deserialize<FineTariffsResponse>(finesSetting.Value, JsonOptions);
                 if (parsed != null) response.Fines = parsed;
             }
-            catch { /* fallback to defaults */ }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to deserialize fine_tariffs setting; falling back to defaults.");
+            }
         }
 
         // 4. Security & Telemetry
@@ -79,7 +90,10 @@ public class SettingsService : ISettingsService
                 var parsed = JsonSerializer.Deserialize<SecurityGovernanceResponse>(secSetting.Value, JsonOptions);
                 if (parsed != null) response.Security = parsed;
             }
-            catch { /* fallback to defaults */ }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to deserialize security_governance setting; falling back to defaults.");
+            }
         }
 
         var totalLogs = await _settingsRepo.GetAuditLogsCountAsync();

@@ -2,7 +2,7 @@
 // NewlyAcquiredBooks.tsx -- Newly acquired book catalog grid with interactive category filtering.
 // Extracted from LandingPage/code.html lines 482-691.
 // Connects to Endpoints/booksApi.ts for catalog data via expression lambdas.
-import { FC, useState, useEffect } from 'react';
+import { FC, useState, useEffect, useCallback } from 'react';
 import { BookDetailData, CatalogBook } from '../../Home/Components/BookDetailModal';
 import { getPublicBooks, getCategories } from '../../../../../Endpoints/booksApi';
 
@@ -14,110 +14,55 @@ interface NewlyAcquiredBooksProps {
   searchFilter?: string;
 }
 
-export const CATALOG_BOOKS: BookDetailData[] = [
-  {
-    id: 'static-cat-1',
-    title: 'Introduction to Algorithms (4th Edition)',
-    author: 'Thomas H. Cormen, Charles E. Leiserson',
-    category: 'Technology',
-    stock: '18 Available',
-    isbn: '978-0262046305',
-    synopsis: 'The leading comprehensive textbook and reference for modern algorithms research, covering dynamic programming, graph traversal, and multithreading.',
-    coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCQf-XWzD_o5lE50r6j0s7_qZ4y2n-K4gTqZ5F5jL0cI9Q_Y8f-1u2w3e4r5t6y7u8i9o0p=w400',
-  },
-  {
-    id: 'static-cat-2',
-    title: 'The Feynman Lectures on Physics',
-    author: 'Richard Feynman, Robert Leighton',
-    category: 'Science',
-    stock: '7 Available',
-    isbn: '978-0465023820',
-    synopsis: 'Legendary lectures delivering deep intuition on quantum electrodynamics, classical mechanics, gravitation, and thermodynamics.',
-    coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAcIeS2Woom5vrHVaF2Q1MlJ9H7qDaaLnIjiAKAIRfoQZz2__2lPUogwfJp2qUvBuIhMipDBa0GugWXUNhqh8it0yVHxVNCXHTlVxXgEFadBM2ki7MogVWhYIFX_Ku0OSjCUYUJBF8a8t3CyTUD0DeAKHHhRL_JBkLOkRMYna1S3f9k9BBvyMba4i8WgcY2rpm6BubN6ZT51-P217OBXL3Xuf4oPIFynbo3IJVPgjg5EM8u4cp6Kd8P',
-  },
-  {
-    id: 'static-cat-3',
-    title: 'Noli Me Tangere',
-    author: 'Dr. Jose P. Rizal',
-    category: 'History',
-    stock: '24 Available',
-    isbn: '978-0143106395',
-    synopsis: 'The foundational novel of Philippine national consciousness exposing social cancer, colonial tyranny, and the yearning for liberty.',
-    coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA0s7qB5_v_c2w1r3t4y5u6i7o8p9a0s1d2f3g4h5j6k7l8z9x0c1v2b3n4m5=w400',
-  },
-  {
-    id: 'static-cat-4',
-    title: 'Artificial Intelligence: A Modern Approach',
-    author: 'Stuart Russell, Peter Norvig',
-    category: 'Technology',
-    stock: '9 Available',
-    isbn: '978-0134610993',
-    synopsis: 'The standard global authority on artificial intelligence, neural networks, machine learning, probabilistic reasoning, and robotics.',
-    coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9e8r7t6y5u4i3o2p1a0s9d8f7g6h5j4k3l2z1x0c9v8b7n6m5=w400',
-  },
-  {
-    id: 'static-cat-5',
-    title: 'Meditations',
-    author: 'Marcus Aurelius',
-    category: 'History',
-    stock: '12 Available',
-    isbn: '978-0812968255',
-    synopsis: 'A collection of personal writings by the Roman Emperor Marcus Aurelius on Stoic philosophy, cosmic order, spiritual resilience, and ethical leadership.',
-    coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuE1w2e3r4t5y6u7i8o9p0a1s2d3f4g5h6j7k8l9z0x1c2v3b4n5=w400',
-  },
-  {
-    id: 'static-cat-6',
-    title: 'The Design of Everyday Things',
-    author: 'Don Norman',
-    category: 'Science',
-    stock: '11 Available',
-    isbn: '978-0465050659',
-    synopsis: 'The seminal guide to human-centered cognitive ergonomics, affordances, signifiers, and usable product architecture.',
-    coverImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA87Z3xipnijFCsV4bwTpKjnd2TNwCGQMvOJwoCiQV32OU5RsqUW1C0SX6cq10zUTDNITGy7Pg-5n8wLGMWLH3yp2eT319vnWw0PhBgAqZhJuRauLZGZWm9HZoXxMG1eee5Ut8EfBPLif-0nXtod2q89SlWcQTnqZbO7M6WmhlaTUaGUfRnXLFYSnrPGFFfGYQDRfaUHdP13dIPl8n8ruYc717lhrScdrYUlD806A4xfIh1XNN5XQcM',
-  },
-];
-
 export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
   onOpenDetail,
   onOpenReserve,
   searchFilter = '',
 }) => {
-  const [books, setBooks] = useState<BookDetailData[]>(CATALOG_BOOKS);
+  const [books, setBooks] = useState<BookDetailData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [categories, setCategories] = useState<string[]>(['All', 'Technology', 'Science', 'History']);
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const fetchCatalog = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const [liveBooks, liveCats] = await Promise.all([
+        getPublicBooks(),
+        getCategories(),
+      ]);
+
+      const catNames = Array.from(new Set(liveCats.map((c) => c.name).filter(Boolean)));
+      setCategories(['All', ...catNames]);
+
+      const liveAsCatalogBooks: CatalogBook[] = liveBooks.map((b, idx) => ({
+        id: b.id || b.isbn || String(idx),
+        title: b.title,
+        author: b.author,
+        category: b.category,
+        stock: `${b.availableCopies} Available`,
+        isbn: b.isbn,
+        synopsis: b.summary || 'Curated volume from university archives.',
+        coverImage: b.coverImage || '',
+      }));
+      setBooks(liveAsCatalogBooks);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Unable to load the library catalog right now. Please try again.';
+      setBooks([]);
+      setErrorMessage(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        const [liveBooks, liveCats] = await Promise.all([
-          getPublicBooks(),
-          getCategories(),
-        ]);
-
-        if (liveCats && liveCats.length > 0) {
-          const catNames = Array.from(new Set(liveCats.map((c) => c.name).filter(Boolean)));
-          setCategories(['All', ...catNames]);
-        }
-
-        if (liveBooks && liveBooks.length > 0) {
-          const liveAsCatalogBooks: CatalogBook[] = liveBooks.map((b, idx) => ({
-            id: b.id || b.isbn || String(idx),
-            title: b.title,
-            author: b.author,
-            category: b.category,
-            stock: `${b.availableCopies} Available`,
-            isbn: b.isbn,
-            synopsis: b.summary || 'Curated volume from university archives.',
-            coverImage: b.coverImage || CATALOG_BOOKS[0].coverImage,
-          }));
-          setBooks(liveAsCatalogBooks);
-        }
-      } catch {
-        // Graceful fallback to static catalog
-      }
-    };
-    fetchCatalog();
-  }, []);
+    void fetchCatalog();
+  }, [fetchCatalog]);
 
   const filteredBooks = books.filter((b) => {
     const matchesCategory = selectedCategory === 'All' || b.category === selectedCategory;
@@ -170,20 +115,50 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
 
       {/* Book Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
-        {filteredBooks.length === 0 ? (
+        {isLoading ? (
+          <div className="col-span-full py-16 text-center flex flex-col items-center justify-center p-8 bg-white/70 rounded-3xl border border-outline-variant/20">
+            <span className="material-symbols-outlined animate-spin text-4xl text-primary mb-3">progress_activity</span>
+            <p className="font-small text-small text-text-secondary">Loading library catalog...</p>
+          </div>
+        ) : errorMessage ? (
+          <div
+            role="alert"
+            className="col-span-full py-12 text-center flex flex-col items-center justify-center p-8 bg-status-danger/5 rounded-3xl border border-status-danger/25"
+          >
+            <span className="material-symbols-outlined text-4xl text-status-danger mb-3">cloud_off</span>
+            <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold">
+              Catalog Unavailable
+            </h3>
+            <p className="font-small text-small text-text-secondary mt-1 max-w-md">
+              {errorMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => void fetchCatalog()}
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-action-green text-text-primary font-body-medium text-small font-semibold shadow-sm hover:bg-action-green-hover transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">refresh</span>
+              <span>Retry</span>
+            </button>
+          </div>
+        ) : filteredBooks.length === 0 ? (
           <div className="col-span-full py-16 text-center flex flex-col items-center justify-center p-8 bg-white/70 rounded-3xl border border-dashed border-outline-variant/40">
             <span className="material-symbols-outlined text-5xl text-text-secondary/50 mb-3">menu_book</span>
             <h3 className="font-headline-4 text-headline-4 text-text-primary font-bold">No Catalog Items Found</h3>
             <p className="font-small text-small text-text-secondary mt-1 max-w-md">
-              No books currently match &quot;{selectedCategory}&quot; {searchFilter ? `with keyword "${searchFilter}"` : ''}.
-              Try selecting &quot;All&quot; or clearing your search filters.
+              {books.length === 0
+                ? 'The library catalog currently has no published titles.'
+                : `No books currently match "${selectedCategory}"${searchFilter ? ` with keyword "${searchFilter}"` : ''}. Try selecting "All" or clearing your search filters.`}
             </p>
-            <button
-              onClick={() => setSelectedCategory('All')}
-              className="mt-4 px-5 py-2 rounded-full bg-action-green text-text-primary font-body-medium text-small font-semibold shadow-sm hover:bg-action-green-hover transition-colors cursor-pointer"
-            >
-              Show All Categories
-            </button>
+            {selectedCategory !== 'All' && (
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('All')}
+                className="mt-4 px-5 py-2 rounded-full bg-action-green text-text-primary font-body-medium text-small font-semibold shadow-sm hover:bg-action-green-hover transition-colors cursor-pointer"
+              >
+                Show All Categories
+              </button>
+            )}
           </div>
         ) : (
           filteredBooks.map((book, idx) => (
@@ -193,11 +168,15 @@ export const NewlyAcquiredBooks: FC<NewlyAcquiredBooksProps> = ({
             >
               <div>
                 <div className="relative w-full h-56 rounded-2xl overflow-hidden mb-space-md bg-secondary-container shadow-inner flex items-center justify-center group-hover:scale-[1.02] transition-transform">
-                  <img
-                    className="w-full h-full object-cover"
-                    alt={book.title}
-                    src={book.coverImage}
-                  />
+                  {book.coverImage ? (
+                    <img
+                      className="w-full h-full object-cover"
+                      alt={book.title}
+                      src={book.coverImage}
+                    />
+                  ) : (
+                    <span className="material-symbols-outlined text-5xl text-primary/40">menu_book</span>
+                  )}
                   <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/90 backdrop-blur-md font-caption text-caption text-status-available font-semibold shadow-sm">
                     {book.stock}
                   </div>

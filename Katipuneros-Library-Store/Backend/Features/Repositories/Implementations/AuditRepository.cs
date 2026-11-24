@@ -6,6 +6,7 @@
 using Microsoft.EntityFrameworkCore;
 using Backend.Features.Data;
 using Backend.Features.Data.Models;
+using Backend.Features.Helpers.Infrastructure;
 using Backend.Features.Repositories.Interfaces;
 
 namespace Backend.Features.Repositories.Implementations;
@@ -97,13 +98,16 @@ public class AuditRepository : IAuditRepository
             query = query.Where(l => l.TargetEntity.ToLower().Contains(mod));
         }
 
+        var normalizedStart = DateTimeNormalizationHelper.ToUtc(startDate);
+        var normalizedEnd = DateTimeNormalizationHelper.ToUtc(endDate);
+
         if (!string.IsNullOrWhiteSpace(timeframe))
         {
             var tf = timeframe.Trim().ToLower();
             if (tf == "today")
             {
-                var today = DateTime.UtcNow.Date;
-                query = query.Where(l => l.Timestamp >= today);
+                var (todayStart, _) = DateTimeNormalizationHelper.GetUtcDayRange(DateTime.UtcNow);
+                query = query.Where(l => l.Timestamp >= todayStart);
             }
             else if (tf == "7d")
             {
@@ -117,20 +121,23 @@ public class AuditRepository : IAuditRepository
             }
             else if (tf == "custom")
             {
-                if (startDate.HasValue)
-                    query = query.Where(l => l.Timestamp >= startDate.Value);
-                if (endDate.HasValue)
-                    query = query.Where(l => l.Timestamp <= endDate.Value);
+                query = ApplyDateRange(query, normalizedStart, normalizedEnd);
             }
         }
-        else if (startDate.HasValue || endDate.HasValue)
+        else if (normalizedStart.HasValue || normalizedEnd.HasValue)
         {
-            if (startDate.HasValue)
-                query = query.Where(l => l.Timestamp >= startDate.Value);
-            if (endDate.HasValue)
-                query = query.Where(l => l.Timestamp <= endDate.Value);
+            query = ApplyDateRange(query, normalizedStart, normalizedEnd);
         }
 
+        return query;
+    }
+
+    private static IQueryable<AuditLogEntry> ApplyDateRange(IQueryable<AuditLogEntry> query, DateTime? startUtc, DateTime? endUtc)
+    {
+        if (startUtc.HasValue)
+            query = query.Where(l => l.Timestamp >= startUtc.Value);
+        if (endUtc.HasValue)
+            query = query.Where(l => l.Timestamp <= endUtc.Value);
         return query;
     }
 }

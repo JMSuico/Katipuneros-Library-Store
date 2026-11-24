@@ -18,6 +18,8 @@ import {
   DamagedAssessmentCase,
   ExportReturnsFilterQuery,
 } from '../../../../../Endpoints/Admin/returnsApi';
+import { downloadAuthenticatedFile } from '../../../../../Endpoints/apiClient';
+import { getErrorMessage } from '../../../../../Libs/formatters';
 import { SearchBar } from '../../../../../Shared/SearchBar';
 import { Dropdown, DropdownItem } from '../../../../../Shared/Dropdown';
 import { RadioButton } from '../../../../../Shared/RadioButton';
@@ -366,11 +368,16 @@ const Returns: FC = () => {
   };
 
   // Action: Trigger Export
-  const handleTriggerExport = () => {
+  const handleTriggerExport = async () => {
     const url = getExportReturnsUrl(exportFilters);
-    window.open(url, '_blank');
-    setIsExportModalOpen(false);
-    addToast('Returns journal export generated.', 'info');
+    const ext = exportFilters.format === 'xlsx' ? 'xlsx' : 'csv';
+    try {
+      await downloadAuthenticatedFile(url, `returns_export.${ext}`);
+      setIsExportModalOpen(false);
+      addToast('Returns journal export downloaded.', 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Failed to export returns journal.'), 'error');
+    }
   };
 
   // Sort dropdown items

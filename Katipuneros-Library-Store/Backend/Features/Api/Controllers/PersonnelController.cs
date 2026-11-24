@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Models;
+using Backend.Features.Helpers.Validation;
 using Backend.Features.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -44,8 +45,15 @@ public class PersonnelController : ControllerBase
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(ApiResponse<Personnel>), StatusCodes.Status201Created)]
-    public async Task<IActionResult> Create([FromBody] CreatePersonnelRequest request) =>
-        await _personnelService.CreatePersonnelAsync(
+    public async Task<IActionResult> Create([FromBody] CreatePersonnelRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.Fail("Invalid personnel creation payload."));
+
+        if (!ImageInputValidator.TryValidateImage(request.ImageUrl, out var imgError))
+            return BadRequest(ApiResponse<object>.Fail(imgError ?? "Invalid image URL."));
+
+        return await _personnelService.CreatePersonnelAsync(
             request.FullName,
             request.Position,
             request.Department,
@@ -54,13 +62,21 @@ public class PersonnelController : ControllerBase
         ) is { } staff
             ? CreatedAtAction(nameof(GetById), new { id = staff.Id }, ApiResponse<object>.Ok(staff, "Staff profile created."))
             : BadRequest(ApiResponse<object>.Fail("Failed to create staff profile."));
+    }
 
     /// <summary> Update staff profile (Admin only) </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePersonnelRequest request) =>
-        await _personnelService.UpdatePersonnelAsync(
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePersonnelRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.Fail("Invalid personnel update payload."));
+
+        if (!ImageInputValidator.TryValidateImage(request.ImageUrl, out var imgError))
+            return BadRequest(ApiResponse<object>.Fail(imgError ?? "Invalid image URL."));
+
+        return await _personnelService.UpdatePersonnelAsync(
             id,
             request.FullName,
             request.Position,
@@ -73,6 +89,7 @@ public class PersonnelController : ControllerBase
             (true, _) => Ok(ApiResponse<object>.Ok(new { id }, "Staff profile updated successfully.")),
             (false, var err) => BadRequest(ApiResponse<object>.Fail(err ?? "Update failed."))
         };
+    }
 
     /// <summary> Delete staff profile (Admin only) </summary>
     [HttpDelete("{id}")]

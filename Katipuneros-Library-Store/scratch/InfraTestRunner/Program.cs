@@ -14,6 +14,7 @@ using Backend.Features.Data.Enums;
 using Backend.Features.Data.Models;
 using Backend.Features.DBInfrastructure.Cache;
 using Backend.Features.Helpers.Infrastructure;
+using Backend.Features.Helpers.Validation;
 using Backend.Features.Repositories.Implementations;
 using Backend.Features.Services.Implementations;
 using Microsoft.Extensions.Configuration;
@@ -316,6 +317,42 @@ namespace Scratch.InfraTestRunner
             }
             var goodVerify = solvedPayload != null ? altchaSvc.VerifySolution(solvedPayload) : (Success: false, IsValidFormat: false, Message: "Unsolved");
             AssertTrue("AltchaService verifies valid PoW challenge", goodVerify.Success, goodVerify.Message);
+
+            // AltchaService replay attack & short secret rejection
+            var replayVerify = solvedPayload != null ? altchaSvc.VerifySolution(solvedPayload) : (Success: true, IsValidFormat: true, Message: "Skipped");
+            AssertTrue("AltchaService rejects replayed PoW challenge", !replayVerify.Success, replayVerify.Message);
+
+            var shortSecretCfg = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=Test;",
+                ["Jwt:SecretKey"] = "too-short-secret",
+                ["Altcha:HmacSecret"] = "also-too-short"
+            }).Build();
+            bool shortSecretThrew = false;
+            try { SecretConfiguration.ValidateRequired(shortSecretCfg); } catch (InvalidOperationException) { shortSecretThrew = true; }
+            AssertTrue("SecretConfiguration rejects < 32-byte keys", shortSecretThrew, "Short symmetric secrets rejected");
+
+            // ImageInputValidator XSS / SVG / Oversized / Safe URL checks
+            bool imgXssRejected = !ImageInputValidator.TryValidateImage("javascript:alert(1)", out _);
+            bool imgSvgRejected = !ImageInputValidator.TryValidateImage("data:image/svg+xml;base64,PHN2Zz4=", out _);
+            bool imgTagRejected = !ImageInputValidator.TryValidateImage("<script>alert(1)</script>", out _);
+            bool imgOversizeRejected = !ImageInputValidator.TryValidateImage("data:image/png;base64," + new string('A', 2_900_000), out _);
+            bool imgValidHttps = ImageInputValidator.TryValidateImage("https://katipuneros.example.com/covers/book.png", out _);
+            bool imgValidBase64 = ImageInputValidator.TryValidateImage("data:image/png;base64,iVBORw0KGgo=", out _);
+            AssertTrue("ImageInputValidator blocks XSS/SVG/oversized and accepts safe image URLs",
+                imgXssRejected && imgSvgRejected && imgTagRejected && imgOversizeRejected && imgValidHttps && imgValidBase64,
+                "XSS/SVG/Oversize blocked; HTTPS + safe base64 PNG allowed");
+
+            // DateTimeNormalizationHelper Unspecified / Local / DayBounds checks
+            var unspecDate = new DateTime(2026, 11, 24, 15, 30, 0, DateTimeKind.Unspecified);
+            var normalizedUtc = DateTimeNormalizationHelper.ToUtc(unspecDate);
+            var (dayStart, dayEnd) = DateTimeNormalizationHelper.GetUtcDayRange(unspecDate);
+            AssertTrue("DateTimeNormalizationHelper forces UTC Kind & half-open day bounds",
+                normalizedUtc.Kind == DateTimeKind.Utc &&
+                dayStart.Kind == DateTimeKind.Utc &&
+                dayEnd.Kind == DateTimeKind.Utc &&
+                (dayEnd - dayStart) == TimeSpan.FromDays(1),
+                $"Start={dayStart:o}, End={dayEnd:o}");
 
             // Cache null poisoning guard
             await cacheService.SetAsync<string>("neg:null", null!, TimeSpan.FromMinutes(5));

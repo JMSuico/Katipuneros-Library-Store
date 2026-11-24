@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data;
@@ -37,6 +38,7 @@ public class BorrowService : IBorrowService
     private readonly ISettingsRepository _settingsRepository;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
+    private readonly ILogger<BorrowService>? _logger;
 
     public BorrowService(
         AppDbContext context,
@@ -48,9 +50,10 @@ public class BorrowService : IBorrowService
         IReservationRepository reservationRepository,
         ISettingsRepository settingsRepository,
         IConfiguration configuration,
-        IEmailService emailService) =>
-        (_context, _borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _reservationRepository, _settingsRepository, _configuration, _emailService) =
-        (context, borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, reservationRepository, settingsRepository, configuration, emailService);
+        IEmailService emailService,
+        ILogger<BorrowService>? logger = null) =>
+        (_context, _borrowRepository, _bookRepository, _bookCopyRepository, _userRepository, _fineRepository, _reservationRepository, _settingsRepository, _configuration, _emailService, _logger) =
+        (context, borrowRepository, bookRepository, bookCopyRepository, userRepository, fineRepository, reservationRepository, settingsRepository, configuration, emailService, logger);
 
     public async Task<List<BorrowTransaction>> GetPatronActiveLoansAsync(Guid patronId) =>
         await _borrowRepository.GetActiveByPatronIdAsync(patronId);
@@ -187,8 +190,13 @@ public class BorrowService : IBorrowService
                 }
 
                 int defaultLoanDays = patronTier.DaysDuration > 0 ? patronTier.DaysDuration : 14;
-                DateTime effectiveDueDate = dueDate.HasValue && dueDate.Value > DateTime.UtcNow
-                    ? dueDate.Value
+                DateTime? normalizedDueDate = dueDate.HasValue
+                    ? (dueDate.Value.Kind == DateTimeKind.Unspecified
+                        ? DateTime.SpecifyKind(dueDate.Value, DateTimeKind.Utc)
+                        : dueDate.Value.ToUniversalTime())
+                    : null;
+                DateTime effectiveDueDate = normalizedDueDate.HasValue && normalizedDueDate.Value > DateTime.UtcNow
+                    ? normalizedDueDate.Value
                     : DateTime.UtcNow.AddDays(defaultLoanDays);
 
                 foreach (var barcode in bookBarcodes)
@@ -332,10 +340,17 @@ public class BorrowService : IBorrowService
 
                 await dbTx.CommitAsync();
             }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                await dbTx.RollbackAsync();
+                _logger?.LogWarning(ex, "Concurrency conflict during checkout for patron {PatronId}", patronId);
+                return (false, new List<BorrowTransaction>(), "Record was modified by another operation. Please refresh and retry.");
+            }
             catch (Exception ex)
             {
                 await dbTx.RollbackAsync();
-                return (false, new List<BorrowTransaction>(), $"Checkout transaction aborted due to database concurrency conflict: {ex.Message}");
+                _logger?.LogError(ex, "Checkout transaction aborted for patron {PatronId}", patronId);
+                return (false, new List<BorrowTransaction>(), "Checkout transaction could not be completed. Please try again.");
             }
 
             // Dispatch loan notification emails only AFTER database transaction is committed
@@ -689,10 +704,17 @@ public class BorrowService : IBorrowService
 
                 await dbTx.CommitAsync();
             }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                await dbTx.RollbackAsync();
+                _logger?.LogWarning(ex, "Concurrency conflict during book return for barcode {Barcode}", barcode);
+                return (false, null, 0, "Record was modified by another operation. Please refresh and retry.");
+            }
             catch (Exception ex)
             {
                 await dbTx.RollbackAsync();
-                return (false, null, 0, $"Return transaction aborted due to database concurrency conflict: {ex.Message}");
+                _logger?.LogError(ex, "Return transaction aborted for barcode {Barcode}", barcode);
+                return (false, null, 0, "Return transaction could not be completed. Please try again.");
             }
 
             activeLoan.Book = book;

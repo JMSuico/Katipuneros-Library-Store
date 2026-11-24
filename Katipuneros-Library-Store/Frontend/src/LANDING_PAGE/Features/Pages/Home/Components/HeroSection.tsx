@@ -26,6 +26,7 @@ const spotlightBook: BookDetailData = {
 export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [metrics, setMetrics] = useState<{ totalTitles: number } | null>(null);
+  const [metricsStatus, setMetricsStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [popularTags, setPopularTags] = useState<string[]>([
     'Filipiniana',
     'Computer Science',
@@ -35,14 +36,31 @@ export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) =
   ]);
 
   useEffect(() => {
-    Promise.all([getCatalogMetrics(), getCategories()])
-      .then(([m, cats]) => {
-        if (m) setMetrics(m);
-        if (cats && cats.length > 0) {
-          setPopularTags(cats.slice(0, 5).map((c) => c.name));
-        }
-      })
-      .catch(() => {});
+    let isMounted = true;
+    const loadHeroData = async (): Promise<void> => {
+      const [metricsResult, categoriesResult] = await Promise.allSettled([
+        getCatalogMetrics(),
+        getCategories(),
+      ]);
+      if (!isMounted) return;
+
+      if (metricsResult.status === 'fulfilled' && metricsResult.value) {
+        setMetrics(metricsResult.value);
+        setMetricsStatus('loaded');
+      } else {
+        setMetrics(null);
+        setMetricsStatus('error');
+      }
+
+      if (categoriesResult.status === 'fulfilled' && categoriesResult.value.length > 0) {
+        setPopularTags(categoriesResult.value.slice(0, 5).map((c) => c.name));
+      }
+    };
+
+    void loadHeroData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -124,9 +142,15 @@ export const HeroSection: FC<HeroSectionProps> = ({ onOpenReserve, onSearch }) =
             <div className="grid grid-cols-3 gap-6 pt-space-md border-t border-outline-variant/30 w-full max-w-xl">
               <div>
                 <div className="font-headline-3 text-headline-3 text-text-primary font-bold">
-                  {(metrics?.totalTitles ? metrics.totalTitles.toLocaleString() : '18,000')}+
+                  {metricsStatus === 'loading'
+                    ? '...'
+                    : metricsStatus === 'loaded' && metrics
+                      ? `${metrics.totalTitles.toLocaleString()}${metrics.totalTitles > 0 ? '+' : ''}`
+                      : '—'}
                 </div>
-                <div className="font-caption text-caption text-text-secondary">Cataloged Books</div>
+                <div className="font-caption text-caption text-text-secondary">
+                  {metricsStatus === 'error' ? 'Catalog unavailable' : 'Cataloged Books'}
+                </div>
               </div>
               <div>
                 <div className="font-headline-3 text-headline-3 text-text-primary font-bold">500+</div>

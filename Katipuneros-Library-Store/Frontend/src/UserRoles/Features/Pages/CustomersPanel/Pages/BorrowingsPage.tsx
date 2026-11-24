@@ -76,7 +76,7 @@ const BorrowingsPage: FC = () => {
     }
   };
 
-  const loadData = useCallback(async (silent: boolean = false) => {
+  const loadData = useCallback(async (silent: boolean = false): Promise<boolean> => {
     try {
       if (!silent) setLoading(true);
       const [actives, history, fines, settings] = await Promise.all([
@@ -105,29 +105,75 @@ const BorrowingsPage: FC = () => {
         selectedLoanIdRef.current = defaultId;
         return defaultId;
       });
+      return true;
     } catch (err) {
       if (!silent) {
         console.error('Failed to load customer circulation records:', err);
         addToast('Unable to synchronize circulation records. Please retry.', 'error');
       }
+      return false;
     } finally {
       if (!silent) setLoading(false);
     }
   }, [addToast]);
 
   useEffect(() => {
-    loadData(false);
+    const BASE_POLL_INTERVAL_MS = 15000;
+    const MAX_POLL_INTERVAL_MS = 60000;
+    let currentIntervalMs = BASE_POLL_INTERVAL_MS;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let isDisposed = false;
 
-    // Auto-poll every 3.5 seconds so return scan from cashier reflects live without manual refresh
-    const pollTimer = setInterval(() => {
-      loadData(true);
-    }, 3500);
+    const scheduleNextPoll = () => {
+      if (isDisposed) return;
+      if (pollTimer !== null) {
+        clearTimeout(pollTimer);
+      }
+      pollTimer = setTimeout(async () => {
+        if (isDisposed) return;
+        if (!document.hidden) {
+          const succeeded = await loadData(true);
+          currentIntervalMs = succeeded
+            ? BASE_POLL_INTERVAL_MS
+            : Math.min(currentIntervalMs * 2, MAX_POLL_INTERVAL_MS);
+        }
+        scheduleNextPoll();
+      }, currentIntervalMs);
+    };
 
-    const handleFocus = () => loadData(true);
-    const handleCirculationUpdate = () => loadData(true);
+    void loadData(false).then((succeeded) => {
+      if (isDisposed) return;
+      currentIntervalMs = succeeded
+        ? BASE_POLL_INTERVAL_MS
+        : Math.min(BASE_POLL_INTERVAL_MS * 2, MAX_POLL_INTERVAL_MS);
+      scheduleNextPoll();
+    });
+
+    const handleFocus = () => {
+      if (!document.hidden) {
+        void loadData(true);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        currentIntervalMs = BASE_POLL_INTERVAL_MS;
+        void loadData(true).then((succeeded) => {
+          if (isDisposed) return;
+          if (!succeeded) {
+            currentIntervalMs = Math.min(BASE_POLL_INTERVAL_MS * 2, MAX_POLL_INTERVAL_MS);
+          }
+          scheduleNextPoll();
+        });
+      }
+    };
+
+    const handleCirculationUpdate = () => {
+      void loadData(true);
+    };
 
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('visibilitychange', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('katipuneros-circulation-updated', handleCirculationUpdate);
     window.addEventListener('circulation-return-confirmed', handleCirculationUpdate);
     window.addEventListener('storage', handleCirculationUpdate);
@@ -136,16 +182,19 @@ const BorrowingsPage: FC = () => {
     try {
       channel = new BroadcastChannel('katipuneros-circulation-sync');
       channel.onmessage = () => {
-        loadData(true);
+        void loadData(true);
       };
     } catch {
       // BroadcastChannel optional fallback
     }
 
     return () => {
-      clearInterval(pollTimer);
+      isDisposed = true;
+      if (pollTimer !== null) {
+        clearTimeout(pollTimer);
+      }
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('visibilitychange', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('katipuneros-circulation-updated', handleCirculationUpdate);
       window.removeEventListener('circulation-return-confirmed', handleCirculationUpdate);
       window.removeEventListener('storage', handleCirculationUpdate);

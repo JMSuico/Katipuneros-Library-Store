@@ -16,7 +16,7 @@ export const CashierLoginPage: React.FC = () => {
     const user = getStoredUser();
     if (token && isTokenValid(token) && user?.role === 'Cashier') {
       navigate('/cashier/dashboard', { replace: true });
-    } else if (token && !isTokenValid(token)) {
+    } else if (token) {
       clearAuthSession();
     }
   }, [navigate]);
@@ -43,6 +43,7 @@ export const CashierLoginPage: React.FC = () => {
         if (res.user.role === 'Cashier') {
           navigate('/cashier/checkout');
         } else {
+          clearAuthSession();
           setErrorMessage(
             `Access Denied: Account [${res.user.email}] holds role '${res.user.role}'. This terminal is restricted to Cashier desk staff only.`
           );
@@ -56,6 +57,9 @@ export const CashierLoginPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#0E2840] relative overflow-hidden text-white">
@@ -80,7 +84,7 @@ export const CashierLoginPage: React.FC = () => {
             </div>
           </Link>
           <span className="font-caption text-caption font-bold px-3 py-1 rounded-full bg-action-green/20 text-action-green border border-action-green/30">
-            PORT 5175 • CASHIER ONLY
+            {isLocalHost ? 'PORT 5175 • CASHIER ONLY' : 'CIRCULATION DESK TERMINAL • CASHIER ONLY'}
           </span>
         </div>
 

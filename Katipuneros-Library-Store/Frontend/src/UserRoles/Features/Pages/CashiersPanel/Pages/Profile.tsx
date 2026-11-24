@@ -697,7 +697,9 @@ export const CashierProfile: React.FC = () => {
               <div className="p-3.5 rounded-xl bg-surface-container-low space-y-2">
                 <div className="flex justify-between items-center text-small">
                   <span className="text-text-secondary">Session Origin</span>
-                  <span className="font-mono text-primary font-semibold">127.0.0.1:5173</span>
+                  <span className="font-mono text-primary font-semibold">
+                    {typeof window !== 'undefined' ? window.location.host || 'Cashier Terminal' : 'Cashier Terminal'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-small">
                   <span className="text-text-secondary">Terminal Node</span>

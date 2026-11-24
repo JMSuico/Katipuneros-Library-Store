@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Backend.Features.Api.DTOs.Requests;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Models;
@@ -23,6 +24,7 @@ public class NotificationService : INotificationService
     private readonly IReservationRepository _reservationRepository;
     private readonly IAuditRepository _auditRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ILogger<NotificationService>? _logger;
 
     private static readonly List<AnnouncementResponse> _announcements = new();
     private static readonly List<SystemAlertResponse> _systemAlerts = new();
@@ -35,13 +37,15 @@ public class NotificationService : INotificationService
         IBorrowRepository borrowRepository,
         IReservationRepository reservationRepository,
         IAuditRepository auditRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        ILogger<NotificationService>? logger = null)
     {
         _bookRepository = bookRepository;
         _borrowRepository = borrowRepository;
         _reservationRepository = reservationRepository;
         _auditRepository = auditRepository;
         _userRepository = userRepository;
+        _logger = logger;
         EnsureSeedData();
     }
 
@@ -313,7 +317,10 @@ public class NotificationService : INotificationService
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to compute reserve deficit system alerts.");
+        }
 
         // 2. Dynamic Check: Overdue Delinquencies
         try
@@ -345,7 +352,10 @@ public class NotificationService : INotificationService
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to compute overdue delinquency system alerts.");
+        }
 
         // Include any custom in-memory system alerts not resolved
         foreach (var sa in _systemAlerts.Where(a => !a.IsResolved && !_resolvedAlertIds.Contains(a.Id)))

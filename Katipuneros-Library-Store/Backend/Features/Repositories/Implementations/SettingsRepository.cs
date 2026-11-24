@@ -119,7 +119,7 @@ public class SettingsRepository : ISettingsRepository
 
         // 8. Statutory Reports & Dossiers
         var activeFines = await _context.FineTransactions.CountAsync(f => f.Status == "Unpaid");
-        var archivedFines = await _context.FineTransactions.CountAsync(f => f.Status == "Paid" || f.Status == "Waived");
+        var archivedFines = await _context.FineTransactions.CountAsync(f => f.Status == "Settled" || f.Status == "Waived");
 
         // 9. RBAC Security Grants
         var activeRbac = Math.Max(1, await _context.Users.Select(u => u.Role).Distinct().CountAsync());

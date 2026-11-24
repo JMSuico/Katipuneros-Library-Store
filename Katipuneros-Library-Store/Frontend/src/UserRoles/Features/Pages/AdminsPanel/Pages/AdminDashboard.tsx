@@ -162,6 +162,16 @@ const AdminDashboard: FC = () => {
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
+      let failedFeeds = 0;
+      const safeFetch = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await fn();
+        } catch {
+          failedFeeds += 1;
+          return fallback;
+        }
+      };
+
       const [
         usersData,
         booksData,
@@ -175,17 +185,17 @@ const AdminDashboard: FC = () => {
         authLogs,
         vData,
       ] = await Promise.all([
-        getAdminUsersList().catch(() => []),
-        getCatalogBooks().catch(() => []),
-        getBorrowingMetrics().catch(() => EMPTY_BORROWING_METRICS),
-        getAdminBorrowings('active').catch(() => []),
-        getReservationMetrics().catch(() => EMPTY_RESERVATION_METRICS),
-        getAdminReservations('pending').catch(() => []),
-        getReturnsMetrics().catch(() => EMPTY_RETURNS_METRICS),
-        getReturnsJournal().catch(() => []),
-        getAuditLogs({ pageSize: 100 }).catch(() => ({ items: [], totalCount: 0 })),
-        getAuthMonitorStream().catch(() => []),
-        getVelocityMetrics(velocityTimeframe).catch(() => null),
+        safeFetch(() => getAdminUsersList(), [] as AdminUserRecord[]),
+        safeFetch(() => getCatalogBooks(), [] as BackendBook[]),
+        safeFetch(() => getBorrowingMetrics(), EMPTY_BORROWING_METRICS),
+        safeFetch(() => getAdminBorrowings('active'), [] as BackendBorrowing[]),
+        safeFetch(() => getReservationMetrics(), EMPTY_RESERVATION_METRICS),
+        safeFetch(() => getAdminReservations('pending'), [] as BackendReservation[]),
+        safeFetch(() => getReturnsMetrics(), EMPTY_RETURNS_METRICS),
+        safeFetch(() => getReturnsJournal(), [] as ReturnJournalItem[]),
+        safeFetch(() => getAuditLogs({ pageSize: 100 }), { items: [] as AuditLogTableEntry[], totalCount: 0, page: 1, pageSize: 100, totalPages: 0 }),
+        safeFetch(() => getAuthMonitorStream(), [] as UserLoginAudit[]),
+        safeFetch(() => getVelocityMetrics(velocityTimeframe), null as CoreVelocityData | null),
       ]);
 
       setUsers(usersData || []);
@@ -199,6 +209,13 @@ const AdminDashboard: FC = () => {
       setActivityStream(auditData?.items || []);
       setAuthStream(authLogs || []);
       setVelocityData(vData || null);
+
+      if (failedFeeds > 0) {
+        addToast(
+          `Failed to synchronize ${failedFeeds} dashboard telemetry feed(s). Displayed metrics may be incomplete.`,
+          'error'
+        );
+      }
     } catch {
       addToast('Failed to synchronize executive dashboard metrics.', 'error');
     } finally {
@@ -209,21 +226,6 @@ const AdminDashboard: FC = () => {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
-
-  // Reactive reload when timeframe changes
-  useEffect(() => {
-    let isCancelled = false;
-    getVelocityMetrics(velocityTimeframe)
-      .then((res) => {
-        if (!isCancelled && res) {
-          setVelocityData(res);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isCancelled = true;
-    };
-  }, [velocityTimeframe]);
 
   // Network recovery & focus auto-refresh
   usePagesGlobalRefresh(loadDashboardData);

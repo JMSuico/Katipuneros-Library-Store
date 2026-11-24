@@ -219,7 +219,7 @@ public class AnalyticsService : IAnalyticsService
 
         // Month-over-month comparison is measured against the previous calendar
         // month's audit rows, not asserted as a constant.
-        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthStart = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var prevMonthStart = monthStart.AddMonths(-1);
         int thisMonthLogins = recentAudits.Count(a => a.Timestamp >= monthStart);
         int lastMonthLogins = recentAudits.Count(a => a.Timestamp >= prevMonthStart && a.Timestamp < monthStart);

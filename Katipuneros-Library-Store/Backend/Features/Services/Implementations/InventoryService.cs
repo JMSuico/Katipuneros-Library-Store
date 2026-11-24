@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Backend.Features.Api.DTOs.Responses;
 using Backend.Features.Data.Enums;
 using Backend.Features.Data.Models;
@@ -184,17 +185,30 @@ public class InventoryService : IInventoryService
     {
         if (ids == null || ids.Count == 0) return (0, "No inventory IDs provided.");
         var toDelete = new List<Book>();
+        var seenIds = new HashSet<Guid>();
         foreach (var id in ids)
         {
+            if (!seenIds.Add(id)) continue;
             if (await _bookRepository.GetByIdAsync(id) is { } book && book.TotalCopies <= book.AvailableCopies)
             {
                 toDelete.Add(book);
             }
         }
         if (toDelete.Count == 0) return (0, "No eligible inventory volumes to delete.");
-        await _bookRepository.DeleteRangeAsync(toDelete);
-        await _bookRepository.SaveChangesAsync();
-        return (toDelete.Count, null);
+        try
+        {
+            await _bookRepository.DeleteRangeAsync(toDelete);
+            await _bookRepository.SaveChangesAsync();
+            return (toDelete.Count, null);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return (0, "Record was modified by another operation. Please refresh and retry.");
+        }
+        catch (DbUpdateException)
+        {
+            return (0, "Cannot remove one or more selected inventory volumes: historical circulation or reservation records are linked.");
+        }
     }
 
     public async Task<(int SyncedCount, string Message)> TriggerMarcSyncAsync()

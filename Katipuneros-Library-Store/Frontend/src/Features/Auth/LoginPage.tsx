@@ -53,15 +53,17 @@ export const LoginPage: React.FC = () => {
         if (res.user.role === 'Customer') {
           navigate('/customer/home');
         } else if (res.user.role === 'Cashier') {
+          clearAuthSession();
           setErrorMessage(`Cashier desk staff must sign in at the dedicated Circulation Terminal (${getPortalUrl('cashier', '/cashier/login')}).`);
         } else {
+          clearAuthSession();
           setErrorMessage(`Admin access is restricted to the dedicated Admin Console (${getPortalUrl('admin', '/admin/login')}).`);
         }
       } else {
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Network connection failure. Unable to reach library API on port 5000.');
+      setErrorMessage('Network connection failure. Unable to reach the library API server.');
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +92,7 @@ export const LoginPage: React.FC = () => {
             </div>
           </Link>
           <span className="font-caption text-caption font-semibold px-3 py-1 rounded-full bg-surface-container text-primary">
-            PORT 5173 • PATRON
+            PATRON PORTAL
           </span>
         </div>
 

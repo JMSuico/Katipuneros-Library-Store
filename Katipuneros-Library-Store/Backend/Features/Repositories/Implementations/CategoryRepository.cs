@@ -22,7 +22,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<Category?> GetByIdAsync(Guid id) =>
-        await _readOnlyContext.Categories
+        await _context.Categories
             .Include(c => c.Books)
             .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -35,17 +35,31 @@ public class CategoryRepository : ICategoryRepository
     public async Task AddAsync(Category category) =>
         await _context.Categories.AddAsync(category);
 
-    public Task UpdateAsync(Category category) =>
-        Task.FromResult(_context.Categories.Update(category));
+    public Task UpdateAsync(Category category)
+    {
+        if (_context.Entry(category).State == EntityState.Detached)
+            _context.Categories.Update(category);
+        return Task.CompletedTask;
+    }
 
-    public Task DeleteAsync(Category category) =>
-        Task.FromResult(_context.Categories.Remove(category));
+    public Task DeleteAsync(Category category)
+    {
+        var target = ResolveTrackedForDelete(category);
+        _context.Categories.Remove(target);
+        return Task.CompletedTask;
+    }
 
     public Task DeleteRangeAsync(IEnumerable<Category> categories)
     {
-        _context.Categories.RemoveRange(categories);
+        var targets = categories.Select(ResolveTrackedForDelete).ToList();
+        _context.Categories.RemoveRange(targets);
         return Task.CompletedTask;
     }
+
+    private Category ResolveTrackedForDelete(Category category) =>
+        _context.Entry(category).State == EntityState.Detached
+            ? _context.Categories.Local.FirstOrDefault(c => c.Id == category.Id) ?? category
+            : category;
 
     public async Task<bool> SaveChangesAsync() =>
         await _context.SaveChangesAsync() > 0;

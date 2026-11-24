@@ -136,7 +136,6 @@ public class BookCopyService : IBookCopyService
         await _bookRepository.UpdateAsync(book);
 
         await _bookCopyRepository.SaveChangesAsync();
-        await _bookRepository.SaveChangesAsync();
 
         return (true, MapToDto(copy), null);
     }
@@ -178,7 +177,6 @@ public class BookCopyService : IBookCopyService
 
         await _bookCopyRepository.UpdateAsync(copy);
         await _bookCopyRepository.SaveChangesAsync();
-        await _bookRepository.SaveChangesAsync();
 
         var fineTariffs = await GetFineTariffsAsync();
         decimal dailyRate = fineTariffs.DailyOverdueTariff > 0
@@ -198,7 +196,7 @@ public class BookCopyService : IBookCopyService
         if (copy.Status == CopyStatus.Borrowed)
             return (false, "Cannot remove a copy that is currently on circulation loan.");
 
-        var book = await _bookRepository.GetByIdAsync(copy.BookId);
+        var book = copy.Book ?? await _bookRepository.GetByIdAsync(copy.BookId);
         if (book != null)
         {
             book.TotalCopies = Math.Max(0, book.TotalCopies - 1);
@@ -210,7 +208,6 @@ public class BookCopyService : IBookCopyService
 
         await _bookCopyRepository.DeleteAsync(copy);
         await _bookCopyRepository.SaveChangesAsync();
-        await _bookRepository.SaveChangesAsync();
 
         return (true, null);
     }

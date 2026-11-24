@@ -63,10 +63,12 @@ const SignupPage = lazy(() => import('./Features/Auth/SignupPage'));
 const AdminLoginPage = lazy(() => import('./Features/Auth/AdminLoginPage'));
 
 import { useAccountTheme } from './Hooks/useAccountTheme';
-import { getPortalUrl } from './Endpoints/authApi';
+import { getPortalUrl, isCurrentPortAdmin, isCurrentPortCashier } from './Endpoints/authApi';
 
 const PortNotice = ({ targetPortal, targetPort, targetRole, targetPath }: { targetPortal: 'admin' | 'cashier'; targetPort: string; targetRole: string; targetPath: string }) => {
   const targetUrl = getPortalUrl(targetPortal, targetPath);
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local');
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
       <div className="max-w-md w-full p-8 rounded-3xl bg-surface-container border border-outline-variant shadow-xl text-center space-y-4">
@@ -77,7 +79,7 @@ const PortNotice = ({ targetPortal, targetPort, targetRole, targetPath }: { targ
           Dedicated {targetRole} Terminal
         </h2>
         <p className="font-body text-body text-text-secondary">
-          To maintain strict session security and prevent multi-role credential collisions, {targetRole} operations are hosted on their dedicated portal (Local Port {targetPort}).
+          To maintain strict session security and prevent multi-role credential collisions, {targetRole} operations are hosted on their dedicated portal{isLocalHost ? ` (Local Port ${targetPort})` : ''}.
         </p>
         <a
           href={targetUrl}
@@ -91,13 +93,10 @@ const PortNotice = ({ targetPortal, targetPort, targetRole, targetPath }: { targ
   );
 };
 
-function App() {
+const App = () => {
   useAccountTheme();
-  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
-  const port = typeof window !== 'undefined' ? window.location.port : '';
-  const portalEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL ? String(import.meta.env.VITE_PORTAL).toLowerCase() : '');
-  const isPortAdmin = portalEnv === 'admin' || port === '5174' || host.startsWith('admin.') || host.includes('-admin.') || host.includes('admin');
-  const isPortCashier = portalEnv === 'cashier' || port === '5175' || host.startsWith('cashier.') || host.includes('-cashier.') || host.includes('cashier');
+  const isPortAdmin = isCurrentPortAdmin();
+  const isPortCashier = isCurrentPortCashier();
 
   return (
     <Suspense

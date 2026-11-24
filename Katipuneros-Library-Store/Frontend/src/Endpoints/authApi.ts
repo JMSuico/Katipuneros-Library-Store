@@ -107,13 +107,20 @@ export const getPortalUrl = (portal: 'customer' | 'admin' | 'cashier', path = ''
   return `${base}${normalizedPath}`;
 };
 
+const getPortalEnv = (): string =>
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL
+    ? String(import.meta.env.VITE_PORTAL).trim().toLowerCase()
+    : '';
+
 export const isCurrentPortAdmin = (): boolean => {
+  const portalEnv = getPortalEnv();
+  if (portalEnv) {
+    return portalEnv === 'admin';
+  }
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname.toLowerCase();
   const port = window.location.port;
-  const portalEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL ? String(import.meta.env.VITE_PORTAL).toLowerCase() : '');
   return (
-    portalEnv === 'admin' ||
     port === '5174' ||
     host.startsWith('admin.') ||
     host.includes('-admin.') ||
@@ -122,12 +129,14 @@ export const isCurrentPortAdmin = (): boolean => {
 };
 
 export const isCurrentPortCashier = (): boolean => {
+  const portalEnv = getPortalEnv();
+  if (portalEnv) {
+    return portalEnv === 'cashier';
+  }
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname.toLowerCase();
   const port = window.location.port;
-  const portalEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL ? String(import.meta.env.VITE_PORTAL).toLowerCase() : '');
   return (
-    portalEnv === 'cashier' ||
     port === '5175' ||
     host.startsWith('cashier.') ||
     host.includes('-cashier.') ||
